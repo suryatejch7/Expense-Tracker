@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../models/quick_action_item.dart';
 import '../widgets/glass_bottom_sheet.dart';
+import '../screens/search_screen.dart';
 
 class GlassNavBar extends StatefulWidget {
   final int currentIndex;
@@ -124,7 +125,7 @@ class _GlassNavBarState extends State<GlassNavBar>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       isScrollControlled: true,
       builder: (context) => GlassBottomSheet(items: items),
     );
@@ -137,7 +138,13 @@ class _GlassNavBarState extends State<GlassNavBar>
           icon: Icons.search,
           title: 'Search',
           subtitle: 'Find specific expenses',
-          onTap: () => Navigator.pop(context),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SearchScreen()),
+            );
+          },
         ),
         QuickActionItem(
           icon: Icons.settings_outlined,
@@ -183,22 +190,22 @@ class _GlassNavBarState extends State<GlassNavBar>
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Colors.white.withOpacity(0.15),
-                          Colors.white.withOpacity(0.08),
+                          Colors.white.withValues(alpha: 0.15),
+                          Colors.white.withValues(alpha: 0.08),
                         ],
                       ),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         width: 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
+                          color: Colors.black.withValues(alpha: 0.15),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 40,
                           offset: const Offset(0, 16),
                         ),
@@ -256,7 +263,7 @@ class _GlassNavBarState extends State<GlassNavBar>
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(25),
               color: isActive
-                  ? Colors.white.withOpacity(0.12)
+                  ? Colors.white.withValues(alpha: 0.12)
                   : Colors.transparent,
             ),
             child: Column(
@@ -275,7 +282,7 @@ class _GlassNavBarState extends State<GlassNavBar>
                     key: ValueKey(isActive),
                     color: isActive
                         ? Colors.white
-                        : Colors.white.withOpacity(0.7),
+                        : Colors.white.withValues(alpha: 0.7),
                     size: 24,
                   ),
                 ),
@@ -287,7 +294,7 @@ class _GlassNavBarState extends State<GlassNavBar>
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                     color: isActive
                         ? Colors.white
-                        : Colors.white.withOpacity(0.7),
+                        : Colors.white.withValues(alpha: 0.7),
                   ),
                   child: Text(label),
                 ),
