@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../widgets/expense_card.dart';
 import '../widgets/category_summary.dart';
-import '../widgets/search_bar.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -49,12 +48,6 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-          ),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: CustomSearchBar(),
             ),
           ),
           const SliverToBoxAdapter(
