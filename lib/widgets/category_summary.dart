@@ -37,6 +37,9 @@ class CategorySummary extends StatelessWidget {
                   final category = categoryTotals.keys.elementAt(index);
                   final amount = categoryTotals[category]!;
                   final percentage = (amount / expenseProvider.totalExpense * 100);
+                  final isOverBudget = expenseProvider.isCategoryOverBudget(category);
+                  final budgetExcess = expenseProvider.getCategoryBudgetExcess(category);
+                  final budget = expenseProvider.getCategoryBudget(category);
 
                   return Padding(
                     padding: const EdgeInsets.only(right: 16),
@@ -46,7 +49,9 @@ class CategorySummary extends StatelessWidget {
                         color: const Color(0xFF2A2A2A),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: category.color.withValues(alpha: 0.3),
+                          color: isOverBudget
+                              ? Colors.red.withValues(alpha: 0.5)
+                              : category.color.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
@@ -59,12 +64,14 @@ class CategorySummary extends StatelessWidget {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: category.color.withValues(alpha: 0.2),
+                                color: isOverBudget
+                                    ? Colors.red.withValues(alpha: 0.2)
+                                    : category.color.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
                                 category.icon,
-                                color: category.color,
+                                color: isOverBudget ? Colors.red : category.color,
                                 size: 20,
                               ),
                             ),
@@ -85,23 +92,40 @@ class CategorySummary extends StatelessWidget {
                               '₹${amount.toStringAsFixed(0)}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: category.color,
                                 fontWeight: FontWeight.bold,
+                                color: isOverBudget ? Colors.red : Colors.white,
                               ),
                               textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                            Text(
-                              '${percentage.toStringAsFixed(1)}%',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey,
+                            if (isOverBudget) ...[
+                              Text(
+                                '+₹${budgetExcess.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            ] else if (budget > 0) ...[
+                              Text(
+                                '${percentage.toStringAsFixed(0)}%',
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  color: Colors.grey,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ] else ...[
+                              Text(
+                                '${percentage.toStringAsFixed(0)}%',
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  color: Colors.grey,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ],
                         ),
                       ),

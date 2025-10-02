@@ -136,6 +136,9 @@ class TotalExpenseWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ExpenseProvider>(
       builder: (context, expenseProvider, child) {
+        final isOverBudget = expenseProvider.isOverBudget;
+        final budgetExcess = expenseProvider.budgetExcess;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -146,14 +149,39 @@ class TotalExpenseWidget extends StatelessWidget {
                 color: Colors.grey,
               ),
             ),
-            Text(
-              '₹${expenseProvider.totalExpense.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+            Row(
+              children: [
+                Text(
+                  '₹${expenseProvider.totalExpense.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: isOverBudget ? Colors.red : Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                if (isOverBudget) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '(+₹${budgetExcess.toStringAsFixed(0)} over)',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
+              ],
             ),
+            if (expenseProvider.monthlyBudget > 0 && !isOverBudget) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Budget: ₹${expenseProvider.monthlyBudget.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
           ],
         );
       },
