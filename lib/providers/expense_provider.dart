@@ -4,8 +4,13 @@ import '../models/expense.dart';
 class ExpenseProvider extends ChangeNotifier {
   final List<Expense> _expenses = [];
   String _searchQuery = '';
+  String _userName = 'Surya Tej';
+  double _monthlyBudget = 0.0;
+  Map<ExpenseCategory, double> _categoryBudgets = {};
 
   List<Expense> get expenses => _expenses;
+  String get userName => _userName;
+  double get monthlyBudget => _monthlyBudget;
 
   List<Expense> get filteredExpenses {
     if (_searchQuery.isEmpty) {
@@ -60,4 +65,47 @@ class ExpenseProvider extends ChangeNotifier {
   }
 
   String get searchQuery => _searchQuery;
+
+  bool get isOverBudget => _monthlyBudget > 0 && totalExpense > _monthlyBudget;
+  double get budgetExcess => isOverBudget ? totalExpense - _monthlyBudget : 0;
+
+  void updateUserName(String name) {
+    _userName = name;
+    notifyListeners();
+  }
+
+  void updateMonthlyBudget(double budget) {
+    _monthlyBudget = budget;
+    notifyListeners();
+  }
+
+  void setCategoryBudget(ExpenseCategory category, double budget) {
+    if (budget <= 0) {
+      _categoryBudgets.remove(category);
+    } else {
+      _categoryBudgets[category] = budget;
+    }
+    notifyListeners();
+  }
+
+  double getCategoryBudget(ExpenseCategory category) {
+    return _categoryBudgets[category] ?? 0.0;
+  }
+
+  double getCategoryExpenses(ExpenseCategory category) {
+    return _expenses
+        .where((expense) => expense.category == category)
+        .fold(0.0, (sum, expense) => sum + expense.amount);
+  }
+
+  bool isCategoryOverBudget(ExpenseCategory category) {
+    final budget = getCategoryBudget(category);
+    return budget > 0 && getCategoryExpenses(category) > budget;
+  }
+
+  double getCategoryBudgetExcess(ExpenseCategory category) {
+    final budget = getCategoryBudget(category);
+    final spent = getCategoryExpenses(category);
+    return budget > 0 && spent > budget ? spent - budget : 0;
+  }
 }
