@@ -3,6 +3,8 @@ import 'dart:ui';
 import '../models/quick_action_item.dart';
 import '../widgets/glass_bottom_sheet.dart';
 import '../screens/search_screen.dart';
+import '../screens/settings_screen.dart';
+import '../screens/analytics_screen.dart';
 
 class GlassNavBar extends StatefulWidget {
   final int currentIndex;
@@ -150,7 +152,13 @@ class _GlassNavBarState extends State<GlassNavBar>
           icon: Icons.settings_outlined,
           title: 'Settings',
           subtitle: 'App preferences',
-          onTap: () => Navigator.pop(context),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SettingsScreen()),
+            );
+          },
         ),
       ];
     } else {
@@ -159,7 +167,13 @@ class _GlassNavBarState extends State<GlassNavBar>
           icon: Icons.pie_chart_outline,
           title: 'Analytics',
           subtitle: 'View spending insights',
-          onTap: () => Navigator.pop(context),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+            );
+          },
         ),
       ];
     }
