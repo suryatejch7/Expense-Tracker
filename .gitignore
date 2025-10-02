@@ -123,3 +123,6 @@ local.properties
 *.njsproj
 *.sln
 *.sw?
+
+# Ignore Android heap dumps
+android/java_pid21420.hprof

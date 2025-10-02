@@ -266,6 +266,12 @@ class _GlassNavBarState extends State<GlassNavBar>
           onTapUp: (_) => _onTapUp(index),
           onTapCancel: _onTapCancel,
           onLongPress: () => _showQuickActions(index),
+          onVerticalDragEnd: (details) {
+            if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
+              // Swipe up detected
+              _showQuickActions(index);
+            }
+          },
           child: Container(
             width: 80,
             height: 50,
@@ -299,11 +305,11 @@ class _GlassNavBarState extends State<GlassNavBar>
                 AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 200),
                   style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                     color: isActive
                         ? Colors.white
                         : Colors.white.withValues(alpha: 0.7),
+                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 12,
                   ),
                   child: Text(label),
                 ),
