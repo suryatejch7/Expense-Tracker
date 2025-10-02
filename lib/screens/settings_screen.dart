@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
-import '../models/expense.dart';
+import '../models/custom_category.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -235,10 +235,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Categories List
-                      ...ExpenseCategory.values.map((category) {
-                        final budget = provider.getCategoryBudget(category);
-                        final spent = provider.getCategoryExpenses(category);
+                      // Custom Categories List
+                      ...provider.customCategories.map((category) {
+                        final budget = provider.getCustomCategoryBudget(category.id);
+                        final spent = provider.getCustomCategoryExpenses(category.id);
                         final isOverBudget = budget > 0 && spent > budget;
 
                         return Container(
@@ -263,31 +263,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     children: [
                                       Icon(
                                         category.icon,
-                                        color: Theme.of(context).colorScheme.primary,
+                                        color: category.color,
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        category.displayName,
+                                        category.name,
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
+                                      if (category.isDefault) ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Text(
+                                            'Default',
+                                            style: TextStyle(
+                                              color: Colors.blue,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                   Row(
                                     children: [
                                       IconButton(
-                                        onPressed: () => _showCategoryBudgetDialog(category),
+                                        onPressed: () => _showCustomCategoryBudgetDialog(category),
                                         icon: const Icon(
                                           Icons.edit,
                                           color: Colors.grey,
                                           size: 20,
                                         ),
                                       ),
-                                      if (category != ExpenseCategory.food) // Don't allow deleting default categories
+                                      if (!category.isDefault) // Only allow deleting custom categories
                                         IconButton(
-                                          onPressed: () => _showDeleteCategoryDialog(category),
+                                          onPressed: () => _showDeleteCustomCategoryDialog(category),
                                           icon: const Icon(
                                             Icons.delete,
                                             color: Colors.red,
@@ -318,10 +336,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               if (budget > 0) ...[
                                 const SizedBox(height: 8),
                                 LinearProgressIndicator(
-                                  value: spent / budget,
+                                  value: (spent / budget).clamp(0.0, 1.0),
                                   backgroundColor: Colors.grey.withValues(alpha: 0.3),
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    isOverBudget ? Colors.red : Theme.of(context).colorScheme.primary,
+                                    isOverBudget ? Colors.red : category.color,
                                   ),
                                 ),
                               ],
@@ -378,73 +396,187 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showAddCategoryDialog() {
     _categoryNameController.clear();
+    IconData selectedIcon = Icons.category;
+    Color selectedColor = Colors.blue;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2A2A2A),
-        title: const Text(
-          'Add Category',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: TextField(
-          controller: _categoryNameController,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            labelText: 'Category Name',
-            labelStyle: const TextStyle(color: Colors.grey),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.grey.withValues(alpha: 0.5),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: const Color(0xFF2A2A2A),
+          title: const Text(
+            'Add Category',
+            style: TextStyle(color: Colors.white),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // For now, we'll show a message that custom categories aren't implemented yet
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Custom categories feature coming soon!'),
-                  backgroundColor: Colors.orange,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Category Name Input
+                TextField(
+                  controller: _categoryNameController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Category Name',
+                    labelStyle: const TextStyle(color: Colors.grey),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.grey.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
                 ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
+                const SizedBox(height: 20),
+
+                // Icon Selection
+                const Text(
+                  'Choose Icon',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  height: 200,
+                  width: double.maxFinite,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A1A),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: GridView.builder(
+                    padding: const EdgeInsets.all(8),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 6,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemCount: CategoryIcons.availableIcons.length,
+                    itemBuilder: (context, index) {
+                      final icon = CategoryIcons.availableIcons[index];
+                      final isSelected = icon == selectedIcon;
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            selectedIcon = icon;
+                          });
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isSelected ? selectedColor.withValues(alpha: 0.3) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isSelected ? selectedColor : Colors.grey.withValues(alpha: 0.3),
+                              width: isSelected ? 2 : 1,
+                            ),
+                          ),
+                          child: Icon(
+                            icon,
+                            color: isSelected ? selectedColor : Colors.grey,
+                            size: 24,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Color Selection
+                const Text(
+                  'Choose Color',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: CategoryIcons.availableColors.map((color) {
+                    final isSelected = color == selectedColor;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          selectedColor = color;
+                        });
+                      },
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? Colors.white : Colors.transparent,
+                            width: 3,
+                          ),
+                        ),
+                        child: isSelected
+                          ? const Icon(Icons.check, color: Colors.white, size: 20)
+                          : null,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
             ),
-            child: const Text('Add'),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (_categoryNameController.text.isNotEmpty) {
+                  final newCategory = CustomCategory(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    name: _categoryNameController.text,
+                    icon: selectedIcon,
+                    color: selectedColor,
+                    isDefault: false,
+                  );
+
+                  context.read<ExpenseProvider>().addCustomCategory(newCategory);
+                  Navigator.pop(context);
+
+                  // Short duration success message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Category "${_categoryNameController.text}" added successfully!'),
+                      backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 1), // Fixed: 1 second duration
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+              ),
+              child: const Text('Add'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _showCategoryBudgetDialog(ExpenseCategory category) {
+  void _showCustomCategoryBudgetDialog(CustomCategory category) {
     final provider = context.read<ExpenseProvider>();
-    _categoryBudgetController.text = provider.getCategoryBudget(category).toString();
+    _categoryBudgetController.text = provider.getCustomCategoryBudget(category.id).toString();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
         title: Text(
-          'Set Budget for ${category.displayName}',
+          'Set Budget for ${category.name}',
           style: const TextStyle(color: Colors.white),
         ),
         content: TextField(
@@ -481,16 +613,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ElevatedButton(
             onPressed: () {
               final budget = double.tryParse(_categoryBudgetController.text) ?? 0;
-              provider.setCategoryBudget(category, budget);
+              provider.setCustomCategoryBudget(category.id, budget);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
                     budget > 0
-                        ? 'Budget set to ₹${budget.toStringAsFixed(0)} for ${category.displayName}'
-                        : 'Budget removed for ${category.displayName}',
+                        ? 'Budget set to ₹${budget.toStringAsFixed(0)} for ${category.name}'
+                        : 'Budget removed for ${category.name}',
                   ),
                   backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 1), // Fixed: 1 second duration
                 ),
               );
             },
@@ -504,7 +637,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showDeleteCategoryDialog(ExpenseCategory category) {
+  void _showDeleteCustomCategoryDialog(CustomCategory category) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -514,7 +647,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: TextStyle(color: Colors.white),
         ),
         content: Text(
-          'Are you sure you want to delete ${category.displayName}? This action cannot be undone.',
+          'Are you sure you want to delete "${category.name}"? This action cannot be undone and all expenses in this category will be moved to "Other".',
           style: const TextStyle(color: Colors.white),
         ),
         actions: [
@@ -524,11 +657,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ElevatedButton(
             onPressed: () {
+              context.read<ExpenseProvider>().removeCustomCategory(category.id);
               Navigator.pop(context);
+
+              // Short duration success message
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Delete category feature coming soon!'),
-                  backgroundColor: Colors.orange,
+                SnackBar(
+                  content: Text('Category "${category.name}" deleted successfully!'),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 1), // Fixed: 1 second duration
                 ),
               );
             },

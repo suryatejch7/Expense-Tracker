@@ -1,203 +1,93 @@
 import 'package:flutter/material.dart';
-import '../../providers/expense_provider.dart';
-import 'spending_trend_painter.dart';
-import 'pie_chart_painter.dart';
-import 'monthly_comparison_painter.dart';
+import '../../models/expense.dart';
 
-class AnalyticsWidgets {
-  static Widget buildAnalyticsCard({
-    required String title,
-    required Widget child,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          child,
-        ],
-      ),
-    );
+/// Custom painter for pie chart visualization
+class PieChartPainter extends CustomPainter {
+  final Map<ExpenseCategory, double> categoryData;
+  final List<Color> colors;
+
+  PieChartPainter({
+    required this.categoryData,
+    required this.colors,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 10;
+
+    double total = categoryData.values.fold(0, (sum, value) => sum + value);
+    if (total == 0) return;
+
+    double startAngle = -90 * (3.14159 / 180); // Start from top
+    int colorIndex = 0;
+
+    for (final entry in categoryData.entries) {
+      final sweepAngle = (entry.value / total) * 2 * 3.14159;
+
+      final paint = Paint()
+        ..color = colors[colorIndex % colors.length]
+        ..style = PaintingStyle.fill;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        true,
+        paint,
+      );
+
+      startAngle += sweepAngle;
+      colorIndex++;
+    }
   }
 
-  static Widget buildPeriodSelector({
-    required String selectedPeriod,
-    required List<String> periods,
-    required Function(String) onPeriodChanged,
-    required BuildContext context,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: periods.map((period) {
-          final isSelected = selectedPeriod == period;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onPeriodChanged(period),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  period,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.grey,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
 
-  static Widget buildTotalSpendingCard({
-    required ExpenseProvider provider,
-    required String selectedPeriod,
-    required double periodData,
-    required double previousPeriodData,
-  }) {
-    final changePercent = previousPeriodData > 0
-        ? ((periodData - previousPeriodData) / previousPeriodData * 100)
-        : 0.0;
+/// Custom painter for monthly comparison bar chart
+class MonthlyComparisonPainter extends CustomPainter {
+  final List<double> monthlyData;
+  final Color barColor;
+  final Color backgroundColor;
 
-    return buildAnalyticsCard(
-      title: 'Total Spending - $selectedPeriod',
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '₹${periodData.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              if (changePercent != 0) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: changePercent > 0 ? Colors.red : Colors.green,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        changePercent > 0 ? Icons.arrow_upward : Icons.arrow_downward,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${changePercent.abs().toStringAsFixed(1)}%',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'vs Previous $selectedPeriod: ₹${previousPeriodData.toStringAsFixed(0)}',
-            style: const TextStyle(color: Colors.grey, fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
+  MonthlyComparisonPainter({
+    required this.monthlyData,
+    required this.barColor,
+    required this.backgroundColor,
+  });
 
-  static Widget buildSpendingTrendCard({
-    required ExpenseProvider provider,
-    required String selectedPeriod,
-  }) {
-    return buildAnalyticsCard(
-      title: 'Spending Trend',
-      child: SizedBox(
-        height: 150,
-        child: CustomPaint(
-          painter: SpendingTrendPainter(
-            expenses: provider.expenses,
-            period: selectedPeriod,
-          ),
-          size: const Size.fromHeight(150),
-        ),
-      ),
-    );
-  }
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (monthlyData.isEmpty) return;
 
-  static Widget buildCategoryPieChart(ExpenseProvider provider) {
-    final categoryTotals = provider.categoryTotals;
-    if (categoryTotals.isEmpty) {
-      return buildAnalyticsCard(
-        title: 'Category Breakdown',
-        child: const Center(
-          child: Text(
-            'No data available',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ),
+    final maxValue = monthlyData.reduce((a, b) => a > b ? a : b);
+    if (maxValue == 0) return;
+
+    final barWidth = size.width / monthlyData.length;
+
+    for (int i = 0; i < monthlyData.length; i++) {
+      final barHeight = (monthlyData[i] / maxValue) * size.height;
+
+      final rect = Rect.fromLTWH(
+        i * barWidth + 5,
+        size.height - barHeight,
+        barWidth - 10,
+        barHeight,
+      );
+
+      final paint = Paint()
+        ..color = barColor
+        ..style = PaintingStyle.fill;
+
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+        paint,
       );
     }
-
-    return buildAnalyticsCard(
-      title: 'Category Breakdown',
-      child: SizedBox(
-        height: 200,
-        child: CustomPaint(
-          painter: PieChartPainter(categoryTotals: categoryTotals),
-          size: const Size.fromHeight(200),
-        ),
-      ),
-    );
   }
 
-  static Widget buildMonthlyComparison(ExpenseProvider provider) {
-    return buildAnalyticsCard(
-      title: 'Monthly Comparison',
-      child: SizedBox(
-        height: 150,
-        child: CustomPaint(
-          painter: MonthlyComparisonPainter(expenses: provider.expenses),
-          size: const Size.fromHeight(150),
-        ),
-      ),
-    );
-  }
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

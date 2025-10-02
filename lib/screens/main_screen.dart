@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
 import 'categories_screen.dart';
 import 'add_expense_screen.dart';
+import 'transaction_scanner_screen.dart';
 import '../widgets/liquid_glass_nav_bar.dart';
 
 class MainScreen extends StatefulWidget {
@@ -72,7 +73,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               child: GestureDetector(
                 onLongPress: () {
                   _fabController.forward().then((_) => _fabController.reverse());
-                  _showGPayOptions(context);
+                  _showTransactionOptions(context);
                 },
                 child: FloatingActionButton(
                   onPressed: () {
@@ -95,36 +96,94 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     );
   }
 
-  void _showGPayOptions(BuildContext context) {
-    final RenderBox button = context.findRenderObject() as RenderBox;
-    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final RelativeRect position = RelativeRect.fromRect(
-      Rect.fromPoints(
-        button.localToGlobal(Offset.zero, ancestor: overlay),
-        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
-      ),
-      Offset.zero & overlay.size,
-    );
-
-    showMenu(
+  void _showTransactionOptions(BuildContext context) {
+    showModalBottomSheet(
       context: context,
-      position: position,
-      items: <PopupMenuEntry<String>>[
-        const PopupMenuItem<String>(
-          value: 'gpay_clean',
-          child: Text('GPay (Clean)'),
+      backgroundColor: const Color(0xFF2A2A2A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Add Expense',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.edit, color: Colors.blue),
+              ),
+              title: const Text(
+                'Manual Entry',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Enter expense details manually',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddExpenseScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.document_scanner, color: Colors.green),
+              ),
+              title: const Text(
+                'Scan Transaction',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Extract data from payment app screenshot',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TransactionScannerScreen(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
         ),
-        const PopupMenuItem<String>(
-          value: 'gpay_normal',
-          child: Text('GPay (Normal)'),
-        ),
-      ],
-      elevation: 8.0,
-    ).then((String? value) {
-      if (value != null) {
-        // Handle the selected option
-        // Removed print statement for production code
-      }
-    });
+      ),
+    );
   }
 }

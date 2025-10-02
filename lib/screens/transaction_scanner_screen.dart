@@ -1,0 +1,697 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../models/transaction_ocr_models.dart';
+import '../services/transaction_processing_service.dart';
+import '../services/app_source_selection_service.dart';
+import '../screens/add_expense_screen.dart';
+
+/// Screen for handling transaction screenshot intake and processing
+class TransactionScannerScreen extends StatefulWidget {
+  final File? initialImage;
+
+  const TransactionScannerScreen({super.key, this.initialImage});
+
+  @override
+  State<TransactionScannerScreen> createState() => _TransactionScannerScreenState();
+}
+
+class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
+  File? _selectedImage;
+  PaymentApp? _selectedApp;
+  bool _isProcessing = false;
+  ExtractedTransaction? _extractedData;
+  String? _errorMessage;
+  double _processingProgress = 0.0;
+  List<String> _processingSteps = [];
+
+  final ImagePicker _imagePicker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialImage != null) {
+      _selectedImage = widget.initialImage;
+      // Auto-select app source if image is shared
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _selectAppSource();
+      });
+    }
+  }
+
+  /// Select app source automatically when image is shared
+  Future<void> _selectAppSource() async {
+    final selectedApp = await AppSourceSelectionService.showAppSelectionDialog(context);
+    if (selectedApp != null) {
+      setState(() {
+        _selectedApp = selectedApp;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text(
+          'Scan Transaction',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.black,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildImageSection(),
+            const SizedBox(height: 24),
+            _buildAppSelectionSection(),
+            const SizedBox(height: 24),
+            _buildProcessingSection(),
+            if (_processingSteps.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              _buildProcessingStepsSection(),
+            ],
+            if (_extractedData != null) ...[
+              const SizedBox(height: 24),
+              _buildExtractedDataSection(),
+            ],
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 24),
+              _buildErrorSection(),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Transaction Screenshot',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_selectedImage == null) ...[
+            GestureDetector(
+              onTap: _showImageSourceDialog,
+              child: Container(
+                height: 200,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.grey.withOpacity(0.3),
+                    style: BorderStyle.solid,
+                  ),
+                ),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.add_photo_alternate,
+                      color: Colors.grey,
+                      size: 48,
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'Tap to select transaction screenshot',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ] else ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                _selectedImage!,
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _showImageSourceDialog,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Change Image'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2A2A2A),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _selectedImage = null;
+                      _extractedData = null;
+                      _errorMessage = null;
+                      _processingSteps = [];
+                    });
+                  },
+                  icon: const Icon(Icons.delete),
+                  label: const Text('Remove'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.withOpacity(0.2),
+                    foregroundColor: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppSelectionSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Select Payment App',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: PaymentApp.values.where((app) => app != PaymentApp.unknown).map((app) {
+              final isSelected = _selectedApp == app;
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedApp = app;
+                    _extractedData = null;
+                    _errorMessage = null;
+                    _processingSteps = [];
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isSelected ? app.color.withOpacity(0.2) : const Color(0xFF2A2A2A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? app.color : Colors.grey.withOpacity(0.3),
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        app.icon,
+                        color: isSelected ? app.color : Colors.grey,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        app.displayName,
+                        style: TextStyle(
+                          color: isSelected ? app.color : Colors.grey,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProcessingSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Process Transaction',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_isProcessing) ...[
+            LinearProgressIndicator(
+              value: _processingProgress,
+              backgroundColor: Colors.grey.withOpacity(0.3),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '${(_processingProgress * 100).toStringAsFixed(0)}% - Processing transaction data...',
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+              ),
+            ),
+          ] else ...[
+            ElevatedButton.icon(
+              onPressed: _canProcess() ? _processTransaction : null,
+              icon: const Icon(Icons.document_scanner),
+              label: const Text('Extract Transaction Data'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text(
+            _canProcess()
+                ? 'Ready to process ${_selectedApp?.displayName} screenshot'
+                : 'Select image and payment app to continue',
+            style: const TextStyle(
+              color: Colors.grey,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProcessingStepsSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.settings,
+                color: Colors.blue,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Processing Steps',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ..._processingSteps.map((step) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    step,
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExtractedDataSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.green.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.check_circle,
+                color: Colors.green,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Extracted Data',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${_extractedData!.confidence.toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildDataField('Amount', _extractedData!.amount ?? 'Not found'),
+          _buildDataField('Payee', _extractedData!.payeeName ?? 'Not found'),
+          _buildDataField('Date', _extractedData!.date ?? 'Not found'),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _addToExpenses,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add to Expenses'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: _editTransaction,
+                icon: const Icon(Icons.edit),
+                label: const Text('Edit'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2A2A2A),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataField(String label, String value) {
+    final isFound = value != 'Not found';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: isFound ? Colors.white : Colors.red,
+                fontSize: 14,
+                fontWeight: isFound ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.error,
+                color: Colors.red,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Processing Error',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _errorMessage!,
+            style: const TextStyle(
+              color: Colors.red,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _processTransaction,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Try Again'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.withOpacity(0.2),
+              foregroundColor: Colors.red,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show dialog to select image source
+  Future<void> _showImageSourceDialog() async {
+    final source = await showDialog<ImageSource>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text(
+          'Select Image Source',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.blue),
+              title: const Text('Camera', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.of(context).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.green),
+              title: const Text('Gallery', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source != null) {
+      final pickedFile = await _imagePicker.pickImage(source: source);
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+          _extractedData = null;
+          _errorMessage = null;
+          _processingSteps = [];
+        });
+      }
+    }
+  }
+
+  /// Check if processing can be started
+  bool _canProcess() {
+    return _selectedImage != null && _selectedApp != null && !_isProcessing;
+  }
+
+  /// Process transaction using the complete pipeline
+  Future<void> _processTransaction() async {
+    if (!_canProcess()) return;
+
+    setState(() {
+      _isProcessing = true;
+      _processingProgress = 0.0;
+      _extractedData = null;
+      _errorMessage = null;
+      _processingSteps = [];
+    });
+
+    try {
+      final result = await TransactionProcessingService.processTransactionScreenshot(
+        _selectedImage!,
+        _selectedApp!,
+        onProgress: (progress) {
+          setState(() {
+            _processingProgress = progress;
+          });
+        },
+      );
+
+      setState(() {
+        _isProcessing = false;
+        _processingProgress = 1.0;
+        _processingSteps = result.processingSteps;
+      });
+
+      if (result.success) {
+        setState(() {
+          _extractedData = result.extractedTransaction;
+        });
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ Transaction data extracted successfully! Confidence: ${result.extractedTransaction!.confidence.toStringAsFixed(0)}%'
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        setState(() {
+          _errorMessage = result.error ?? 'Unknown processing error';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isProcessing = false;
+        _errorMessage = 'Failed to process transaction: $e';
+      });
+    }
+  }
+
+  /// Add extracted transaction to expenses
+  void _addToExpenses() {
+    if (_extractedData == null) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AddExpenseScreen(
+          prefilledAmount: double.tryParse(_extractedData!.amount ?? '0'),
+        ),
+      ),
+    );
+  }
+
+  /// Edit extracted transaction data
+  void _editTransaction() {
+    // Navigate to edit screen or show edit dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text(
+          'Edit Transaction Data',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Manual editing functionality coming soon!',
+          style: TextStyle(color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -5,7 +5,7 @@ import '../providers/expense_provider.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   final Expense? expense;
-  final double? prefilledAmount; // Add this for OCR integration
+  final double? prefilledAmount;
 
   const AddExpenseScreen({super.key, this.expense, this.prefilledAmount});
 
@@ -20,6 +20,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _noteController = TextEditingController();
 
   ExpenseCategory _selectedCategory = ExpenseCategory.other;
+  String? _selectedCustomCategoryId;
   DateTime _selectedDate = DateTime.now();
 
   @override
@@ -31,6 +32,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _amountController.text = widget.expense!.amount.toString();
       _noteController.text = widget.expense!.note ?? '';
       _selectedCategory = widget.expense!.category;
+      _selectedCustomCategoryId = widget.expense!.customCategoryId;
       _selectedDate = widget.expense!.date;
     } else if (widget.prefilledAmount != null) {
       // OCR pre-filled amount
@@ -48,7 +50,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ],
             ),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 1), // Fixed: 1 second duration
           ),
         );
       });
@@ -155,96 +157,134 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Widget _buildCategorySelector() {
-    return SizedBox(
-      height: 100,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: ExpenseCategory.values.length,
-        itemBuilder: (context, index) {
-          final category = ExpenseCategory.values[index];
-          final isSelected = category == _selectedCategory;
+    return Consumer<ExpenseProvider>(
+      builder: (context, provider, child) {
+        final categories = provider.customCategories;
 
-          return Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedCategory = category;
-                });
-              },
-              child: Container(
-                width: 70,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? category.color.withValues(alpha: 0.2)
-                      : const Color(0xFF2A2A2A),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected
-                        ? category.color
-                        : Colors.transparent,
-                    width: 2,
+        return SizedBox(
+          height: 100,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: categories.length,
+            itemBuilder: (context, index) {
+              final category = categories[index];
+              final isSelected = _selectedCustomCategoryId == category.id;
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedCustomCategoryId = category.id;
+                      // Map to corresponding enum for backward compatibility
+                      switch (category.id) {
+                        case 'food':
+                          _selectedCategory = ExpenseCategory.food;
+                          break;
+                        case 'transport':
+                          _selectedCategory = ExpenseCategory.transport;
+                          break;
+                        case 'entertainment':
+                          _selectedCategory = ExpenseCategory.entertainment;
+                          break;
+                        case 'shopping':
+                          _selectedCategory = ExpenseCategory.shopping;
+                          break;
+                        case 'bills':
+                          _selectedCategory = ExpenseCategory.bills;
+                          break;
+                        case 'health':
+                          _selectedCategory = ExpenseCategory.health;
+                          break;
+                        case 'education':
+                          _selectedCategory = ExpenseCategory.education;
+                          break;
+                        case 'travel':
+                          _selectedCategory = ExpenseCategory.travel;
+                          break;
+                        default:
+                          _selectedCategory = ExpenseCategory.other;
+                      }
+                    });
+                  },
+                  child: Container(
+                    width: 70,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? category.color.withValues(alpha: 0.2)
+                          : const Color(0xFF2A2A2A),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? category.color
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          category.icon,
+                          color: isSelected ? category.color : Colors.grey,
+                          size: 24,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          category.name,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isSelected ? category.color : Colors.grey,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      category.icon,
-                      color: isSelected ? category.color : Colors.grey,
-                      size: 24,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      category.displayName,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: isSelected ? category.color : Colors.grey,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
   Widget _buildDateSelector() {
-    return InkWell(
-      onTap: _selectDate,
+    return GestureDetector(
+      onTap: () async {
+        final DateTime? picked = await showDatePicker(
+          context: context,
+          initialDate: _selectedDate,
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now(),
+        );
+        if (picked != null && picked != _selectedDate) {
+          setState(() {
+            _selectedDate = picked;
+          });
+        }
+      },
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: const Color(0xFF2A2A2A),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF3A3A3A)),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            Text(
+              '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
             Icon(
               Icons.calendar_today,
               color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white,
-              ),
-            ),
-            const Spacer(),
-            const Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.grey,
-              size: 16,
             ),
           ],
         ),
@@ -252,61 +292,45 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  Future<void> _selectDate() async {
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (pickedDate != null) {
-      setState(() {
-        _selectedDate = pickedDate;
-      });
-    }
-  }
-
   void _saveExpense() {
     if (_formKey.currentState!.validate()) {
+      final title = _titleController.text.trim();
+      final amount = double.parse(_amountController.text.trim());
+      final note = _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
+
       final expense = Expense(
         id: widget.expense?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-        title: _titleController.text.trim(),
-        amount: double.parse(_amountController.text.trim()),
+        title: title,
+        amount: amount,
         category: _selectedCategory,
         date: _selectedDate,
-        note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+        note: note,
+        customCategoryId: _selectedCustomCategoryId,
       );
 
+      final provider = context.read<ExpenseProvider>();
+
       if (widget.expense != null) {
-        context.read<ExpenseProvider>().updateExpense(expense);
+        provider.updateExpense(expense);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Expense updated successfully'),
+            content: Text('Expense updated successfully!'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 1), // Fixed: 1 second duration
           ),
         );
       } else {
-        context.read<ExpenseProvider>().addExpense(expense);
+        provider.addExpense(expense);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Expense added successfully'),
+            content: Text('Expense added successfully!'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 1), // Fixed: 1 second duration
           ),
         );
       }
 
-      Navigator.of(context).pop();
+      Navigator.pop(context);
     }
   }
 

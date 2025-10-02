@@ -90,6 +90,7 @@ class Expense {
   final ExpenseCategory category;
   final DateTime date;
   final String? note;
+  final String? customCategoryId; // New: Support for custom categories
 
   Expense({
     required this.id,
@@ -98,7 +99,29 @@ class Expense {
     required this.category,
     required this.date,
     this.note,
+    this.customCategoryId,
   });
+
+  // Copy constructor for updates
+  Expense copyWith({
+    String? id,
+    String? title,
+    double? amount,
+    ExpenseCategory? category,
+    DateTime? date,
+    String? note,
+    String? customCategoryId,
+  }) {
+    return Expense(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      amount: amount ?? this.amount,
+      category: category ?? this.category,
+      date: date ?? this.date,
+      note: note ?? this.note,
+      customCategoryId: customCategoryId ?? this.customCategoryId,
+    );
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -108,6 +131,7 @@ class Expense {
       'category': category.name,
       'date': date.toIso8601String(),
       'note': note,
+      'customCategoryId': customCategoryId,
     };
   }
 
@@ -119,6 +143,7 @@ class Expense {
       category: ExpenseCategory.values.firstWhere((e) => e.name == json['category']),
       date: DateTime.parse(json['date']),
       note: json['note'],
+      customCategoryId: json['customCategoryId'],
     );
   }
 }

@@ -61,6 +61,11 @@ class CategoriesScreen extends StatelessWidget {
               final amount = entry.value;
               final percentage = (amount / expenseProvider.totalExpense * 100);
 
+              // Backend logic for overspending detection
+              final budget = expenseProvider.getCategoryBudget(category);
+              final isOverBudget = expenseProvider.isCategoryOverBudget(category);
+              final budgetExcess = expenseProvider.getCategoryBudgetExcess(category);
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 child: InkWell(
@@ -72,76 +77,182 @@ class CategoriesScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: category.color.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Icon(
-                            category.icon,
-                            color: category.color,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: isOverBudget
+                        ? Border.all(color: Colors.red, width: 2)
+                        : null,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Row(
                             children: [
-                              Text(
-                                category.displayName,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                              Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  color: isOverBudget
+                                    ? Colors.red.withValues(alpha: 0.2)
+                                    : category.color.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Icon(
+                                  category.icon,
+                                  color: isOverBudget ? Colors.red : category.color,
+                                  size: 28,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${expenseProvider.getExpensesByCategory(category).length} expenses',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey,
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          category.displayName,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                            color: isOverBudget ? Colors.red : Colors.white,
+                                          ),
+                                        ),
+                                        if (isOverBudget) ...[
+                                          const SizedBox(width: 8),
+                                          Icon(
+                                            Icons.warning,
+                                            color: Colors.red,
+                                            size: 20,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${expenseProvider.getExpensesByCategory(category).length} expenses',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    if (budget > 0) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Budget: ₹${budget.toStringAsFixed(0)}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '₹${amount.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: isOverBudget ? Colors.red : Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${percentage.toStringAsFixed(1)}%',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: isOverBudget ? Colors.red : category.color,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(
+                                Icons.arrow_forward_ios,
+                                color: Colors.grey,
+                                size: 16,
                               ),
                             ],
                           ),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '₹${amount.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                          // Show overspending details if over budget
+                          if (isOverBudget) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${percentage.toStringAsFixed(1)}%',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: category.color,
-                                fontWeight: FontWeight.w500,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Over budget by ₹${budgetExcess.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          color: Colors.grey,
-                          size: 16,
-                        ),
-                      ],
+                          // Show budget progress bar if budget is set
+                          if (budget > 0) ...[
+                            const SizedBox(height: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Budget Progress',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[400],
+                                      ),
+                                    ),
+                                    Text(
+                                      '${((amount / budget) * 100).toStringAsFixed(0)}%',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isOverBudget ? Colors.red : Colors.grey[400],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                LinearProgressIndicator(
+                                  value: (amount / budget).clamp(0.0, 1.0),
+                                  backgroundColor: Colors.grey.withValues(alpha: 0.3),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    isOverBudget ? Colors.red : category.color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
