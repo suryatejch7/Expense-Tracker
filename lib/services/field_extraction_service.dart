@@ -176,7 +176,9 @@ class FieldExtractionService {
     if (RegExp(r'^[^\w\s]+$').hasMatch(text)) return false; // Pure symbols
     if (text.toLowerCase().contains('transaction') ||
         text.toLowerCase().contains('payment') ||
-        text.toLowerCase().contains('transfer')) return false;
+        text.toLowerCase().contains('transfer')) {
+      return false;
+    }
 
     return true;
   }

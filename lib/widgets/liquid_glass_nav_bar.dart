@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:vector_math/vector_math_64.dart' as vmath;
 import '../models/quick_action_item.dart';
 import '../widgets/glass_bottom_sheet.dart';
 import '../screens/search_screen.dart';
@@ -25,9 +26,11 @@ class _GlassNavBarState extends State<GlassNavBar>
   late AnimationController _pressController;
   late AnimationController _highlightController;
   late AnimationController _activeController;
+  late AnimationController _swipeController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _highlightAnimation;
   late Animation<double> _activeAnimation;
+  late Animation<double> _swipeAnimation;
 
   @override
   void initState() {
@@ -48,6 +51,11 @@ class _GlassNavBarState extends State<GlassNavBar>
 
     _activeController = AnimationController(
       duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _swipeController = AnimationController(
+      duration: const Duration(milliseconds: 400),
       vsync: this,
     );
 
@@ -74,6 +82,14 @@ class _GlassNavBarState extends State<GlassNavBar>
       parent: _activeController,
       curve: Curves.easeInOutCubic,
     ));
+
+    _swipeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _swipeController,
+      curve: Curves.easeInOutBack,
+    ));
   }
 
   @override
@@ -81,6 +97,7 @@ class _GlassNavBarState extends State<GlassNavBar>
     _pressController.dispose();
     _highlightController.dispose();
     _activeController.dispose();
+    _swipeController.dispose();
     super.dispose();
   }
 
@@ -174,6 +191,31 @@ class _GlassNavBarState extends State<GlassNavBar>
     }
   }
 
+  void _handleHorizontalSwipe(DragEndDetails details) {
+    const double swipeThreshold = 100.0;
+
+    if (details.primaryVelocity!.abs() > swipeThreshold) {
+      if (details.primaryVelocity! > 0) {
+        // Swipe right: Dashboard (0) → Categories (1)
+        if (widget.currentIndex == 0) {
+          _animateSwipeTransition(1);
+        }
+      } else {
+        // Swipe left: Categories (1) → Dashboard (0)
+        if (widget.currentIndex == 1) {
+          _animateSwipeTransition(0);
+        }
+      }
+    }
+  }
+
+  void _animateSwipeTransition(int newIndex) {
+    _swipeController.forward().then((_) {
+      widget.onTap(newIndex);
+      _swipeController.reverse();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Positioned(
@@ -182,60 +224,67 @@ class _GlassNavBarState extends State<GlassNavBar>
       right: 0,
       child: Center(
         child: AnimatedBuilder(
-          animation: _scaleAnimation,
+          animation: Listenable.merge([_scaleAnimation, _swipeAnimation]),
           builder: (context, child) {
             return Transform.scale(
               scale: _scaleAnimation.value,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(35),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                  child: Container(
-                    height: 70,
-                    width: 200,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(35),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.15),
-                          Colors.white.withValues(alpha: 0.08),
+              child: GestureDetector(
+                onHorizontalDragEnd: _handleHorizontalSwipe,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(35),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      height: 70,
+                      width: 200,
+                      transform: Matrix4.identity()
+                        ..setTranslationRaw(_swipeAnimation.value * 10 * (widget.currentIndex == 0 ? 1 : -1), 0, 0)
+                        ..scaleByVector3(vmath.Vector3.all(1.0 + (_swipeAnimation.value * 0.015))),// <-- THIS IS THE CORRECTED LINE
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(35),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.15 + (_swipeAnimation.value * 0.05)),
+                            Colors.white.withValues(alpha: 0.08 + (_swipeAnimation.value * 0.03)),
+                          ],
+                        ),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.3 + (_swipeAnimation.value * 0.2)),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 20 + (_swipeAnimation.value * 10),
+                            offset: const Offset(0, 8),
+                          ),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 40 + (_swipeAnimation.value * 20),
+                            offset: const Offset(0, 16),
+                          ),
                         ],
                       ),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        width: 1.5,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildNavItem(
+                            index: 0,
+                            icon: Icons.dashboard_rounded,
+                            activeIcon: Icons.dashboard,
+                            label: 'Dashboard',
+                          ),
+                          _buildNavItem(
+                            index: 1,
+                            icon: Icons.pie_chart_outline_rounded,
+                            activeIcon: Icons.pie_chart_rounded,
+                            label: 'Categories',
+                          ),
+                        ],
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 40,
-                          offset: const Offset(0, 16),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildNavItem(
-                          index: 0,
-                          icon: Icons.dashboard_rounded,
-                          activeIcon: Icons.dashboard,
-                          label: 'Dashboard',
-                        ),
-                        _buildNavItem(
-                          index: 1,
-                          icon: Icons.pie_chart_outline_rounded,
-                          activeIcon: Icons.pie_chart_rounded,
-                          label: 'Categories',
-                        ),
-                      ],
                     ),
                   ),
                 ),
@@ -272,6 +321,7 @@ class _GlassNavBarState extends State<GlassNavBar>
               _showQuickActions(index);
             }
           },
+          onHorizontalDragEnd: _handleHorizontalSwipe,
           child: Container(
             width: 80,
             height: 50,

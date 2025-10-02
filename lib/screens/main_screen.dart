@@ -75,6 +75,13 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                   _fabController.forward().then((_) => _fabController.reverse());
                   _showTransactionOptions(context);
                 },
+                onVerticalDragEnd: (details) {
+                  if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
+                    // Swipe up detected
+                    _fabController.forward().then((_) => _fabController.reverse());
+                    _showTransactionOptions(context);
+                  }
+                },
                 child: FloatingActionButton(
                   onPressed: () {
                     Navigator.of(context).push(
