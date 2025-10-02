@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import '../../models/expense.dart';
 
 class PieChartPainter extends CustomPainter {
-  final Map<ExpenseCategory, double> categoryTotals;
+  final Map<String, double> categoryTotals;
 
   PieChartPainter({required this.categoryTotals});
 
@@ -34,7 +33,7 @@ class PieChartPainter extends CustomPainter {
     ];
 
     int colorIndex = 0;
-    categoryTotals.forEach((category, value) {
+    categoryTotals.forEach((categoryName, value) {
       final sweepAngle = (value / total) * 2 * math.pi;
       paint.color = colors[colorIndex % colors.length];
 

@@ -1,8 +1,7 @@
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/transaction_ocr_models.dart';
-import 'image_preprocessing_service.dart';
 
 /// Secondary OCR service using Tesseract/EasyOCR for enhanced accuracy on critical fields
 class TesseractOcrService {
@@ -35,7 +34,7 @@ class TesseractOcrService {
             results[fieldName] = tesseractResult;
           }
         } catch (e) {
-          print('Tesseract OCR failed for $fieldName: $e');
+          debugPrint('Tesseract OCR failed for $fieldName: $e');
           // Fallback to EasyOCR if Tesseract fails
           try {
             final easyOcrResult = await _runEasyOcr(cropFile, fieldName);
@@ -43,7 +42,7 @@ class TesseractOcrService {
               results[fieldName] = easyOcrResult;
             }
           } catch (e2) {
-            print('EasyOCR also failed for $fieldName: $e2');
+            debugPrint('EasyOCR also failed for $fieldName: $e2');
           }
         }
 
@@ -54,7 +53,7 @@ class TesseractOcrService {
       }
 
     } catch (e) {
-      print('Secondary OCR pipeline failed: $e');
+      debugPrint('Secondary OCR pipeline failed: $e');
     }
 
     return results;
@@ -138,7 +137,7 @@ class TesseractOcrService {
         return cropFile;
       }
     } catch (e) {
-      print('Failed to create crop for $fieldName: $e');
+      debugPrint('Failed to create crop for $fieldName: $e');
     }
 
     return null;

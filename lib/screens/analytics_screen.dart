@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/expense_models.dart';
 import '../providers/expense_provider.dart';
-import '../models/expense.dart';
 import 'dart:math' as math;
 
 class AnalyticsScreen extends StatefulWidget {
@@ -221,6 +221,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Widget _buildTopCategoriesCard(ExpenseProvider provider) {
     final categoryTotals = provider.categoryTotals;
+    final categories = provider.categories;
     final sortedCategories = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -228,10 +229,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       title: 'Top Categories',
       child: Column(
         children: sortedCategories.take(5).map((entry) {
-          final category = entry.key;
+          final categoryName = entry.key;
           final amount = entry.value;
           final percentage = (amount / provider.totalExpense * 100);
-          final isOverBudget = provider.isCategoryOverBudget(category);
+          final isOverBudget = provider.isCategoryOverBudget(categoryName);
+
+          // Find the category object
+          final category = categories.firstWhere(
+            (cat) => cat.name == categoryName,
+            orElse: () => ExpenseCategory(
+              id: categoryName,
+              name: categoryName,
+              icon: '📦',
+              colorHex: '#747D8C',
+              createdAt: DateTime.now(),
+            ),
+          );
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -256,10 +269,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         : category.color.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
+                  child: Text(
                     category.icon,
-                    color: isOverBudget ? Colors.red : category.color,
-                    size: 20,
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: isOverBudget ? Colors.red : category.color,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -370,11 +385,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ],
 
           // Category Budgets
-          ...ExpenseCategory.values.where((category) {
-            return provider.getCategoryBudget(category) > 0;
+          ...provider.categories.where((category) {
+            return provider.getCategoryBudget(category.name) > 0;
           }).map((category) {
-            final budget = provider.getCategoryBudget(category);
-            final spent = provider.getCategoryExpenses(category);
+            final budget = provider.getCategoryBudget(category.name);
+            final spent = provider.getCategoryExpenses(category.name);
             final isOverBudget = spent > budget;
             final percentage = (spent / budget).clamp(0.0, 1.0);
 
@@ -395,10 +410,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(
+                      Text(
                         category.icon,
-                        color: isOverBudget ? Colors.red : category.color,
-                        size: 20,
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: isOverBudget ? Colors.red : category.color,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -577,13 +594,26 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   List<Map<String, dynamic>> _generateInsights(ExpenseProvider provider) {
     final insights = <Map<String, dynamic>>[];
     final categoryTotals = provider.categoryTotals;
+    final categories = provider.categories;
 
     if (categoryTotals.isNotEmpty) {
       final topCategory = categoryTotals.entries.reduce((a, b) => a.value > b.value ? a : b);
+      // Find the category object for display name
+      final topCategoryObj = categories.firstWhere(
+        (cat) => cat.name == topCategory.key,
+        orElse: () => ExpenseCategory(
+          id: topCategory.key,
+          name: topCategory.key,
+          icon: '📦',
+          colorHex: '#747D8C',
+          createdAt: DateTime.now(),
+        ),
+      );
+
       insights.add({
         'icon': Icons.trending_up,
         'color': Colors.blue,
-        'text': '${topCategory.key.displayName} is your highest spending category (₹${topCategory.value.toStringAsFixed(0)})',
+        'text': '${topCategoryObj.displayName} is your highest spending category (₹${topCategory.value.toStringAsFixed(0)})',
       });
     }
 
@@ -595,7 +625,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       });
     }
 
-    final overBudgetCategories = ExpenseCategory.values.where(provider.isCategoryOverBudget).length;
+    final overBudgetCategories = categories.where((category) =>
+        provider.isCategoryOverBudget(category.name)).length;
     if (overBudgetCategories > 0) {
       insights.add({
         'icon': Icons.category,
@@ -683,7 +714,7 @@ class SpendingTrendPainter extends CustomPainter {
 }
 
 class PieChartPainter extends CustomPainter {
-  final Map<ExpenseCategory, double> categoryTotals;
+  final Map<String, double> categoryTotals;
 
   PieChartPainter({required this.categoryTotals});
 
@@ -695,10 +726,25 @@ class PieChartPainter extends CustomPainter {
 
     double startAngle = -math.pi / 2;
 
+    final colors = [
+      Colors.blue,
+      Colors.red,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.yellow,
+      Colors.cyan,
+      Colors.pink,
+      Colors.teal,
+      Colors.indigo,
+    ];
+
+    int colorIndex = 0;
+
     for (final entry in categoryTotals.entries) {
       final sweepAngle = (entry.value / total) * 2 * math.pi;
       final paint = Paint()
-        ..color = entry.key.color
+        ..color = colors[colorIndex % colors.length]
         ..style = PaintingStyle.fill;
 
       canvas.drawArc(
@@ -710,6 +756,7 @@ class PieChartPainter extends CustomPainter {
       );
 
       startAngle += sweepAngle;
+      colorIndex++;
     }
   }
 

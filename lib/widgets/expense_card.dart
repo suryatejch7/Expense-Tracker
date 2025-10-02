@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/expense.dart';
+import '../models/expense_models.dart';
 import '../providers/expense_provider.dart';
 import '../screens/add_expense_screen.dart';
 
@@ -9,8 +9,61 @@ class ExpenseCard extends StatelessWidget {
 
   const ExpenseCard({super.key, required this.expense});
 
+  // Category color mapping for the new string-based category system
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'food':
+        return Colors.orange;
+      case 'transport':
+        return Colors.blue;
+      case 'shopping':
+        return Colors.purple;
+      case 'entertainment':
+        return Colors.pink;
+      case 'health':
+        return Colors.red;
+      case 'education':
+        return Colors.indigo;
+      case 'bills':
+        return Colors.yellow;
+      case 'travel':
+        return Colors.green;
+      case 'other':
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // Category icon mapping for the new string-based category system
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'food':
+        return Icons.restaurant;
+      case 'transport':
+        return Icons.directions_car;
+      case 'shopping':
+        return Icons.shopping_bag;
+      case 'entertainment':
+        return Icons.movie;
+      case 'health':
+        return Icons.medical_services;
+      case 'education':
+        return Icons.school;
+      case 'bills':
+        return Icons.receipt;
+      case 'travel':
+        return Icons.flight;
+      case 'other':
+      default:
+        return Icons.category;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final categoryColor = _getCategoryColor(expense.category);
+    final categoryIcon = _getCategoryIcon(expense.category);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -30,12 +83,12 @@ class ExpenseCard extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: expense.category.color.withValues(alpha: 0.2),
+                  color: categoryColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  expense.category.icon,
-                  color: expense.category.color,
+                  categoryIcon,
+                  color: categoryColor,
                   size: 24,
                 ),
               ),
@@ -45,7 +98,7 @@ class ExpenseCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      expense.title,
+                      expense.description,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -54,24 +107,12 @@ class ExpenseCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      expense.category.displayName,
+                      expense.category.toUpperCase(),
                       style: TextStyle(
                         fontSize: 14,
-                        color: expense.category.color,
+                        color: categoryColor,
                       ),
                     ),
-                    if (expense.note != null && expense.note!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        expense.note!,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -147,7 +188,7 @@ class ExpenseCard extends StatelessWidget {
           backgroundColor: const Color(0xFF2A2A2A),
           title: const Text('Delete Expense', style: TextStyle(color: Colors.white)),
           content: Text(
-            'Are you sure you want to delete "${expense.title}"?',
+            'Are you sure you want to delete "${expense.description}"?',
             style: const TextStyle(color: Colors.white),
           ),
           actions: [
@@ -157,11 +198,11 @@ class ExpenseCard extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {
-                context.read<ExpenseProvider>().removeExpense(expense.id);
+                context.read<ExpenseProvider>().deleteExpense(expense.id!);
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('${expense.title} deleted'),
+                    content: Text('${expense.description} deleted'),
                     backgroundColor: Colors.red,
                   ),
                 );

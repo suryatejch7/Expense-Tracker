@@ -53,23 +53,19 @@ class ExtractedTransaction {
   final String? payeeName;
   final String? date;
   final String? transactionId;
-  final PaymentApp sourceApp;
   final double confidence;
-  final DateTime extractionTime;
 
   ExtractedTransaction({
     this.amount,
     this.payeeName,
     this.date,
     this.transactionId,
-    required this.sourceApp,
     required this.confidence,
-    required this.extractionTime,
   });
 
   @override
   String toString() {
-    return 'ExtractedTransaction(amount: $amount, payee: $payeeName, date: $date, app: $sourceApp, confidence: ${confidence.toStringAsFixed(1)}%)';
+    return 'ExtractedTransaction(amount: $amount, payee: $payeeName, date: $date, confidence: ${confidence.toStringAsFixed(1)}%)';
   }
 }
 
@@ -162,11 +158,13 @@ class PaymentAppTemplate {
       case PaymentApp.phonePe:
         return PaymentAppTemplate(
           app: app,
-          cropRegion: CropRegion(x: 0.0, y: 0.1, width: 1.0, height: 0.8),
+          // Optimized crop region: top 12%, bottom 24%, left 0%, right 100%
+          cropRegion: CropRegion(x: 0.0, y: 0.12, width: 1.0, height: 0.12),
           fieldRegions: {
-            'amount': CropRegion(x: 0.1, y: 0.2, width: 0.8, height: 0.3),
-            'payee': CropRegion(x: 0.1, y: 0.4, width: 0.8, height: 0.2),
-            'date': CropRegion(x: 0.1, y: 0.7, width: 0.8, height: 0.1),
+            // Amount is located in the right 40% of the cropped area (60%-100% left)
+            'amount': CropRegion(x: 0.6, y: 0.0, width: 0.4, height: 1.0),
+            'payee': CropRegion(x: 0.0, y: 0.0, width: 0.6, height: 1.0),
+            'date': CropRegion(x: 0.0, y: 0.0, width: 1.0, height: 0.3),
           },
           fieldKeywords: {
             'amount': ['₹', 'Rs', 'Amount', 'Paid'],
@@ -212,5 +210,120 @@ class PaymentAppTemplate {
           fieldKeywords: {},
         );
     }
+  }
+}
+
+/// Models for OCR (Optical Character Recognition) transaction processing
+
+class TransactionOCRResult {
+  final String rawText;
+  final double? amount;
+  final String? payee;
+  final String? paymentApp;
+  final String? transactionId;
+  final DateTime? transactionDate;
+  final double confidence;
+  final List<String> extractedFields;
+
+  TransactionOCRResult({
+    required this.rawText,
+    this.amount,
+    this.payee,
+    this.paymentApp,
+    this.transactionId,
+    this.transactionDate,
+    this.confidence = 0.0,
+    this.extractedFields = const [],
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'rawText': rawText,
+      'amount': amount,
+      'payee': payee,
+      'paymentApp': paymentApp,
+      'transactionId': transactionId,
+      'transactionDate': transactionDate?.toIso8601String(),
+      'confidence': confidence,
+      'extractedFields': extractedFields,
+    };
+  }
+
+  factory TransactionOCRResult.fromMap(Map<String, dynamic> map) {
+    return TransactionOCRResult(
+      rawText: map['rawText'] ?? '',
+      amount: map['amount']?.toDouble(),
+      payee: map['payee'],
+      paymentApp: map['paymentApp'],
+      transactionId: map['transactionId'],
+      transactionDate: map['transactionDate'] != null
+          ? DateTime.parse(map['transactionDate'])
+          : null,
+      confidence: (map['confidence'] ?? 0.0).toDouble(),
+      extractedFields: List<String>.from(map['extractedFields'] ?? []),
+    );
+  }
+
+  bool get isValid => amount != null && amount! > 0;
+}
+
+class OCRTextBlock {
+  final String text;
+  final double confidence;
+  final int lineNumber;
+  final String fieldType; // amount, payee, date, etc.
+
+  OCRTextBlock({
+    required this.text,
+    required this.confidence,
+    required this.lineNumber,
+    this.fieldType = 'unknown',
+  });
+
+  factory OCRTextBlock.fromMap(Map<String, dynamic> map) {
+    return OCRTextBlock(
+      text: map['text'] ?? '',
+      confidence: (map['confidence'] ?? 0.0).toDouble(),
+      lineNumber: map['lineNumber'] ?? 0,
+      fieldType: map['fieldType'] ?? 'unknown',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'text': text,
+      'confidence': confidence,
+      'lineNumber': lineNumber,
+      'fieldType': fieldType,
+    };
+  }
+}
+
+class PaymentAppPatterns {
+  static const Map<String, List<String>> patterns = {
+    'paytm': ['paytm', 'paid via paytm', 'paytm payment'],
+    'phonepe': ['phonepe', 'phone pe', 'paid via phonepe'],
+    'googlepay': ['google pay', 'gpay', 'g pay', 'paid using google pay'],
+    'amazonpay': ['amazon pay', 'amazon payment', 'paid via amazon'],
+    'bhim': ['bhim', 'bhim upi', 'upi payment'],
+    'mobikwik': ['mobikwik', 'mobi kwik', 'paid via mobikwik'],
+    'freecharge': ['freecharge', 'free charge', 'paid via freecharge'],
+    'paypal': ['paypal', 'paid via paypal'],
+    'razorpay': ['razorpay', 'razor pay', 'paid via razorpay'],
+    'cashfree': ['cashfree', 'cash free', 'paid via cashfree'],
+  };
+
+  static String? detectPaymentApp(String text) {
+    final lowerText = text.toLowerCase();
+
+    for (final entry in patterns.entries) {
+      for (final pattern in entry.value) {
+        if (lowerText.contains(pattern)) {
+          return entry.key;
+        }
+      }
+    }
+
+    return null;
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/expense.dart';
 import '../providers/expense_provider.dart';
+import '../models/expense_models.dart';
 
 class CategorySummary extends StatelessWidget {
   const CategorySummary({super.key});
@@ -11,6 +11,7 @@ class CategorySummary extends StatelessWidget {
     return Consumer<ExpenseProvider>(
       builder: (context, expenseProvider, child) {
         final categoryTotals = expenseProvider.categoryTotals;
+        final categories = expenseProvider.categories;
 
         if (categoryTotals.isEmpty) {
           return const SizedBox.shrink();
@@ -34,12 +35,23 @@ class CategorySummary extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 itemCount: categoryTotals.length,
                 itemBuilder: (context, index) {
-                  final category = categoryTotals.keys.elementAt(index);
-                  final amount = categoryTotals[category]!;
+                  final categoryName = categoryTotals.keys.elementAt(index);
+                  final amount = categoryTotals[categoryName]!;
                   final percentage = (amount / expenseProvider.totalExpense * 100);
-                  final isOverBudget = expenseProvider.isCategoryOverBudget(category);
-                  final budgetExcess = expenseProvider.getCategoryBudgetExcess(category);
-                  final budget = expenseProvider.getCategoryBudget(category);
+                  final isOverBudget = expenseProvider.isCategoryOverBudget(categoryName);
+                  final budget = expenseProvider.getCategoryBudget(categoryName);
+
+                  // Find the category object
+                  final category = categories.firstWhere(
+                    (cat) => cat.name == categoryName,
+                    orElse: () => ExpenseCategory(
+                      id: categoryName,
+                      name: categoryName,
+                      icon: '📦',
+                      colorHex: '#747D8C',
+                      createdAt: DateTime.now(),
+                    ),
+                  );
 
                   return Padding(
                     padding: const EdgeInsets.only(right: 16),
@@ -52,82 +64,60 @@ class CategorySummary extends StatelessWidget {
                           color: isOverBudget
                               ? Colors.red.withValues(alpha: 0.5)
                               : category.color.withValues(alpha: 0.3),
-                          width: 1,
+                          width: 2,
                         ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: isOverBudget
-                                    ? Colors.red.withValues(alpha: 0.2)
-                                    : category.color.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                category.icon,
-                                color: isOverBudget ? Colors.red : category.color,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              category.displayName,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '₹${amount.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isOverBudget ? Colors.red : Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            if (isOverBudget) ...[
-                              Text(
-                                '+₹${budgetExcess.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.red,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ] else if (budget > 0) ...[
-                              Text(
-                                '${percentage.toStringAsFixed(0)}%',
-                                style: const TextStyle(
-                                  fontSize: 8,
-                                  color: Colors.grey,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ] else ...[
-                              Text(
-                                '${percentage.toStringAsFixed(0)}%',
-                                style: const TextStyle(
-                                  fontSize: 8,
-                                  color: Colors.grey,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            const Color(0xFF2A2A2A),
+                            isOverBudget
+                                ? Colors.red.withValues(alpha: 0.2)
+                                : category.color.withValues(alpha: 0.2),
                           ],
                         ),
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            category.icon,
+                            style: TextStyle(
+                              fontSize: 24,
+                              color: isOverBudget ? Colors.red : category.color,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            category.displayName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '₹${amount.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: isOverBudget ? Colors.red : Colors.white,
+                            ),
+                          ),
+                          if (budget > 0)
+                            Text(
+                              '${percentage.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isOverBudget ? Colors.red : Colors.white60,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   );

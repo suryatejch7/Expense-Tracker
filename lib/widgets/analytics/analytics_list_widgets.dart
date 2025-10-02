@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../providers/expense_provider.dart';
-import '../../models/expense.dart';
+import '../../models/expense_models.dart';
 
 class AnalyticsListWidgets {
   static Widget buildTopCategoriesCard(ExpenseProvider provider) {
     final categoryTotals = provider.categoryTotals;
+    final categories = provider.categories;
     final sortedCategories = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -12,10 +13,22 @@ class AnalyticsListWidgets {
       title: 'Top Categories',
       child: Column(
         children: sortedCategories.take(5).map((entry) {
-          final category = entry.key;
+          final categoryName = entry.key;
           final amount = entry.value;
           final percentage = (amount / provider.totalExpense * 100);
-          final isOverBudget = provider.isCategoryOverBudget(category);
+          final isOverBudget = provider.isCategoryOverBudget(categoryName);
+
+          // Find the category object
+          final category = categories.firstWhere(
+            (cat) => cat.name == categoryName,
+            orElse: () => ExpenseCategory(
+              id: categoryName,
+              name: categoryName,
+              icon: '📦',
+              colorHex: '#747D8C',
+              createdAt: DateTime.now(),
+            ),
+          );
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -40,10 +53,14 @@ class AnalyticsListWidgets {
                         : category.color.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
-                    category.icon,
-                    color: isOverBudget ? Colors.red : category.color,
-                    size: 20,
+                  child: Center(
+                    child: Text(
+                      category.icon,
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: isOverBudget ? Colors.red : category.color,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -154,11 +171,11 @@ class AnalyticsListWidgets {
           ],
 
           // Category Budgets
-          ...ExpenseCategory.values.where((category) {
-            return provider.getCategoryBudget(category) > 0;
+          ...provider.categories.where((category) {
+            return provider.getCategoryBudget(category.name) > 0;
           }).map((category) {
-            final budget = provider.getCategoryBudget(category);
-            final spent = provider.getCategoryExpenses(category);
+            final budget = provider.getCategoryBudget(category.name);
+            final spent = provider.getCategoryExpenses(category.name);
             final isOverBudget = spent > budget;
             final percentage = (spent / budget).clamp(0.0, 1.0);
 
@@ -179,21 +196,22 @@ class AnalyticsListWidgets {
                 children: [
                   Row(
                     children: [
-                      Icon(
+                      Text(
                         category.icon,
-                        color: isOverBudget ? Colors.red : category.color,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          category.displayName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: isOverBudget ? Colors.red : category.color,
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      Text(
+                        category.displayName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
                       Text(
                         '₹${spent.toStringAsFixed(0)} / ₹${budget.toStringAsFixed(0)}',
                         style: TextStyle(
@@ -308,19 +326,33 @@ class AnalyticsListWidgets {
 
     // Most expensive category
     final categoryTotals = provider.categoryTotals;
+    final categories = provider.categories;
+
     if (categoryTotals.isNotEmpty) {
       final topCategory = categoryTotals.entries.reduce((a, b) => a.value > b.value ? a : b);
+      // Find the category object for display name
+      final topCategoryObj = categories.firstWhere(
+        (cat) => cat.name == topCategory.key,
+        orElse: () => ExpenseCategory(
+          id: topCategory.key,
+          name: topCategory.key,
+          icon: '📦',
+          colorHex: '#747D8C',
+          createdAt: DateTime.now(),
+        ),
+      );
+
       insights.add({
         'icon': Icons.trending_up,
         'color': Colors.blue,
-        'text': 'Highest spending: ${topCategory.key.displayName} (₹${topCategory.value.toStringAsFixed(0)})',
+        'text': 'Highest spending: ${topCategoryObj.displayName} (₹${topCategory.value.toStringAsFixed(0)})',
       });
     }
 
     // Over budget categories
-    final overBudgetCategories = ExpenseCategory.values.where((category) {
-      return provider.getCategoryBudget(category) > 0 &&
-             provider.getCategoryExpenses(category) > provider.getCategoryBudget(category);
+    final overBudgetCategories = categories.where((category) {
+      return provider.getCategoryBudget(category.name) > 0 &&
+             provider.getCategoryExpenses(category.name) > provider.getCategoryBudget(category.name);
     }).length;
 
     if (overBudgetCategories > 0) {

@@ -19,14 +19,18 @@ class FieldExtractionService {
       amount: amount,
       payeeName: payee,
       date: date,
-      sourceApp: app,
+      transactionId: null, // PhonePe transaction ID extraction can be added later
       confidence: _calculateOverallConfidence([amount, payee, date]),
-      extractionTime: DateTime.now(),
     );
   }
 
   /// Extract amount using currency patterns and position heuristics
   static String? _extractAmount(List<TextBlock> textBlocks, PaymentAppTemplate template) {
+    // For PhonePe, focus specifically on the right 40% area (60%-100% left)
+    if (template.app == PaymentApp.phonePe) {
+      return _extractPhonePeAmount(textBlocks, template);
+    }
+
     // Sort blocks by confidence and look for currency patterns
     final sortedBlocks = List<TextBlock>.from(textBlocks)
       ..sort((a, b) => b.confidence.compareTo(a.confidence));
@@ -42,6 +46,59 @@ class FieldExtractionService {
 
     // Fallback: look for amount in specific regions
     return _extractAmountFromRegion(textBlocks, template.fieldRegions['amount']);
+  }
+
+  /// Extract amount specifically from PhonePe's optimized crop region
+  static String? _extractPhonePeAmount(List<TextBlock> textBlocks, PaymentAppTemplate template) {
+    final amountRegion = template.fieldRegions['amount'];
+    if (amountRegion == null) return null;
+
+    // Filter text blocks that fall within the amount region (right 40% of cropped area)
+    final amountBlocks = textBlocks.where((block) {
+      final blockCenterX = (block.boundingBox.x + block.boundingBox.width / 2);
+      final blockCenterY = (block.boundingBox.y + block.boundingBox.height / 2);
+
+      // Check if block is in the amount region (60%-100% horizontally)
+      return blockCenterX >= (amountRegion.x * 1000) && // Assuming normalized coordinates
+             blockCenterX <= ((amountRegion.x + amountRegion.width) * 1000) &&
+             blockCenterY >= (amountRegion.y * 1000) &&
+             blockCenterY <= ((amountRegion.y + amountRegion.height) * 1000);
+    }).toList();
+
+    // Sort by confidence and look for amount patterns
+    amountBlocks.sort((a, b) => b.confidence.compareTo(a.confidence));
+
+    for (final block in amountBlocks) {
+      final text = block.text.trim();
+
+      // Look for currency symbols and numeric patterns
+      if (_isAmountText(text)) {
+        final cleanAmount = _cleanAmountText(text);
+        if (cleanAmount.isNotEmpty) {
+          return cleanAmount;
+        }
+      }
+    }
+
+    // Fallback: look for any numeric value in the amount region
+    for (final block in amountBlocks) {
+      final text = block.text.trim();
+      final numericValue = _extractNumericValue(text);
+      if (numericValue != null && numericValue > 0) {
+        return '₹$numericValue';
+      }
+    }
+
+    return null;
+  }
+
+  /// Extract numeric value from text
+  static double? _extractNumericValue(String text) {
+    // Remove all non-numeric characters except decimal point
+    final numericText = text.replaceAll(RegExp(r'[^\d.]'), '');
+    if (numericText.isEmpty) return null;
+
+    return double.tryParse(numericText);
   }
 
   /// Extract payee name using position and keyword heuristics
@@ -222,5 +279,162 @@ class FieldExtractionService {
   static double _calculateOverallConfidence(List<String?> fields) {
     final nonNullFields = fields.where((f) => f != null && f.isNotEmpty).length;
     return (nonNullFields / fields.length) * 100;
+  }
+
+  /// Fix null comparison warning
+  static String? extractAmount(List<TextBlock> textBlocks, PaymentApp app) {
+    final template = PaymentAppTemplate.getTemplate(app);
+    final amountKeywords = template.fieldKeywords['amount'];
+
+    // Check if keywords exist before using them
+    if (amountKeywords != null) {
+      // Find amount using keywords
+      for (final keyword in amountKeywords) {
+        for (int i = 0; i < textBlocks.length; i++) {
+          final block = textBlocks[i];
+          if (block.text.toLowerCase().contains(keyword.toLowerCase())) {
+            // Look for amount in same block or next few blocks
+            for (int j = i; j < (i + 3).clamp(0, textBlocks.length); j++) {
+              final amountText = textBlocks[j].text;
+              final amount = _extractAmountFromText(amountText);
+              if (amount.isNotEmpty) {
+                return amount;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // If no keyword-based amount found, search for currency patterns
+    for (final block in textBlocks) {
+      if (block.text.contains('₹') || block.text.contains('Rs')) {
+        final amount = _extractAmountFromText(block.text);
+        if (amount.isNotEmpty) {
+          return amount;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /// Extract payee name from text blocks
+  static String? extractPayee(List<TextBlock> textBlocks, PaymentApp app) {
+    final template = PaymentAppTemplate.getTemplate(app);
+    final payeeKeywords = template.fieldKeywords['payee'];
+
+    if (payeeKeywords != null) {
+      for (final keyword in payeeKeywords) {
+        for (int i = 0; i < textBlocks.length; i++) {
+          final block = textBlocks[i];
+          if (block.text.toLowerCase().contains(keyword.toLowerCase())) {
+            // Look for payee in next blocks
+            for (int j = i + 1; j < (i + 3).clamp(0, textBlocks.length); j++) {
+              final payeeText = textBlocks[j].text.trim();
+              if (payeeText.isNotEmpty && _isValidPayeeName(payeeText)) {
+                return payeeText;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /// Extract transaction ID using keyword and position heuristics
+  static String? extractTransactionId(List<TextBlock> textBlocks, PaymentApp app) {
+    final template = PaymentAppTemplate.getTemplate(app);
+    final idKeywords = template.fieldKeywords['transactionId'];
+
+    if (idKeywords != null) {
+      for (final keyword in idKeywords) {
+        for (int i = 0; i < textBlocks.length; i++) {
+          final block = textBlocks[i];
+          if (block.text.toLowerCase().contains(keyword.toLowerCase())) {
+            // Look for transaction ID in same or next block
+            for (int j = i; j < (i + 2).clamp(0, textBlocks.length); j++) {
+              final idText = textBlocks[j].text.trim();
+              if (idText.isNotEmpty && _isValidTransactionId(idText)) {
+                return idText;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /// Extract amount from text string
+  static String _extractAmountFromText(String text) {
+    // Remove currency symbols and clean the text
+    final cleanText = text
+        .replaceAll('₹', '')
+        .replaceAll('Rs', '')
+        .replaceAll(RegExp(r'[^\d\.,]'), '')
+        .trim();
+
+    if (cleanText.isEmpty) return '';
+
+    // Handle comma separators
+    String normalizedText = cleanText;
+    if (normalizedText.contains(',')) {
+      normalizedText = normalizedText.replaceAll(',', '');
+    }
+
+    // Validate numeric format
+    final amount = double.tryParse(normalizedText);
+    if (amount != null && amount > 0) {
+      return amount.toStringAsFixed(2);
+    }
+
+    return '';
+  }
+
+  /// Validate transaction ID format
+  static bool _isValidTransactionId(String text) {
+    // Remove whitespace and check length
+    final cleanText = text.trim();
+
+    // Transaction ID should be alphanumeric, 6-20 characters
+    if (cleanText.length < 6 || cleanText.length > 20) return false;
+
+    // Should contain at least one number
+    if (!RegExp(r'\d').hasMatch(cleanText)) return false;
+
+    // Should not be just numbers (that's likely an amount)
+    if (RegExp(r'^\d+$').hasMatch(cleanText)) return false;
+
+    // Should contain alphanumeric characters
+    if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(cleanText)) return false;
+
+    return true;
+  }
+
+  /// Extract transaction fields using backward compatibility approach
+  static ExtractedTransaction extractTransactionFields(
+    List<TextBlock> textBlocks,
+    PaymentApp app,
+  ) {
+    // Use the existing extraction methods
+    final amount = extractAmount(textBlocks, app);
+    final payee = extractPayee(textBlocks, app);
+    final transactionId = extractTransactionId(textBlocks, app);
+
+    // Extract date using the existing method
+    final template = PaymentAppTemplate.getTemplate(app);
+    final date = _extractDate(textBlocks, template);
+
+    return ExtractedTransaction(
+      amount: amount,
+      payeeName: payee,
+      date: date,
+      transactionId: transactionId,
+      confidence: _calculateOverallConfidence([amount, payee, date, transactionId]),
+    );
   }
 }

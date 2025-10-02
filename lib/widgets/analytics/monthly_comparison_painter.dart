@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../models/expense.dart';
+import '../../models/expense_models.dart';
 
 class MonthlyComparisonPainter extends CustomPainter {
   final List<Expense> expenses;

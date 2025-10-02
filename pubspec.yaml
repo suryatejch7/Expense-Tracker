@@ -35,6 +35,13 @@ dependencies:
   cupertino_icons: ^1.0.8
   provider: ^6.1.1
 
+  # Firebase backend (replaced with Supabase)
+  # firebase_core: ^3.6.0
+  # cloud_firestore: ^5.4.3
+
+  # Supabase backend (better free tier)
+  supabase_flutter: ^2.6.0
+
   # OCR and image processing
   google_mlkit_text_recognition: ^0.15.0
   image_picker: ^1.2.0

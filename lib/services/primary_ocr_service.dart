@@ -1,54 +1,109 @@
 import 'dart:io';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:flutter/foundation.dart';
 import '../models/transaction_ocr_models.dart' as models;
 
 /// Primary OCR service using Google ML Kit
 class PrimaryOcrService {
-  static final TextRecognizer _textRecognizer = TextRecognizer();
+  static TextRecognizer? _textRecognizer;
+
+  /// Get or create text recognizer instance
+  static TextRecognizer get textRecognizer {
+    _textRecognizer ??= TextRecognizer();
+    return _textRecognizer!;
+  }
 
   /// Extract text from image using Google ML Kit
   static Future<models.OcrResult> extractText(File imageFile) async {
+    InputImage? inputImage;
+
     try {
-      final inputImage = InputImage.fromFile(imageFile);
-      final recognizedText = await _textRecognizer.processImage(inputImage);
+      // Validate file exists and is readable
+      if (!await imageFile.exists()) {
+        throw Exception('Image file does not exist');
+      }
+
+      final fileSize = await imageFile.length();
+      if (fileSize == 0) {
+        throw Exception('Image file is empty');
+      }
+
+      // Create input image with error handling
+      inputImage = InputImage.fromFile(imageFile);
+
+      // Process image with timeout
+      final recognizedText = await textRecognizer.processImage(inputImage).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            throw Exception('OCR processing timed out');
+          });
 
       final textBlocks = <models.TextBlock>[];
 
+      // Process recognized text blocks safely
       for (final block in recognizedText.blocks) {
-        for (final line in block.lines) {
-          final boundingBox = line.boundingBox;
-          textBlocks.add(
-            models.TextBlock(
-              text: line.text,
-              boundingBox: models.BoundingBox(
-                x: boundingBox.left.round(),
-                y: boundingBox.top.round(),
-                width: (boundingBox.right - boundingBox.left).round(),
-                height: (boundingBox.bottom - boundingBox.top).round(),
+        try {
+          for (final line in block.lines) {
+            final boundingBox = line.boundingBox;
+
+            // Validate bounding box
+            if (boundingBox.left.isNaN ||
+                boundingBox.top.isNaN ||
+                boundingBox.right.isNaN ||
+                boundingBox.bottom.isNaN) {
+              continue; // Skip invalid bounding boxes
+            }
+
+            textBlocks.add(
+              models.TextBlock(
+                text: line.text.trim(),
+                boundingBox: models.BoundingBox(
+                  x: boundingBox.left.round().clamp(0, 10000),
+                  y: boundingBox.top.round().clamp(0, 10000),
+                  width: (boundingBox.right - boundingBox.left).round().clamp(1, 10000),
+                  height: (boundingBox.bottom - boundingBox.top).round().clamp(1, 10000),
+                ),
+                confidence: (line.confidence ?? 0.0).clamp(0.0, 1.0),
+                lines: [line.text.trim()],
+                recognizedLanguages: line.recognizedLanguages.map((lang) => lang.toString()).toList(),
+                cornerPoints: line.cornerPoints.map((point) =>
+                  models.Point(
+                    x: point.x.toDouble().clamp(0.0, 10000.0),
+                    y: point.y.toDouble().clamp(0.0, 10000.0)
+                  )
+                ).toList(),
               ),
-              confidence: line.confidence ?? 0.0,
-              lines: [line.text], // Single line for each TextBlock
-              recognizedLanguages: line.recognizedLanguages.map((lang) => lang).toList(),
-              cornerPoints: line.cornerPoints.map((point) => models.Point(x: point.x.toDouble(), y: point.y.toDouble())).toList(),
-            ),
-          );
+            );
+          }
+        } catch (blockError) {
+          debugPrint('Warning: Skipping block due to error: $blockError');
+          continue; // Skip problematic blocks
         }
       }
 
       return models.OcrResult(
         textBlocks: textBlocks,
-        rawText: recognizedText.text,
+        rawText: recognizedText.text.trim(),
         processingTime: DateTime.now(),
       );
     } catch (e) {
-      throw Exception('Primary OCR failed: $e');
+      debugPrint('OCR Error Details: $e');
+
+      // Return empty result instead of crashing
+      return models.OcrResult(
+        textBlocks: [],
+        rawText: '',
+        processingTime: DateTime.now(),
+      );
+    } finally {
+      // Clean up resources
+      inputImage = null;
     }
   }
 
   /// Extract text from multiple region crops
   static Future<Map<String, models.OcrResult>> extractTextFromRegions(
-    List<File> regionCrops
-  ) async {
+      List<File> regionCrops) async {
     final results = <String, models.OcrResult>{};
 
     for (int i = 0; i < regionCrops.length; i++) {
@@ -60,7 +115,7 @@ class PrimaryOcrService {
         results[regionName] = result;
       } catch (e) {
         // Log error but continue with other regions
-        print('Failed to extract text from region $regionName: $e');
+        debugPrint('Failed to extract text from region $regionName: $e');
       }
     }
 
@@ -76,7 +131,12 @@ class PrimaryOcrService {
   }
 
   /// Clean up resources
-  static void dispose() {
-    _textRecognizer.close();
+  static Future<void> dispose() async {
+    try {
+      await _textRecognizer?.close();
+      _textRecognizer = null;
+    } catch (e) {
+      debugPrint('Warning: Error disposing OCR resources: $e');
+    }
   }
 }

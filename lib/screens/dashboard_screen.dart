@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
-import '../models/expense.dart';
 import '../widgets/expense_card.dart';
 import '../widgets/category_summary.dart';
 
@@ -240,8 +239,8 @@ class TotalExpenseWidget extends StatelessWidget {
   }
 
   Widget _buildOverBudgetCategoriesWarning(ExpenseProvider provider) {
-    final overBudgetCategories = ExpenseCategory.values
-        .where((category) => provider.isCategoryOverBudget(category))
+    final overBudgetCategories = provider.categories
+        .where((category) => provider.isCategoryOverBudget(category.name))
         .toList();
 
     if (overBudgetCategories.isEmpty) return const SizedBox.shrink();
@@ -251,25 +250,36 @@ class TotalExpenseWidget extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.category,
-            color: Colors.red,
-            size: 16,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '${overBudgetCategories.length} ${overBudgetCategories.length == 1 ? 'category is' : 'categories are'} over budget',
-              style: const TextStyle(
+          Row(
+            children: [
+              Icon(
+                Icons.warning,
                 color: Colors.red,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+                size: 20,
               ),
+              const SizedBox(width: 8),
+              Text(
+                'Budget Alert',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${overBudgetCategories.length} ${overBudgetCategories.length == 1 ? 'category is' : 'categories are'} over budget',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
             ),
           ),
         ],

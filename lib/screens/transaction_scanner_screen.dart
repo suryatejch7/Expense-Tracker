@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/transaction_ocr_models.dart';
 import '../services/transaction_processing_service.dart';
-import '../services/app_source_selection_service.dart';
 import '../screens/add_expense_screen.dart';
 
 /// Screen for handling transaction screenshot intake and processing
@@ -32,20 +31,8 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
     super.initState();
     if (widget.initialImage != null) {
       _selectedImage = widget.initialImage;
-      // Auto-select app source if image is shared
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _selectAppSource();
-      });
-    }
-  }
-
-  /// Select app source automatically when image is shared
-  Future<void> _selectAppSource() async {
-    final selectedApp = await AppSourceSelectionService.showAppSelectionDialog(context);
-    if (selectedApp != null) {
-      setState(() {
-        _selectedApp = selectedApp;
-      });
+      // PhonePe is automatically selected since it's the only supported app
+      _selectedApp = PaymentApp.phonePe;
     }
   }
 
@@ -55,7 +42,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text(
-          'Scan Transaction',
+          'Scan PhonePe Receipt',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.black,
@@ -68,8 +55,6 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildImageSection(),
-            const SizedBox(height: 24),
-            _buildAppSelectionSection(),
             const SizedBox(height: 24),
             _buildProcessingSection(),
             if (_processingSteps.isNotEmpty) ...[
@@ -97,7 +82,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +106,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
                   color: const Color(0xFF2A2A2A),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Colors.grey.withOpacity(0.3),
+                    color: Colors.grey.withValues(alpha: 0.3),
                     style: BorderStyle.solid,
                   ),
                 ),
@@ -182,85 +167,13 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
                   icon: const Icon(Icons.delete),
                   label: const Text('Remove'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.withOpacity(0.2),
+                    backgroundColor: Colors.red.withValues(alpha: 0.2),
                     foregroundColor: Colors.red,
                   ),
                 ),
               ],
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppSelectionSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Select Payment App',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: PaymentApp.values.where((app) => app != PaymentApp.unknown).map((app) {
-              final isSelected = _selectedApp == app;
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedApp = app;
-                    _extractedData = null;
-                    _errorMessage = null;
-                    _processingSteps = [];
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isSelected ? app.color.withOpacity(0.2) : const Color(0xFF2A2A2A),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected ? app.color : Colors.grey.withOpacity(0.3),
-                      width: isSelected ? 2 : 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        app.icon,
-                        color: isSelected ? app.color : Colors.grey,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        app.displayName,
-                        style: TextStyle(
-                          color: isSelected ? app.color : Colors.grey,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
         ],
       ),
     );
@@ -273,7 +186,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,7 +203,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
           if (_isProcessing) ...[
             LinearProgressIndicator(
               value: _processingProgress,
-              backgroundColor: Colors.grey.withOpacity(0.3),
+              backgroundColor: Colors.grey.withValues(alpha: 0.3),
               valueColor: AlwaysStoppedAnimation<Color>(
                 Theme.of(context).colorScheme.primary,
               ),
@@ -318,8 +231,8 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
           const SizedBox(height: 12),
           Text(
             _canProcess()
-                ? 'Ready to process ${_selectedApp?.displayName} screenshot'
-                : 'Select image and payment app to continue',
+                ? 'Ready to process PhonePe receipt'
+                : 'Select PhonePe receipt image to continue',
             style: const TextStyle(
               color: Colors.grey,
               fontSize: 12,
@@ -337,7 +250,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,7 +295,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
                 ),
               ],
             ),
-          )).toList(),
+          )),
         ],
       ),
     );
@@ -395,7 +308,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.green.withOpacity(0.3)),
+        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,7 +333,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
+                  color: Colors.green.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -509,7 +422,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red.withOpacity(0.3)),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -546,7 +459,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
             icon: const Icon(Icons.refresh),
             label: const Text('Try Again'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.withOpacity(0.2),
+              backgroundColor: Colors.red.withValues(alpha: 0.2),
               foregroundColor: Colors.red,
             ),
           ),
@@ -588,6 +501,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
       if (pickedFile != null) {
         setState(() {
           _selectedImage = File(pickedFile.path);
+          _selectedApp = PaymentApp.phonePe; // Automatically set PhonePe
           _extractedData = null;
           _errorMessage = null;
           _processingSteps = [];
@@ -616,7 +530,6 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
     try {
       final result = await TransactionProcessingService.processTransactionScreenshot(
         _selectedImage!,
-        _selectedApp!,
         onProgress: (progress) {
           setState(() {
             _processingProgress = progress;
@@ -636,14 +549,16 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
         });
 
         // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✅ Transaction data extracted successfully! Confidence: ${result.extractedTransaction!.confidence.toStringAsFixed(0)}%'
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '✅ Transaction data extracted successfully! Confidence: ${result.extractedTransaction!.confidence.toStringAsFixed(0)}%'
+              ),
+              backgroundColor: Colors.green,
             ),
-            backgroundColor: Colors.green,
-          ),
-        );
+          );
+        }
       } else {
         setState(() {
           _errorMessage = result.error ?? 'Unknown processing error';
@@ -658,16 +573,73 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
   }
 
   /// Add extracted transaction to expenses
-  void _addToExpenses() {
+  void _addToExpenses() async {
     if (_extractedData == null) return;
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => AddExpenseScreen(
-          prefilledAmount: double.tryParse(_extractedData!.amount ?? '0'),
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          backgroundColor: Color(0xFF1A1A1A),
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Saving expense...', style: TextStyle(color: Colors.white)),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+
+      // Navigate to add expense screen with pre-filled data
+      Navigator.pop(context); // Close loading dialog
+
+      final result = await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => AddExpenseScreen(
+            prefilledAmount: double.tryParse(_extractedData!.amount?.replaceAll(RegExp(r'[^\d.]'), '') ?? '0') ?? 0.0,
+            prefilledPayee: _extractedData!.payeeName,
+            prefilledPaymentApp: _selectedApp?.displayName,
+            prefilledTransactionId: _extractedData!.transactionId,
+            extractedData: _extractedData,
+          ),
+        ),
+      );
+
+      // If expense was saved successfully, show confirmation
+      if (result == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Expense saved successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Clear the current transaction data
+          setState(() {
+            _selectedImage = null;
+            _extractedData = null;
+            _errorMessage = null;
+            _processingSteps = [];
+            _selectedApp = null;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog if open
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Failed to save expense: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   /// Edit extracted transaction data

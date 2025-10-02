@@ -1,48 +1,71 @@
 import 'package:flutter/material.dart';
+import '../models/expense_models.dart';
 
+/// Model for custom expense categories created by users
 class CustomCategory {
   final String id;
   final String name;
-  final IconData icon;
+  final String icon;
   final Color color;
-  final bool isDefault;
+  final double budget;
+  final bool isActive;
+  final DateTime createdAt;
 
   CustomCategory({
     required this.id,
     required this.name,
     required this.icon,
     required this.color,
-    this.isDefault = false,
+    this.budget = 0.0,
+    this.isActive = true,
+    required this.createdAt,
   });
 
-  Map<String, dynamic> toJson() {
+  String get displayName => name;
+
+  Map<String, dynamic> toMap() {
     return {
       'id': id,
       'name': name,
-      'icon': icon.codePoint,
-      'color': color.value, // Using .value for serialization - this is still the correct approach
-      'isDefault': isDefault,
+      'icon': icon,
+      'color': color.r.toInt() << 24 | color.g.toInt() << 16 | color.b.toInt() << 8 | color.a.toInt(),
+      'budget': budget,
+      'isActive': isActive,
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 
-  factory CustomCategory.fromJson(Map<String, dynamic> json) {
+  factory CustomCategory.fromMap(Map<String, dynamic> map) {
     return CustomCategory(
-      id: json['id'],
-      name: json['name'],
-      icon: IconData(json['icon'], fontFamily: 'MaterialIcons'),
-      color: Color(json['color']),
-      isDefault: json['isDefault'] ?? false,
+      id: map['id'] ?? '',
+      name: map['name'] ?? '',
+      icon: map['icon'] ?? '📦',
+      color: Color(map['color'] ?? 0xFF747D8C),
+      budget: (map['budget'] ?? 0.0).toDouble(),
+      isActive: map['isActive'] ?? true,
+      createdAt: DateTime.parse(map['createdAt']),
     );
   }
 
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is CustomCategory && other.id == id;
+  CustomCategory copyWith({
+    String? id,
+    String? name,
+    String? icon,
+    Color? color,
+    double? budget,
+    bool? isActive,
+    DateTime? createdAt,
+  }) {
+    return CustomCategory(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      icon: icon ?? this.icon,
+      color: color ?? this.color,
+      budget: budget ?? this.budget,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+    );
   }
-
-  @override
-  int get hashCode => id.hashCode;
 }
 
 // Predefined icon options for category creation
@@ -152,69 +175,78 @@ class CategoryIcons {
 
 // Default categories that come with the app
 class DefaultCategories {
-  static List<CustomCategory> get defaultCategories => [
-    CustomCategory(
+  static List<ExpenseCategory> get defaultCategories => [
+    ExpenseCategory(
       id: 'food',
       name: 'Food',
-      icon: Icons.restaurant,
-      color: Colors.orange,
+      icon: '🍽️',
+      colorHex: '#FF9500',
       isDefault: true,
+      createdAt: DateTime.now(),
     ),
-    CustomCategory(
+    ExpenseCategory(
       id: 'transport',
       name: 'Transport',
-      icon: Icons.directions_car,
-      color: Colors.blue,
+      icon: '🚗',
+      colorHex: '#007AFF',
       isDefault: true,
+      createdAt: DateTime.now(),
     ),
-    CustomCategory(
+    ExpenseCategory(
       id: 'entertainment',
       name: 'Entertainment',
-      icon: Icons.movie,
-      color: Colors.purple,
+      icon: '🎬',
+      colorHex: '#AF52DE',
       isDefault: true,
+      createdAt: DateTime.now(),
     ),
-    CustomCategory(
+    ExpenseCategory(
       id: 'shopping',
       name: 'Shopping',
-      icon: Icons.shopping_bag,
-      color: Colors.pink,
+      icon: '🛒',
+      colorHex: '#FF2D92',
       isDefault: true,
+      createdAt: DateTime.now(),
     ),
-    CustomCategory(
+    ExpenseCategory(
       id: 'bills',
       name: 'Bills',
-      icon: Icons.receipt_long,
-      color: Colors.red,
+      icon: '💡',
+      colorHex: '#FF3B30',
       isDefault: true,
+      createdAt: DateTime.now(),
     ),
-    CustomCategory(
+    ExpenseCategory(
       id: 'health',
       name: 'Health',
-      icon: Icons.local_hospital,
-      color: Colors.green,
+      icon: '🏥',
+      colorHex: '#34C759',
       isDefault: true,
+      createdAt: DateTime.now(),
     ),
-    CustomCategory(
+    ExpenseCategory(
       id: 'education',
       name: 'Education',
-      icon: Icons.school,
-      color: Colors.indigo,
+      icon: '📚',
+      colorHex: '#5856D6',
       isDefault: true,
+      createdAt: DateTime.now(),
     ),
-    CustomCategory(
+    ExpenseCategory(
       id: 'travel',
       name: 'Travel',
-      icon: Icons.flight,
-      color: Colors.teal,
+      icon: '✈️',
+      colorHex: '#5AC8FA',
       isDefault: true,
+      createdAt: DateTime.now(),
     ),
-    CustomCategory(
+    ExpenseCategory(
       id: 'other',
       name: 'Other',
-      icon: Icons.category,
-      color: Colors.grey,
+      icon: '📦',
+      colorHex: '#8E8E93',
       isDefault: true,
+      createdAt: DateTime.now(),
     ),
   ];
 }

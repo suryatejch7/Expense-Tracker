@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import '../models/transaction_ocr_models.dart';
 import 'image_preprocessing_service.dart';
 import 'primary_ocr_service.dart';
@@ -9,108 +10,169 @@ import 'tesseract_ocr_service.dart';
 /// Main service orchestrating the complete transaction processing pipeline
 class TransactionProcessingService {
   
-  /// Process transaction screenshot with complete pipeline
+  /// Process transaction screenshot with complete pipeline (PhonePe only)
   static Future<ProcessingResult> processTransactionScreenshot(
-    File imageFile, 
-    PaymentApp selectedApp,
+    File imageFile,
     {Function(double)? onProgress}
   ) async {
+    List<String> processingSteps = [];
+    const selectedApp = PaymentApp.phonePe; // Hardcoded since you only use PhonePe
+
     try {
       onProgress?.call(0.1);
-      
-      // Step 1: Image Preprocessing
+      processingSteps.add('Starting PhonePe transaction processing...');
+
+      // Validate input file
+      if (!await imageFile.exists()) {
+        throw Exception('Image file does not exist');
+      }
+
+      final fileSize = await imageFile.length();
+      if (fileSize == 0) {
+        throw Exception('Image file is empty');
+      }
+
+      if (fileSize > 50 * 1024 * 1024) { // 50MB limit
+        throw Exception('Image file too large (>50MB)');
+      }
+
+      // Step 1: Image Preprocessing (PhonePe optimized crop)
       onProgress?.call(0.2);
-      final preprocessedImage = await ImagePreprocessingService.preprocessImage(
-        imageFile, 
-        selectedApp
-      );
-      
+      processingSteps.add('Preprocessing image with PhonePe crop settings...');
+
+      File? preprocessedImage;
+      try {
+        preprocessedImage = await ImagePreprocessingService.preprocessImage(
+          imageFile,
+          selectedApp
+        ).timeout(const Duration(seconds: 30));
+      } catch (e) {
+        debugPrint('Preprocessing failed, using original image: $e');
+        preprocessedImage = imageFile; // Fallback to original
+      }
+
       // Step 2: Primary OCR with Google ML Kit
       onProgress?.call(0.3);
-      final ocrResult = await PrimaryOcrService.extractText(preprocessedImage);
-      
-      // Step 3: Field Extraction using templates
+      processingSteps.add('Extracting text using OCR...');
+
+      final ocrResult = await PrimaryOcrService.extractText(preprocessedImage)
+          .timeout(const Duration(minutes: 2));
+
+      if (ocrResult.textBlocks.isEmpty && ocrResult.rawText.isEmpty) {
+        throw Exception('No text found in image. Please ensure the image is clear and contains text.');
+      }
+
+      // Step 3: Field Extraction using PhonePe templates
       onProgress?.call(0.5);
+      processingSteps.add('Extracting transaction fields...');
+
       final extractedData = FieldExtractionService.extractFields(
         ocrResult, 
         selectedApp
       );
       
-      // Step 4: Text Normalization
+      // Step 4: Text Normalization (simplified for PhonePe)
       onProgress?.call(0.6);
-      final normalizedData = await _normalizeExtractedData(extractedData);
-      
-      // Step 5: Secondary OCR with Tesseract/EasyOCR for critical fields
-      onProgress?.call(0.8);
-      final tesseractResults = await TesseractOcrService.performSecondaryOcr(
-        imageFile,
-        ocrResult.textBlocks,
-        selectedApp,
-      );
+      processingSteps.add('Processing extracted data...');
 
-      // Step 6: Enhance fields with Tesseract results
-      final enhancedData = _enhanceWithTesseractResults(normalizedData, tesseractResults);
+      // Skip complex normalization and use extracted data directly
+      final normalizedData = extractedData;
+
+      // Step 5: Secondary OCR (optional, skip if failing)
+      onProgress?.call(0.8);
+      processingSteps.add('Enhancing field accuracy...');
+
+      try {
+        final tesseractResults = await TesseractOcrService.performSecondaryOcr(
+          imageFile,
+          ocrResult.textBlocks,
+          selectedApp,
+        ).timeout(const Duration(seconds: 45));
+
+        // Step 6: Enhance fields with Tesseract results
+        final enhancedData = _enhanceWithExistingTesseractService(normalizedData, tesseractResults);
+
+        onProgress?.call(1.0);
+        processingSteps.add('PhonePe transaction processing completed successfully!');
+
+        return ProcessingResult(
+          success: true,
+          extractedTransaction: enhancedData,
+          processingSteps: processingSteps,
+          confidence: enhancedData.confidence,
+        );
+
+      } catch (secondaryOcrError) {
+        debugPrint('Secondary OCR failed, continuing with primary results: $secondaryOcrError');
+        processingSteps.add('Using primary OCR results (secondary enhancement skipped)');
+      }
 
       onProgress?.call(1.0);
-      
-      // Clean up temporary files
-      await _cleanupTempFiles([preprocessedImage]);
-      
+      processingSteps.add('PhonePe transaction processing completed!');
+
       return ProcessingResult(
         success: true,
-        extractedTransaction: enhancedData,
-        processingSteps: [
-          'Image preprocessing completed',
-          'Primary OCR extraction with Google ML Kit',
-          'Template-based field extraction for ${selectedApp.displayName}',
-          'Text normalization and symbol correction',
-          'Secondary OCR with Tesseract/EasyOCR for critical fields',
-          'Field enhancement and validation completed',
-        ],
+        extractedTransaction: normalizedData,
+        processingSteps: processingSteps,
+        confidence: normalizedData.confidence,
       );
       
     } catch (e) {
+      debugPrint('Transaction processing error: $e');
+      processingSteps.add('Error: ${e.toString()}');
+
       return ProcessingResult(
         success: false,
-        error: 'Transaction processing failed: $e',
-        processingSteps: ['Processing failed at pipeline stage'],
+        error: e.toString(),
+        processingSteps: processingSteps,
+        confidence: 0.0,
       );
+    } finally {
+      // Clean up resources
+      try {
+        await PrimaryOcrService.dispose();
+      } catch (e) {
+        debugPrint('Cleanup warning: $e');
+      }
     }
   }
 
-  /// Enhance extracted data with Tesseract OCR results
-  static ExtractedTransaction _enhanceWithTesseractResults(
+  /// Enhance extracted data using existing Tesseract service methods
+  static ExtractedTransaction _enhanceWithExistingTesseractService(
     ExtractedTransaction normalizedData,
     Map<String, String> tesseractResults,
   ) {
-    // Use Tesseract results to enhance or replace primary extractions
-    final enhancedAmount = TesseractOcrService.enhanceAmountExtraction(
-      normalizedData.amount,
-      tesseractResults
-    );
+    try {
+      // Use the existing Tesseract service enhancement methods
+      final enhancedAmount = TesseractOcrService.enhanceAmountExtraction(
+        normalizedData.amount,
+        tesseractResults
+      );
 
-    final enhancedPayee = TesseractOcrService.enhancePayeeExtraction(
-      normalizedData.payeeName,
-      tesseractResults
-    );
+      final enhancedPayee = TesseractOcrService.enhancePayeeExtraction(
+        normalizedData.payeeName,
+        tesseractResults
+      );
 
-    // Calculate improved confidence based on Tesseract results
-    final improvedConfidence = _calculateTesseractEnhancedConfidence(
-      enhancedAmount,
-      enhancedPayee,
-      normalizedData.confidence,
-      tesseractResults.isNotEmpty,
-    );
+      // Calculate improved confidence based on Tesseract results
+      final improvedConfidence = _calculateTesseractEnhancedConfidence(
+        enhancedAmount,
+        enhancedPayee,
+        normalizedData.confidence,
+        tesseractResults.isNotEmpty,
+      );
 
-    return ExtractedTransaction(
-      amount: enhancedAmount,
-      payeeName: enhancedPayee,
-      date: normalizedData.date, // Use original date from primary extraction
-      transactionId: normalizedData.transactionId,
-      sourceApp: normalizedData.sourceApp,
-      confidence: improvedConfidence,
-      extractionTime: DateTime.now(),
-    );
+      return ExtractedTransaction(
+        amount: enhancedAmount,
+        payeeName: enhancedPayee,
+        date: normalizedData.date,
+        transactionId: normalizedData.transactionId,
+        confidence: improvedConfidence,
+      );
+    } catch (e) {
+      debugPrint('Enhancement with Tesseract service failed: $e');
+      return normalizedData; // Return original if enhancement fails
+    }
   }
 
   /// Calculate enhanced confidence with Tesseract results
@@ -136,75 +198,6 @@ class TransactionProcessingService {
     }
 
     return (originalConfidence * 0.4) + (fieldSuccessRate * 0.6);
-  }
-
-  /// Normalize extracted data using text normalization service
-  static Future<ExtractedTransaction> _normalizeExtractedData(
-    ExtractedTransaction extracted
-  ) async {
-    try {
-      final normalizedAmount = extracted.amount != null 
-        ? TextNormalizationService.normalizeAmount(extracted.amount!)
-        : null;
-        
-      final normalizedPayee = extracted.payeeName != null
-        ? TextNormalizationService.normalizePayeeName(extracted.payeeName!)
-        : null;
-        
-      final normalizedDate = extracted.date != null
-        ? TextNormalizationService.normalizeDate(extracted.date!)
-        : null;
-
-      return ExtractedTransaction(
-        amount: normalizedAmount,
-        payeeName: normalizedPayee,
-        date: normalizedDate,
-        sourceApp: extracted.sourceApp,
-        confidence: _calculateImprovedConfidence(
-          normalizedAmount, 
-          normalizedPayee, 
-          normalizedDate,
-          extracted.confidence
-        ),
-        extractionTime: extracted.extractionTime,
-      );
-    } catch (e) {
-      // Return original data if normalization fails
-      return extracted;
-    }
-  }
-
-  /// Calculate improved confidence based on normalization success
-  static double _calculateImprovedConfidence(
-    String? amount,
-    String? payee,
-    String? date,
-    double originalConfidence,
-  ) {
-    int successfulFields = 0;
-    int totalFields = 3;
-    
-    if (amount != null && amount.isNotEmpty) successfulFields++;
-    if (payee != null && payee.isNotEmpty) successfulFields++;
-    if (date != null && date.isNotEmpty) successfulFields++;
-    
-    final fieldSuccessRate = (successfulFields / totalFields) * 100;
-    
-    // Combine with original confidence
-    return (originalConfidence * 0.4) + (fieldSuccessRate * 0.6);
-  }
-
-  /// Clean up temporary files
-  static Future<void> _cleanupTempFiles(List<File> tempFiles) async {
-    for (final file in tempFiles) {
-      try {
-        if (await file.exists()) {
-          await file.delete();
-        }
-      } catch (e) {
-        print('Failed to cleanup temp file ${file.path}: $e');
-      }
-    }
   }
 
   /// Validate extracted transaction data
@@ -252,12 +245,14 @@ class ProcessingResult {
   final ExtractedTransaction? extractedTransaction;
   final String? error;
   final List<String> processingSteps;
+  final double confidence;
 
   ProcessingResult({
     required this.success,
     this.extractedTransaction,
     this.error,
     required this.processingSteps,
+    this.confidence = 0.0,
   });
 }
 

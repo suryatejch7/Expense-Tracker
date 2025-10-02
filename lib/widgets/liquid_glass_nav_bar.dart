@@ -126,9 +126,11 @@ class _GlassNavBarState extends State<GlassNavBar>
     if (index == 0) {
       return [
         QuickActionItem(
+          id: 'search',
           icon: Icons.search,
           title: 'Search',
           subtitle: 'Find specific expenses',
+          color: Colors.blue,
           onTap: () {
             Navigator.pop(context);
             Navigator.push(
@@ -138,9 +140,11 @@ class _GlassNavBarState extends State<GlassNavBar>
           },
         ),
         QuickActionItem(
+          id: 'settings',
           icon: Icons.settings_outlined,
           title: 'Settings',
           subtitle: 'App preferences',
+          color: Colors.grey,
           onTap: () {
             Navigator.pop(context);
             Navigator.push(
@@ -153,9 +157,11 @@ class _GlassNavBarState extends State<GlassNavBar>
     } else {
       return [
         QuickActionItem(
+          id: 'analytics',
           icon: Icons.pie_chart_outline,
           title: 'Analytics',
           subtitle: 'View spending insights',
+          color: Colors.purple,
           onTap: () {
             Navigator.pop(context);
             Navigator.push(

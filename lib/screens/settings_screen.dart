@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
-import '../models/custom_category.dart';
+import '../models/expense_models.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -261,16 +261,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(
+                                      Text(
                                         category.icon,
-                                        color: category.color,
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          color: category.color,
+                                        ),
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
                                         category.name,
                                         style: const TextStyle(
                                           color: Colors.white,
-                                          fontWeight: FontWeight.bold,
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
                                       if (category.isDefault) ...[
@@ -296,7 +299,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   Row(
                                     children: [
                                       IconButton(
-                                        onPressed: () => _showCustomCategoryBudgetDialog(category),
+                                        onPressed: () => _showExpenseCategoryBudgetDialog(category),
                                         icon: const Icon(
                                           Icons.edit,
                                           color: Colors.grey,
@@ -305,7 +308,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ),
                                       if (!category.isDefault) // Only allow deleting custom categories
                                         IconButton(
-                                          onPressed: () => _showDeleteCustomCategoryDialog(category),
+                                          onPressed: () => _showDeleteExpenseCategoryDialog(category),
                                           icon: const Icon(
                                             Icons.delete,
                                             color: Colors.red,
@@ -346,7 +349,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ],
                           ),
                         );
-                      }),
+                     }),
                     ],
                   ),
                 ),
@@ -396,7 +399,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showAddCategoryDialog() {
     _categoryNameController.clear();
-    IconData selectedIcon = Icons.category;
+    String selectedIcon = '📦';
     Color selectedColor = Colors.blue;
 
     showDialog(
@@ -438,58 +441,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Icon Selection
+                // Icon Selection (simplified)
                 const Text(
                   'Choose Icon',
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
-                Container(
-                  height: 200,
-                  width: double.maxFinite,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A1A1A),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(8),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 6,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                    ),
-                    itemCount: CategoryIcons.availableIcons.length,
-                    itemBuilder: (context, index) {
-                      final icon = CategoryIcons.availableIcons[index];
-                      final isSelected = icon == selectedIcon;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            selectedIcon = icon;
-                          });
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isSelected ? selectedColor.withValues(alpha: 0.3) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isSelected ? selectedColor : Colors.grey.withValues(alpha: 0.3),
-                              width: isSelected ? 2 : 1,
-                            ),
-                          ),
-                          child: Icon(
-                            icon,
-                            color: isSelected ? selectedColor : Colors.grey,
-                            size: 24,
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: ['📦', '🍽️', '🚗', '🛒', '🎬', '💡', '🏥', '📚', '💳', '🎯'].map((icon) {
+                    final isSelected = icon == selectedIcon;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          selectedIcon = icon;
+                        });
+                      },
+                      child: Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: isSelected ? selectedColor.withValues(alpha: 0.3) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? selectedColor : Colors.grey.withValues(alpha: 0.3),
+                            width: isSelected ? 2 : 1,
                           ),
                         ),
-                      );
-                    },
-                  ),
+                        child: Center(
+                          child: Text(
+                            icon,
+                            style: const TextStyle(fontSize: 24),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 20),
 
-                // Color Selection
+                // Color Selection (simplified)
                 const Text(
                   'Choose Color',
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -498,7 +490,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: CategoryIcons.availableColors.map((color) {
+                  children: [
+                    Colors.blue,
+                    Colors.green,
+                    Colors.red,
+                    Colors.orange,
+                    Colors.purple,
+                    Colors.pink,
+                    Colors.teal,
+                    Colors.amber,
+                  ].map((color) {
                     final isSelected = color == selectedColor;
                     return GestureDetector(
                       onTap: () {
@@ -535,23 +536,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ElevatedButton(
               onPressed: () {
                 if (_categoryNameController.text.isNotEmpty) {
-                  final newCategory = CustomCategory(
+                  final newCategory = ExpenseCategory(
                     id: DateTime.now().millisecondsSinceEpoch.toString(),
                     name: _categoryNameController.text,
                     icon: selectedIcon,
-                    color: selectedColor,
+                    colorHex: '#${(selectedColor.r * 255.0).round().toRadixString(16).padLeft(2, '0')}${(selectedColor.g * 255.0).round().toRadixString(16).padLeft(2, '0')}${(selectedColor.b * 255.0).round().toRadixString(16).padLeft(2, '0')}',
                     isDefault: false,
+                    createdAt: DateTime.now(),
                   );
 
                   context.read<ExpenseProvider>().addCustomCategory(newCategory);
                   Navigator.pop(context);
 
-                  // Short duration success message
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Category "${_categoryNameController.text}" added successfully!'),
                       backgroundColor: Colors.green,
-                      duration: const Duration(seconds: 1), // Fixed: 1 second duration
+                      duration: const Duration(seconds: 1),
                     ),
                   );
                 }
@@ -567,7 +568,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showCustomCategoryBudgetDialog(CustomCategory category) {
+  void _showExpenseCategoryBudgetDialog(ExpenseCategory category) {
     final provider = context.read<ExpenseProvider>();
     _categoryBudgetController.text = provider.getCustomCategoryBudget(category.id).toString();
 
@@ -623,7 +624,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         : 'Budget removed for ${category.name}',
                   ),
                   backgroundColor: Colors.green,
-                  duration: const Duration(seconds: 1), // Fixed: 1 second duration
+                  duration: const Duration(seconds: 1),
                 ),
               );
             },
@@ -637,7 +638,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showDeleteCustomCategoryDialog(CustomCategory category) {
+  void _showDeleteExpenseCategoryDialog(ExpenseCategory category) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -660,12 +661,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               context.read<ExpenseProvider>().removeCustomCategory(category.id);
               Navigator.pop(context);
 
-              // Short duration success message
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Category "${category.name}" deleted successfully!'),
                   backgroundColor: Colors.red,
-                  duration: const Duration(seconds: 1), // Fixed: 1 second duration
+                  duration: const Duration(seconds: 1),
                 ),
               );
             },

@@ -1,13 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/expense.dart';
+import '../models/expense_models.dart';
+import '../models/transaction_ocr_models.dart';
 import '../providers/expense_provider.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   final Expense? expense;
   final double? prefilledAmount;
+  final String? prefilledPayee;
+  final String? prefilledPaymentApp;
+  final String? prefilledTransactionId;
+  final ExtractedTransaction? extractedData;
 
-  const AddExpenseScreen({super.key, this.expense, this.prefilledAmount});
+  const AddExpenseScreen({
+    super.key,
+    this.expense,
+    this.prefilledAmount,
+    this.prefilledPayee,
+    this.prefilledPaymentApp,
+    this.prefilledTransactionId,
+    this.extractedData,
+  });
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -17,43 +30,65 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
+  final _payeeController = TextEditingController();
   final _noteController = TextEditingController();
 
-  ExpenseCategory _selectedCategory = ExpenseCategory.other;
-  String? _selectedCustomCategoryId;
+  String _selectedCategory = 'Other';
   DateTime _selectedDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
+
+    // Initialize provider data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ExpenseProvider>().initialize();
+    });
+
     if (widget.expense != null) {
       // Editing existing expense
-      _titleController.text = widget.expense!.title;
+      _titleController.text = widget.expense!.description;
       _amountController.text = widget.expense!.amount.toString();
-      _noteController.text = widget.expense!.note ?? '';
+      _payeeController.text = widget.expense!.payee ?? '';
+      _noteController.text = '';
       _selectedCategory = widget.expense!.category;
-      _selectedCustomCategoryId = widget.expense!.customCategoryId;
       _selectedDate = widget.expense!.date;
-    } else if (widget.prefilledAmount != null) {
-      // OCR pre-filled amount
-      _amountController.text = widget.prefilledAmount!.toString();
+    } else {
+      // Handle OCR pre-filled data
+      if (widget.prefilledAmount != null) {
+        _amountController.text = widget.prefilledAmount!.toString();
+      }
+
+      if (widget.prefilledPayee != null) {
+        _payeeController.text = widget.prefilledPayee!;
+        // Auto-generate title from payee if available
+        if (widget.prefilledPayee!.isNotEmpty) {
+          _titleController.text = 'Payment to ${widget.prefilledPayee}';
+        }
+      }
 
       // Show success message for OCR
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Text('Amount ₹${widget.prefilledAmount} extracted from receipt'),
-              ],
+      if (widget.prefilledAmount != null || widget.prefilledPayee != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'OCR extracted: ${widget.prefilledAmount != null ? "₹${widget.prefilledAmount}" : ""} ${widget.prefilledPayee != null ? "to ${widget.prefilledPayee}" : ""}'.trim()
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
             ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 1), // Fixed: 1 second duration
-          ),
-        );
-      });
+          );
+        });
+      }
     }
   }
 
@@ -119,6 +154,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _payeeController,
+                decoration: const InputDecoration(
+                  labelText: 'Payee',
+                  hintText: 'Enter payee name',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a payee';
+                  }
+                  return null;
+                },
+              ),
               const SizedBox(height: 24),
               _buildSectionTitle('Category'),
               const SizedBox(height: 16),
@@ -168,43 +217,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             itemCount: categories.length,
             itemBuilder: (context, index) {
               final category = categories[index];
-              final isSelected = _selectedCustomCategoryId == category.id;
+              final isSelected = _selectedCategory == category.name;
 
               return Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: GestureDetector(
                   onTap: () {
                     setState(() {
-                      _selectedCustomCategoryId = category.id;
-                      // Map to corresponding enum for backward compatibility
-                      switch (category.id) {
-                        case 'food':
-                          _selectedCategory = ExpenseCategory.food;
-                          break;
-                        case 'transport':
-                          _selectedCategory = ExpenseCategory.transport;
-                          break;
-                        case 'entertainment':
-                          _selectedCategory = ExpenseCategory.entertainment;
-                          break;
-                        case 'shopping':
-                          _selectedCategory = ExpenseCategory.shopping;
-                          break;
-                        case 'bills':
-                          _selectedCategory = ExpenseCategory.bills;
-                          break;
-                        case 'health':
-                          _selectedCategory = ExpenseCategory.health;
-                          break;
-                        case 'education':
-                          _selectedCategory = ExpenseCategory.education;
-                          break;
-                        case 'travel':
-                          _selectedCategory = ExpenseCategory.travel;
-                          break;
-                        default:
-                          _selectedCategory = ExpenseCategory.other;
-                      }
+                      _selectedCategory = category.name;
                     });
                   },
                   child: Container(
@@ -224,10 +244,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
+                        Text(
                           category.icon,
-                          color: isSelected ? category.color : Colors.grey,
-                          size: 24,
+                          style: TextStyle(
+                            fontSize: 24,
+                            color: isSelected ? category.color : Colors.grey,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -292,45 +314,67 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  void _saveExpense() {
+  void _saveExpense() async {
     if (_formKey.currentState!.validate()) {
-      final title = _titleController.text.trim();
-      final amount = double.parse(_amountController.text.trim());
-      final note = _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
+      try {
+        final title = _titleController.text.trim();
+        final amount = double.parse(_amountController.text.trim());
+        final payee = _payeeController.text.trim().isEmpty ? null : _payeeController.text.trim();
+        final now = DateTime.now();
 
-      final expense = Expense(
-        id: widget.expense?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-        title: title,
-        amount: amount,
-        category: _selectedCategory,
-        date: _selectedDate,
-        note: note,
-        customCategoryId: _selectedCustomCategoryId,
-      );
-
-      final provider = context.read<ExpenseProvider>();
-
-      if (widget.expense != null) {
-        provider.updateExpense(expense);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Expense updated successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 1), // Fixed: 1 second duration
-          ),
+        final expense = Expense(
+          id: widget.expense?.id,
+          description: title,
+          amount: amount,
+          category: _selectedCategory,
+          date: _selectedDate,
+          payee: payee,
+          paymentApp: widget.prefilledPaymentApp ?? 'PhonePe',
+          transactionId: widget.prefilledTransactionId,
+          createdAt: widget.expense?.createdAt ?? now,
+          updatedAt: now,
         );
-      } else {
-        provider.addExpense(expense);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Expense added successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 1), // Fixed: 1 second duration
-          ),
-        );
+
+        final provider = context.read<ExpenseProvider>();
+
+        if (widget.expense != null) {
+          await provider.updateExpense(expense);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Expense updated successfully!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          await provider.addExpense(expense);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Expense saved to cloud!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+
+        if (mounted) {
+          Navigator.pop(context, true); // Return true to indicate success
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error saving expense: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
-
-      Navigator.pop(context);
     }
   }
 
@@ -338,6 +382,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void dispose() {
     _titleController.dispose();
     _amountController.dispose();
+    _payeeController.dispose();
     _noteController.dispose();
     super.dispose();
   }
