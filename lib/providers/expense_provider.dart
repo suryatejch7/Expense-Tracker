@@ -6,7 +6,7 @@ class ExpenseProvider extends ChangeNotifier {
   String _searchQuery = '';
   String _userName = 'Surya Tej';
   double _monthlyBudget = 0.0;
-  Map<ExpenseCategory, double> _categoryBudgets = {};
+  final Map<ExpenseCategory, double> _categoryBudgets = {};
 
   List<Expense> get expenses => _expenses;
   String get userName => _userName;

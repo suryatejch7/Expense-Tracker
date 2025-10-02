@@ -17,7 +17,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _categoryBudgetController = TextEditingController();
 
   bool _isEditingName = false;
-  ExpenseCategory? _selectedCategoryForBudget;
 
   @override
   void initState() {
@@ -552,6 +551,3 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 }
-
-
-

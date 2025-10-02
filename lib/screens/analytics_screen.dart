@@ -180,7 +180,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget _buildSpendingTrendCard(ExpenseProvider provider) {
     return _buildAnalyticsCard(
       title: 'Spending Trend',
-      child: Container(
+      child: SizedBox(
         height: 150,
         child: CustomPaint(
           painter: SpendingTrendPainter(
@@ -209,7 +209,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return _buildAnalyticsCard(
       title: 'Category Breakdown',
-      child: Container(
+      child: SizedBox(
         height: 200,
         child: CustomPaint(
           painter: PieChartPainter(categoryTotals: categoryTotals),
@@ -482,7 +482,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget _buildMonthlyComparison(ExpenseProvider provider) {
     return _buildAnalyticsCard(
       title: 'Monthly Comparison',
-      child: Container(
+      child: SizedBox(
         height: 120,
         child: CustomPaint(
           painter: MonthlyComparisonPainter(expenses: provider.expenses),

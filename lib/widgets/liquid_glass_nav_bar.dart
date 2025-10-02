@@ -29,8 +29,6 @@ class _GlassNavBarState extends State<GlassNavBar>
   late Animation<double> _highlightAnimation;
   late Animation<double> _activeAnimation;
 
-  int? _pressedIndex;
-
   @override
   void initState() {
     super.initState();
@@ -87,9 +85,6 @@ class _GlassNavBarState extends State<GlassNavBar>
   }
 
   void _onTapDown(int index) {
-    setState(() {
-      _pressedIndex = index;
-    });
     _pressController.forward();
     _highlightController.forward();
   }
@@ -108,17 +103,11 @@ class _GlassNavBarState extends State<GlassNavBar>
     });
 
     widget.onTap(index);
-    setState(() {
-      _pressedIndex = null;
-    });
   }
 
   void _onTapCancel() {
     _pressController.reverse();
     _highlightController.reverse();
-    setState(() {
-      _pressedIndex = null;
-    });
   }
 
   void _showQuickActions(int index) {
