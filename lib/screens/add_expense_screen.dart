@@ -155,7 +155,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 controller: _noteController,
                 labelText: 'Notes',
                 hintText: 'Additional details...',
-                maxLines: 3,
+                maxLines: 2,
               ),
               const SizedBox(height: 32),
 
@@ -247,7 +247,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         final categories = provider.customCategories;
 
         return SizedBox(
-          height: 120,
+          height: 100,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: categories.length,
@@ -267,8 +267,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     duration: const Duration(milliseconds: 200),
                     transform: Matrix4.identity()..scale(isSelected ? 1.1 : 1.0),
                     child: Container(
-                      width: 70,
-                      height: 70,
+                      width: 80,
+                      height: 60,
                       decoration: BoxDecoration(
                         color: category.color,
                         borderRadius: BorderRadius.circular(12),
