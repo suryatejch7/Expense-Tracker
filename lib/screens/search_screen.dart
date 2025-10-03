@@ -20,6 +20,12 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -31,45 +37,32 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _controller,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Search expenses...',
-                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                  suffixIcon: _controller.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, color: Colors.grey),
-                          onPressed: () {
-                            _controller.clear();
-                            context.read<ExpenseProvider>().setSearchQuery('');
-                            setState(() {});
-                          },
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFF2A2A2A),
+            child: TextField(
+              controller: _controller,
+              autofocus: true,
+              style: const TextStyle(color: Colors.white),
+              onChanged: (value) {
+                context.read<ExpenseProvider>().setSearchQuery(value);
+              },
+              decoration: InputDecoration(
+                hintText: 'Search expenses...',
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                suffixIcon: _controller.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.grey),
+                        onPressed: () {
+                          _controller.clear();
+                          context.read<ExpenseProvider>().setSearchQuery('');
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
                 ),
-                onChanged: (value) {
-                  context.read<ExpenseProvider>().setSearchQuery(value);
-                  setState(() {});
-                },
+                filled: true,
+                fillColor: const Color(0xFF2A2A2A),
               ),
             ),
           ),
@@ -77,8 +70,17 @@ class _SearchScreenState extends State<SearchScreen> {
             child: Consumer<ExpenseProvider>(
               builder: (context, expenseProvider, child) {
                 final expenses = expenseProvider.filteredExpenses;
+                return _buildResultsContent(expenses);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                if (_controller.text.isEmpty) {
+  Widget _buildResultsContent(List<dynamic> expenses) {
+    if (_controller.text.isEmpty) {
                   return const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -138,21 +140,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   itemBuilder: (context, index) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: ExpenseCard(expense: expenses[index]),
+                      child: ExpenseCard(expense: expenses[index], index: index),
                     );
                   },
                 );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 }

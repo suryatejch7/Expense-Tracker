@@ -3,9 +3,7 @@ import 'package:provider/provider.dart';
 import 'providers/expense_provider.dart';
 import 'providers/user_provider.dart';
 import 'screens/main_screen.dart';
-import 'screens/splash_screen.dart';
 import 'screens/user_selector_screen.dart';
-import 'services/sharing_intent_service.dart';
 import 'services/supabase_init_service.dart';
 
 void main() async {
@@ -55,77 +53,65 @@ class ExpenseTrackerApp extends StatefulWidget {
 
 class _ExpenseTrackerAppState extends State<ExpenseTrackerApp> {
   bool _initialized = false;
-  bool _userLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUserAndInitialize();
-  }
-
-  Future<void> _loadUserAndInitialize() async {
-    await context.read<UserProvider>().loadUserId();
-    setState(() {
-      _userLoaded = true;
-    });
-    if (context.read<UserProvider>().userId.isNotEmpty) {
-      await _initializeApp();
-    }
+    _initializeApp();
   }
 
   Future<void> _initializeApp() async {
-    try {
-      final provider = context.read<ExpenseProvider>();
-      await provider.initialize();
-
-      // Initialize sharing intent service
-      await SharingIntentService.initialize();
-
-      setState(() {
-        _initialized = true;
-      });
-    } catch (e) {
-      setState(() {
-        _initialized = true;
-      });
+    // Load user from storage
+    await context.read<UserProvider>().loadUserFromStorage();
+    
+    // Initialize expense provider if user is logged in
+    final userProvider = context.read<UserProvider>();
+    if (userProvider.isLoggedIn) {
+      await userProvider.initializeExpenseProvider(context.read<ExpenseProvider>());
     }
+    
+    setState(() {
+      _initialized = true;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final userId = context.watch<UserProvider>().userId;
-
-    if (!_userLoaded) {
-      return SplashScreen(
-        onInit: () async {},
-        onReady: () {},
-      );
-    }
-
-    if (userId.isEmpty) {
-      return UserSelectorScreen(onUserSelected: () async {
-        await _initializeApp();
-      });
-    }
-
     if (!_initialized) {
-      return SplashScreen(
-        onInit: () async {},
-        onReady: () {},
+      return const Scaffold(
+        backgroundColor: Color(0xFF121212),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Colors.white),
+              SizedBox(height: 16),
+              Text(
+                'Loading...',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
-    // Set context for sharing service once main screen is loaded
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      SharingIntentService.setContext(context);
-    });
-
-    return const MainScreen();
-  }
-
-  @override
-  void dispose() {
-    SharingIntentService.dispose();
-    super.dispose();
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        if (userProvider.isLoggedIn) {
+          return const MainScreen();
+        } else {
+          return UserSelectorScreen(
+            onUserSelected: () async {
+              // Initialize expense provider when user is selected
+              if (userProvider.isLoggedIn) {
+                await userProvider.initializeExpenseProvider(context.read<ExpenseProvider>());
+              }
+              // The Consumer will automatically rebuild when userProvider.notifyListeners() is called
+            },
+          );
+        }
+      },
+    );
   }
 }

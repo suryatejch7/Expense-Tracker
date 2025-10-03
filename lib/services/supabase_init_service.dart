@@ -11,8 +11,8 @@ class SupabaseInitService {
 
     try {
       await Supabase.initialize(
-        url: 'https://zrxopmlrrnlgprphwpdm.supabase.co',
-        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyeG9wbWxycm5sZ3BycGh3cGRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0MzQ1MDYsImV4cCI6MjA3NTAxMDUwNn0.Dex1oE_UBTvf2FZNkem9KiUwtnCc420SF_kx0x8UJq8',
+        url: 'https://rtiukmndzmczlziqevjq.supabase.co',
+        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0aXVrbW5kem1jemx6aXFldmpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0OTUzOTMsImV4cCI6MjA3NTA3MTM5M30.RzyIWaIJhyj6SBtFgfulmgTI14hyjSaxgULDhoHKQn0',
       );
 
       _isInitialized = true;

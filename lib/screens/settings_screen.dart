@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/user_provider.dart';
 import '../models/expense_models.dart';
-import 'user_selector_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -19,6 +18,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _categoryBudgetController = TextEditingController();
 
   bool _isEditingName = false;
+  bool _isAddingCategory = false;
 
   @override
   void initState() {
@@ -26,18 +26,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadUserData();
   }
 
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _budgetController.dispose();
+    _categoryNameController.dispose();
+    _categoryBudgetController.dispose();
+    super.dispose();
+  }
+
   void _loadUserData() {
-    final userProvider = context.read<UserProvider>();
-    _nameController.text = userProvider.userId;
     final provider = context.read<ExpenseProvider>();
+    _nameController.text = provider.userName;
     _budgetController.text = provider.monthlyBudget.toString();
   }
 
-  void _saveUserName() async {
+  Future<void> _saveUserName() async {
     final newName = _nameController.text.trim();
-    if (newName.isNotEmpty && newName != context.read<UserProvider>().userId) {
-      await context.read<UserProvider>().setUserId(newName);
-      await context.read<ExpenseProvider>().updateUserName(newName, context);
+    if (newName.isNotEmpty && newName != context.read<ExpenseProvider>().userName) {
+      // Update username through UserProvider only
+      final userProvider = context.read<UserProvider>();
+      if (userProvider.currentUser != null) {
+        await userProvider.updateUserName(newName);
+      }
       setState(() {
         _isEditingName = false;
       });
@@ -57,8 +69,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Consumer<UserProvider>(
-        builder: (context, userProvider, child) {
+      body: Consumer2<UserProvider, ExpenseProvider>(
+        builder: (context, userProvider, expenseProvider, child) {
           return SingleChildScrollView(
             child: Column(
               children: [
@@ -73,9 +85,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             radius: 30,
                             backgroundColor: Theme.of(context).colorScheme.primary,
                             child: Text(
-                              userProvider.userId.isNotEmpty
-                                  ? userProvider.userId[0].toUpperCase()
-                                  : 'S',
+                              userProvider.userName.isNotEmpty
+                                  ? userProvider.userName[0].toUpperCase()
+                                  : 'U',
                               style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -86,10 +98,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           const SizedBox(width: 16),
                           Expanded(
                             child: _isEditingName
-                                ? TextField(
-                                    controller: _nameController,
-                                    style: const TextStyle(color: Colors.white),
-                                    decoration: const InputDecoration(hintText: 'User Name'),
+                                ? Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _nameController,
+                                          style: const TextStyle(color: Colors.white),
+                                          decoration: const InputDecoration(hintText: 'User Name'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      ElevatedButton(
+                                        onPressed: () async {
+                                          await _saveUserName();
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: const Text('Name updated successfully!'),
+                                              backgroundColor: Theme.of(context).colorScheme.primary,
+                                            ),
+                                          );
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Theme.of(context).colorScheme.primary,
+                                          foregroundColor: Colors.white,
+                                          minimumSize: const Size(80, 40),
+                                        ),
+                                        child: const Text('Update Name'),
+                                      ),
+                                    ],
                                   )
                                 : GestureDetector(
                                     onTap: () {
@@ -112,13 +148,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Text(
-                                            userProvider.userId.isEmpty ? 'Tap to set name' : userProvider.userId,
-                                            style: TextStyle(
-                                              color: userProvider.userId.isEmpty ? Colors.grey : Colors.white,
-                                              fontSize: 16,
-                                            ),
-                                          ),
+                                      Text(
+                                        expenseProvider.userName.isEmpty ? 'Tap to set name' : expenseProvider.userName,
+                                        style: TextStyle(
+                                          color: expenseProvider.userName.isEmpty ? Colors.grey : Colors.white,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                                           Icon(
                                             Icons.edit,
                                             color: Colors.grey.withValues(alpha: 0.7),
@@ -172,18 +208,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         onSubmitted: (value) {
                           final budget = double.tryParse(value) ?? 0;
-                          context.read<ExpenseProvider>().updateMonthlyBudget(budget);
+                          expenseProvider.updateMonthlyBudget(budget);
                         },
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () {
                           final budget = double.tryParse(_budgetController.text) ?? 0;
-                          context.read<ExpenseProvider>().updateMonthlyBudget(budget);
+                          expenseProvider.updateMonthlyBudget(budget);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Budget updated successfully!'),
-                              backgroundColor: Colors.green,
+                            SnackBar(
+                              content: const Text('Budget updated successfully!'),
+                              backgroundColor: Theme.of(context).colorScheme.primary,
                             ),
                           );
                         },
@@ -223,9 +259,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 16),
 
                       // Custom Categories List
-                      ...context.read<ExpenseProvider>().customCategories.map((category) {
-                        final budget = context.read<ExpenseProvider>().getCustomCategoryBudget(category.id);
-                        final spent = context.read<ExpenseProvider>().getCustomCategoryExpenses(category.id);
+                      ...expenseProvider.customCategories.map((category) {
+                        final budget = expenseProvider.getCustomCategoryBudget(category.id);
+                        final spent = expenseProvider.getCustomCategoryExpenses(category.id);
                         final isOverBudget = budget > 0 && spent > budget;
 
                         return Container(
@@ -344,23 +380,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 32),
 
                 // Logout Button
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.logout),
-                  label: const Text('Logout'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 48),
+                Center(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.logout, size: 20),
+                    label: const Text('Logout'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () async {
+                      // Clear user session
+                      await userProvider.clearUser();
+                      // Clear expense provider data
+                      expenseProvider.clearUserData();
+                      // The Consumer in main.dart will automatically show UserSelectorScreen
+                      // No need to manually navigate - just let the state change handle it
+                    },
                   ),
-                  onPressed: () async {
-                    // Clear user session
-                    await context.read<UserProvider>().setUserId('');
-                    // Navigate to main login page
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => UserSelectorScreen(onUserSelected: () {})),
-                      (route) => false,
-                    );
-                  },
                 ),
 
                 const SizedBox(height: 32),
@@ -374,7 +414,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildSectionCard({required String title, required Widget child}) {
     return Container(
-      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
@@ -519,8 +559,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         });
                       },
                       child: Container(
-                        width: 40,
-                        height: 40,
+                        width: isSelected ? 50 : 40,
+                        height: isSelected ? 50 : 40,
                         decoration: BoxDecoration(
                           color: color,
                           shape: BoxShape.circle,
@@ -528,6 +568,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             color: isSelected ? Colors.white : Colors.transparent,
                             width: 3,
                           ),
+                          boxShadow: isSelected ? [
+                            BoxShadow(
+                              color: color.withValues(alpha: 0.5),
+                              blurRadius: 10,
+                              spreadRadius: 2,
+                            ),
+                          ] : null,
                         ),
                         child: isSelected
                           ? const Icon(Icons.check, color: Colors.white, size: 20)
@@ -545,32 +592,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: _isAddingCategory ? null : () async {
                 if (_categoryNameController.text.isNotEmpty) {
-                  final newCategory = ExpenseCategory(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    name: _categoryNameController.text,
-                    icon: selectedIcon,
-                    colorHex: '#${(selectedColor.r * 255.0).round().toRadixString(16).padLeft(2, '0')}${(selectedColor.g * 255.0).round().toRadixString(16).padLeft(2, '0')}${(selectedColor.b * 255.0).round().toRadixString(16).padLeft(2, '0')}',
-                    isDefault: false,
-                  );
+                  setState(() {
+                    _isAddingCategory = true;
+                  });
 
-                  context.read<ExpenseProvider>().addCustomCategory(newCategory);
-                  Navigator.pop(context);
+                  try {
+                    final newCategory = ExpenseCategory(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      name: _categoryNameController.text,
+                      icon: selectedIcon,
+                      colorHex: '#${(selectedColor.r * 255.0).round().toRadixString(16).padLeft(2, '0')}${(selectedColor.g * 255.0).round().toRadixString(16).padLeft(2, '0')}${(selectedColor.b * 255.0).round().toRadixString(16).padLeft(2, '0')}',
+                      isDefault: false,
+                    );
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Category "${_categoryNameController.text}" added successfully!'),
-                      backgroundColor: Colors.green,
-                      duration: const Duration(seconds: 1),
-                    ),
-                  );
+                    await context.read<ExpenseProvider>().addCustomCategory(newCategory);
+                    // No need for force refresh - addCustomCategory already handles local updates
+                    Navigator.pop(context);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Category "${_categoryNameController.text}" added successfully!'),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  } finally {
+                    setState(() {
+                      _isAddingCategory = false;
+                    });
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
               ),
-              child: const Text('Add'),
+              child: _isAddingCategory 
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Text('Add'),
             ),
           ],
         ),
@@ -622,9 +689,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final budget = double.tryParse(_categoryBudgetController.text) ?? 0;
-              provider.setCustomCategoryBudget(category.id, budget);
+              await provider.setCustomCategoryBudget(category.id, budget);
+              // No need for force refresh - setCustomCategoryBudget already handles local updates
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -633,7 +701,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ? 'Budget set to ₹${budget.toStringAsFixed(0)} for ${category.name}'
                         : 'Budget removed for ${category.name}',
                   ),
-                  backgroundColor: Colors.green,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   duration: const Duration(seconds: 1),
                 ),
               );
@@ -667,8 +735,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              context.read<ExpenseProvider>().removeCustomCategory(category.id);
+            onPressed: () async {
+              await context.read<ExpenseProvider>().removeCustomCategory(category.id);
+              // No need for force refresh - removeCustomCategory already handles local updates
               Navigator.pop(context);
 
               ScaffoldMessenger.of(context).showSnackBar(
@@ -689,12 +758,4 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _budgetController.dispose();
-    _categoryNameController.dispose();
-    _categoryBudgetController.dispose();
-    super.dispose();
-  }
 }

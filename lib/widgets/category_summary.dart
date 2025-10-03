@@ -3,8 +3,14 @@ import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense_models.dart';
 
-class CategorySummary extends StatelessWidget {
+class CategorySummary extends StatefulWidget {
   const CategorySummary({super.key});
+
+  @override
+  State<CategorySummary> createState() => _CategorySummaryState();
+}
+
+class _CategorySummaryState extends State<CategorySummary> {
 
   @override
   Widget build(BuildContext context) {

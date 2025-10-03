@@ -16,6 +16,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   final List<String> _periods = ['Day', 'Week', 'Month', 'Year'];
 
   @override
+  void initState() {
+    super.initState();
+    // Note: Data is already loaded by UserProvider initialization
+    // Manual refresh is available via the refresh button if needed
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
@@ -27,6 +34,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         backgroundColor: Colors.black,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () {
+              context.read<ExpenseProvider>().forceRefresh();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Analytics refreshed'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Consumer<ExpenseProvider>(
         builder: (context, provider, child) {
@@ -544,6 +566,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   double _getPeriodData(ExpenseProvider provider) {
     final now = DateTime.now();
+    // Ensure we're using the most up-to-date expenses
     final expenses = provider.expenses.where((expense) {
       switch (_selectedPeriod) {
         case 'Day':
@@ -560,12 +583,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         default:
           return false;
       }
-    });
-    return expenses.fold(0.0, (sum, expense) => sum + expense.amount);
+    }).toList(); // Convert to list to ensure we have fresh data
+    
+    final total = expenses.fold(0.0, (sum, expense) => sum + expense.amount);
+    debugPrint('📊 Period data for $_selectedPeriod: ${expenses.length} expenses, total: ₹$total');
+    return total;
   }
 
   double _getPreviousPeriodData(ExpenseProvider provider) {
     final now = DateTime.now();
+    // Ensure we're using the most up-to-date expenses
     final expenses = provider.expenses.where((expense) {
       switch (_selectedPeriod) {
         case 'Day':
@@ -586,8 +613,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         default:
           return false;
       }
-    });
-    return expenses.fold(0.0, (sum, expense) => sum + expense.amount);
+    }).toList(); // Convert to list to ensure we have fresh data
+    
+    final total = expenses.fold(0.0, (sum, expense) => sum + expense.amount);
+    debugPrint('📊 Previous period data for $_selectedPeriod: ${expenses.length} expenses, total: ₹$total');
+    return total;
   }
 
   List<Map<String, dynamic>> _generateInsights(ExpenseProvider provider) {

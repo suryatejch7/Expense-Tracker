@@ -27,6 +27,7 @@ class _GlassNavBarState extends State<GlassNavBar>
   late AnimationController _highlightController;
   late AnimationController _activeController;
   late AnimationController _swipeController;
+  
   late Animation<double> _scaleAnimation;
   late Animation<double> _highlightAnimation;
   late Animation<double> _activeAnimation;
@@ -88,7 +89,7 @@ class _GlassNavBarState extends State<GlassNavBar>
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _swipeController,
-      curve: Curves.easeInOutBack,
+      curve: Curves.easeInOutCubic,
     ));
   }
 
@@ -108,12 +109,6 @@ class _GlassNavBarState extends State<GlassNavBar>
 
   void _onTapUp(int index) {
     _pressController.reverse();
-
-    if (index != widget.currentIndex) {
-      _activeController.forward().then((_) {
-        _activeController.reverse();
-      });
-    }
 
     Future.delayed(const Duration(milliseconds: 100), () {
       _highlightController.reverse();
@@ -196,12 +191,12 @@ class _GlassNavBarState extends State<GlassNavBar>
 
     if (details.primaryVelocity!.abs() > swipeThreshold) {
       if (details.primaryVelocity! > 0) {
-        // Swipe right: Dashboard (0) → Categories (1)
+        // Swipe right: Home (0) → Categories (1)
         if (widget.currentIndex == 0) {
           _animateSwipeTransition(1);
         }
       } else {
-        // Swipe left: Categories (1) → Dashboard (0)
+        // Swipe left: Categories (1) → Home (0)
         if (widget.currentIndex == 1) {
           _animateSwipeTransition(0);
         }
@@ -224,23 +219,29 @@ class _GlassNavBarState extends State<GlassNavBar>
       right: 0,
       child: Center(
         child: AnimatedBuilder(
-          animation: Listenable.merge([_scaleAnimation, _swipeAnimation]),
+          animation: Listenable.merge([
+            _scaleAnimation, 
+            _swipeAnimation
+          ]),
           builder: (context, child) {
             return Transform.scale(
-              scale: _scaleAnimation.value,
+              scale: _scaleAnimation.value * 0.9, // Scale down the nav bar
               child: GestureDetector(
                 onHorizontalDragEnd: _handleHorizontalSwipe,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(35),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                    filter: ImageFilter.blur(
+                      sigmaX: 15, 
+                      sigmaY: 15
+                    ),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
                       height: 70,
                       width: 200,
                       transform: Matrix4.identity()
                         ..setTranslationRaw(_swipeAnimation.value * 10 * (widget.currentIndex == 0 ? 1 : -1), 0, 0)
-                        ..scaleByVector3(vmath.Vector3.all(1.0 + (_swipeAnimation.value * 0.015))),// <-- THIS IS THE CORRECTED LINE
+                        ..scaleByVector3(vmath.Vector3.all(1.0 + (_swipeAnimation.value * 0.015))),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(35),
                         gradient: LinearGradient(
@@ -252,7 +253,7 @@ class _GlassNavBarState extends State<GlassNavBar>
                           ],
                         ),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3 + (_swipeAnimation.value * 0.2)),
+                          color: Colors.white.withValues(alpha: 0.4),
                           width: 1.5,
                         ),
                         boxShadow: [
@@ -275,7 +276,7 @@ class _GlassNavBarState extends State<GlassNavBar>
                             index: 0,
                             icon: Icons.dashboard_rounded,
                             activeIcon: Icons.dashboard,
-                            label: 'Dashboard',
+                            label: 'Home',
                           ),
                           _buildNavItem(
                             index: 1,
@@ -330,8 +331,8 @@ class _GlassNavBarState extends State<GlassNavBar>
               color: isActive
                   ? Colors.white.withValues(alpha: 0.12)
                   : Colors.transparent,
-            ),
-            child: Column(
+              ),
+              child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 AnimatedSwitcher(

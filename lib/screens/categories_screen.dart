@@ -322,7 +322,7 @@ class CategoryDetailScreen extends StatelessWidget {
                         itemBuilder: (context, index) {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 8),
-                            child: ExpenseCard(expense: expenses[index]),
+                            child: ExpenseCard(expense: expenses[index], index: index),
                           );
                         },
                       ),

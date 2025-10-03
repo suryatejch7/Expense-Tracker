@@ -14,10 +14,8 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateMixin {
+class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
-  late AnimationController _fabController;
-  late Animation<double> _fabScaleAnimation;
 
   final List<Widget> _screens = [
     const DashboardScreen(),
@@ -27,27 +25,10 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _fabController = AnimationController(
-      duration: const Duration(milliseconds: 150),
-      vsync: this,
-    );
-    _fabScaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
-      CurvedAnimation(
-        parent: _fabController,
-        curve: Curves.easeInOutCubic,
-      ),
-    );
-
     // Set the context for sharing service after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SharingIntentService.setContext(context);
     });
-  }
-
-  @override
-  void dispose() {
-    _fabController.dispose();
-    super.dispose();
   }
 
   @override
@@ -70,10 +51,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             ),
           ),
           // Main content without bottom padding
-          IndexedStack(
-            index: _currentIndex,
-            children: _screens,
-          ),
+          _screens[_currentIndex],
           // Glass navigation bar positioned at bottom
           GlassNavBar(
             currentIndex: _currentIndex,
@@ -85,13 +63,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
           ),
         ],
       ),
-      floatingActionButton: ScaleTransition(
-        scale: _fabScaleAnimation,
+      floatingActionButton: AnimatedSwitcher(
+        duration: Duration.zero, // No animation
         child: GestureDetector(
+          key: const ValueKey('fab_gesture'),
           onTap: () {
-            _fabController.forward().then((_) {
-              _fabController.reverse();
-            });
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -100,17 +76,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             );
           },
           onLongPress: () {
-            _fabController.forward().then((_) {
-              _fabController.reverse();
-            });
             _showAddExpenseOptions();
           },
           onVerticalDragEnd: (details) {
             if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
-              // Swipe up detected
-              _fabController.forward().then((_) {
-                _fabController.reverse();
-              });
+              // Swipe up detected - navigate to TransactionScannerScreen
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -120,13 +90,14 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             }
           },
           child: FloatingActionButton(
+            key: const ValueKey('main_fab'),
             backgroundColor: Theme.of(context).colorScheme.primary,
-            child: const Icon(Icons.add, color: Colors.black),
             onPressed: null, // Disable default onPressed
+            child: const Icon(Icons.add, color: Colors.black),
           ),
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButtonLocation: _CustomFABLocation(),
     );
   }
 
@@ -217,4 +188,22 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
       ),
     );
   }
+}
+
+class _CustomFABLocation extends FloatingActionButtonLocation {
+  @override
+  Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
+    // Standard FAB position: 16px from right edge, 16px from bottom
+    // But we need to account for the custom navigation bar (70px height + 30px bottom margin = 100px)
+    final double right = 16.0;
+    final double bottom = 16.0 + 100.0; // 16px standard + 100px for custom nav bar
+    
+    return Offset(
+      scaffoldGeometry.scaffoldSize.width - right - scaffoldGeometry.floatingActionButtonSize.width,
+      scaffoldGeometry.scaffoldSize.height - bottom - scaffoldGeometry.floatingActionButtonSize.height,
+    );
+  }
+
+  @override
+  String toString() => 'FloatingActionButtonLocation.endFloat';
 }

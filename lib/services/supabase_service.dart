@@ -1,13 +1,202 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/expense_models.dart';
-import '../models/user_settings.dart';
+import '../models/user_settings.dart' as models;
 
 /// Service for managing expenses and user settings in Supabase
 class ExpenseSupabaseService {
   static final SupabaseClient _supabase = Supabase.instance.client;
 
+  // ==================== USER MANAGEMENT ====================
+
+  /// Create a new user
+  static Future<models.User> createUser(String userName) async {
+    try {
+      final response = await _supabase
+          .from('users')
+          .insert({
+            'user_name': userName,
+          })
+          .select()
+          .single();
+      return models.User.fromSupabase(response);
+    } catch (e) {
+      throw Exception('Failed to create user: $e');
+    }
+  }
+
+  /// Get user by ID
+  static Future<models.User?> getUserById(int userId) async {
+    try {
+      final response = await _supabase
+          .from('users')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+      return response != null ? models.User.fromSupabase(response) : null;
+    } catch (e) {
+      throw Exception('Failed to get user: $e');
+    }
+  }
+
+  /// Get user by username
+  static Future<models.User?> getUserByUsername(String userName) async {
+    try {
+      final response = await _supabase
+          .from('users')
+          .select()
+          .eq('user_name', userName)
+          .maybeSingle();
+      return response != null ? models.User.fromSupabase(response) : null;
+    } catch (e) {
+      throw Exception('Failed to get user by username: $e');
+    }
+  }
+
+  /// Check if username exists
+  static Future<bool> isUsernameTaken(String userName) async {
+    try {
+      final response = await _supabase
+          .from('users')
+          .select('id')
+          .eq('user_name', userName)
+          .maybeSingle();
+      return response != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Get all users
+  static Future<List<models.User>> getAllUsers() async {
+    try {
+      final response = await _supabase
+          .from('users')
+          .select()
+          .order('created_at', ascending: false);
+      return (response as List)
+          .map((item) => models.User.fromSupabase(item))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch users: $e');
+    }
+  }
+
+  // ==================== USER SETTINGS ====================
+
+  /// Create default user settings for a new user
+  static Future<models.UserSettings> createDefaultUserSettings(int userId) async {
+    try {
+      final now = DateTime.now();
+      final defaultSettings = models.UserSettings(
+        userId: userId,
+        monthlyBudget: 25000.0,
+        currency: '₹',
+        categoryBudgets: {},
+        customCategories: [],
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await _supabase
+          .from('user_settings')
+          .insert(defaultSettings.toSupabase());
+
+      return defaultSettings;
+    } catch (e) {
+      throw Exception('Failed to create default user settings: $e');
+    }
+  }
+
+  /// Get user settings from Supabase
+  static Future<models.UserSettings> getUserSettings({required int userId}) async {
+    try {
+      final response = await _supabase
+          .from('user_settings')
+          .select()
+          .eq('user_id', userId)
+          .maybeSingle();
+      
+      if (response == null) {
+        // Create default settings if none exist
+        return await createDefaultUserSettings(userId);
+      }
+      
+      return models.UserSettings.fromSupabase(response);
+    } catch (e) {
+      throw Exception('Failed to fetch user settings: $e');
+    }
+  }
+
+  /// Save user settings to Supabase
+  static Future<void> saveUserSettings(models.UserSettings settings) async {
+    try {
+      await _supabase
+          .from('user_settings')
+          .upsert(settings.toSupabase(), onConflict: 'user_id');
+    } catch (e) {
+      throw Exception('Failed to save user settings: $e');
+    }
+  }
+
+  /// Update user name
+  static Future<void> updateUserName(String userName, {required int userId}) async {
+    try {
+      await _supabase
+          .from('users')
+          .update({
+            'user_name': userName,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', userId);
+    } catch (e) {
+      throw Exception('Failed to update user name: $e');
+    }
+  }
+
+  /// Update monthly budget
+  static Future<void> updateMonthlyBudget(double budget, {required int userId}) async {
+    try {
+      await _supabase
+          .from('user_settings')
+          .upsert({
+            'user_id': userId,
+            'monthly_budget': budget,
+            'updated_at': DateTime.now().toIso8601String(),
+          }, onConflict: 'user_id');
+    } catch (e) {
+      throw Exception('Failed to update monthly budget: $e');
+    }
+  }
+
+  /// Update category budget
+  static Future<void> updateCategoryBudget(String categoryId, double budget, {required int userId}) async {
+    try {
+      final settings = await getUserSettings(userId: userId);
+      settings.categoryBudgets[categoryId] = budget;
+      await saveUserSettings(settings);
+    } catch (e) {
+      throw Exception('Failed to update category budget: $e');
+    }
+  }
+
+  /// Save custom categories
+  static Future<void> saveCustomCategories(List<ExpenseCategory> categories, {required int userId}) async {
+    try {
+      final settings = await getUserSettings(userId: userId);
+      final updatedSettings = settings.copyWith(
+        customCategories: categories,
+        updatedAt: DateTime.now(),
+      );
+      await saveUserSettings(updatedSettings);
+    } catch (e) {
+      throw Exception('Failed to save custom categories: $e');
+    }
+  }
+
+  // ==================== EXPENSE MANAGEMENT ====================
+
   /// Add a new expense to Supabase
-  static Future<String> addExpense(Expense expense, String userId) async {
+  static Future<String> addExpense(Expense expense, int userId) async {
     try {
       final data = expense.toSupabase();
       data['user_id'] = userId;
@@ -23,7 +212,7 @@ class ExpenseSupabaseService {
   }
 
   /// Update an existing expense
-  static Future<void> updateExpense(Expense expense, String userId) async {
+  static Future<void> updateExpense(Expense expense, int userId) async {
     if (expense.id == null) throw Exception('Expense ID is required for update');
     try {
       final data = expense.toSupabase();
@@ -39,7 +228,7 @@ class ExpenseSupabaseService {
   }
 
   /// Delete an expense
-  static Future<void> deleteExpense(String expenseId, String userId) async {
+  static Future<void> deleteExpense(String expenseId, int userId) async {
     try {
       await _supabase
           .from('expenses')
@@ -53,7 +242,7 @@ class ExpenseSupabaseService {
 
   /// Get all expenses for a user
   static Future<List<Expense>> getExpenses({
-    required String userId,
+    required int userId,
     String? category,
     DateTime? startDate,
     DateTime? endDate,
@@ -78,111 +267,13 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Get user settings from Supabase
-  static Future<UserSettings> getUserSettings({required String userId}) async {
-    try {
-      final response = await _supabase
-          .from('user_settings')
-          .select()
-          .eq('user_id', userId)
-          .maybeSingle();
-      if (response == null) {
-        final defaultSettings = UserSettings(
-          userId: userId,
-          userName: 'User',
-          monthlyBudget: 25000.0,
-          currency: '₹',
-          categoryBudgets: {},
-          customCategories: [],
-        );
-        await saveUserSettings(defaultSettings, userId: userId);
-        return defaultSettings;
-      }
-      return UserSettings.fromSupabase(response);
-    } catch (e) {
-      throw Exception('Failed to fetch user settings: $e');
-    }
-  }
-
-  /// Save user settings to Supabase
-  static Future<void> saveUserSettings(UserSettings settings, {required String userId}) async {
-    try {
-      final data = settings.toSupabase();
-      data['user_id'] = userId;
-      await _supabase
-          .from('user_settings')
-          .upsert(data, onConflict: 'user_id');
-    } catch (e) {
-      throw Exception('Failed to save user settings: $e');
-    }
-  }
-
-  /// Update monthly budget
-  static Future<void> updateMonthlyBudget(double budget, {required String userId}) async {
-    try {
-      await _supabase
-          .from('user_settings')
-          .upsert({
-            'user_id': userId,
-            'monthly_budget': budget,
-            'updated_at': DateTime.now().toIso8601String(),
-          }, onConflict: 'user_id');
-    } catch (e) {
-      throw Exception('Failed to update monthly budget: $e');
-    }
-  }
-
-  /// Update user name (display name only)
-  static Future<void> updateUserName(String name, {required String userId}) async {
-    try {
-      await _supabase
-          .from('user_settings')
-          .update({'user_name': name, 'updated_at': DateTime.now().toIso8601String()})
-          .eq('user_id', userId);
-    } catch (e) {
-      throw Exception('Failed to update user name: $e');
-    }
-  }
-
-  /// Update category budget
-  static Future<void> updateCategoryBudget(String categoryId, double budget, {required String userId}) async {
-    try {
-      final settings = await getUserSettings(userId: userId);
-      settings.categoryBudgets[categoryId] = budget;
-      await _supabase
-          .from('user_settings')
-          .upsert({
-            'user_id': userId,
-            'category_budgets': settings.categoryBudgets,
-            'updated_at': DateTime.now().toIso8601String(),
-          }, onConflict: 'user_id');
-    } catch (e) {
-      throw Exception('Failed to update category budget: $e');
-    }
-  }
-
-  /// Save custom categories
-  static Future<void> saveCustomCategories(List<ExpenseCategory> categories, {required String userId}) async {
-    try {
-      final categoriesData = categories.map((cat) => cat.toSupabase()).toList();
-      await _supabase
-          .from('user_settings')
-          .upsert({
-            'user_id': userId,
-            'custom_categories': categoriesData,
-            'updated_at': DateTime.now().toIso8601String(),
-          }, onConflict: 'user_id');
-    } catch (e) {
-      throw Exception('Failed to save custom categories: $e');
-    }
-  }
-
   /// Get expenses for analytics
-  static Future<List<Expense>> getExpensesForPeriod(DateTime startDate, DateTime endDate) async {
+  static Future<List<Expense>> getExpensesForPeriod(DateTime startDate, DateTime endDate, {required int userId}) async {
     try {
       final response = await _supabase
           .from('expenses')
           .select()
+          .eq('user_id', userId)
           .gte('date', startDate.toIso8601String())
           .lte('date', endDate.toIso8601String())
           .order('date', ascending: false);
@@ -196,11 +287,12 @@ class ExpenseSupabaseService {
   }
 
   /// Search expenses
-  static Future<List<Expense>> searchExpenses(String query) async {
+  static Future<List<Expense>> searchExpenses(String query, {required int userId}) async {
     try {
       final response = await _supabase
           .from('expenses')
           .select()
+          .eq('user_id', userId)
           .or('description.ilike.%$query%,payee.ilike.%$query%,category.ilike.%$query%')
           .order('date', ascending: false);
 
@@ -209,75 +301,6 @@ class ExpenseSupabaseService {
           .toList();
     } catch (e) {
       throw Exception('Failed to search expenses: $e');
-    }
-  }
-
-  /// Check if a userId is already taken in Supabase
-  static Future<bool> isUserIdTaken(String userId) async {
-    try {
-      final response = await _supabase
-          .from('user_settings')
-          .select('user_id')
-          .eq('user_id', userId)
-          .maybeSingle()
-          .timeout(const Duration(seconds: 10), onTimeout: () => null);
-      return response != null;
-    } catch (e) {
-      // Optionally log or handle error
-      return false;
-    }
-  }
-
-  /// Migrate all user data from oldUserId to newUserId in Supabase
-  static Future<void> migrateUserId(String oldUserId, String newUserId) async {
-    // Update all expenses
-    await _supabase
-      .from('expenses')
-      .update({'user_id': newUserId})
-      .eq('user_id', oldUserId);
-    // Update user_settings
-    await _supabase
-      .from('user_settings')
-      .update({'user_id': newUserId, 'user_name': newUserId})
-      .eq('user_id', oldUserId);
-  }
-
-  /// Get all users from the user_settings table
-  static Future<List<Map<String, dynamic>>> getAllUsers() async {
-    try {
-      final response = await _supabase
-          .from('user_settings')
-          .select('user_id, user_name, monthly_budget, currency, created_at')
-          .order('created_at', ascending: false);
-      return List<Map<String, dynamic>>.from(response);
-    } catch (e) {
-      throw Exception('Failed to fetch users: $e');
-    }
-  }
-
-  /// Get user profile information from user_settings
-  static Future<Map<String, dynamic>?> getUserProfile(String userId) async {
-    try {
-      final response = await _supabase
-          .from('user_settings')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
-      return response;
-    } catch (e) {
-      throw Exception('Failed to fetch user profile: $e');
-    }
-  }
-
-  /// Get total number of users
-  static Future<int> getUserCount() async {
-    try {
-      final response = await _supabase
-          .from('user_settings')
-          .select('user_id');
-      return (response as List).length;
-    } catch (e) {
-      throw Exception('Failed to get user count: $e');
     }
   }
 }

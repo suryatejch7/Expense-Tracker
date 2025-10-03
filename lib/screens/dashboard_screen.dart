@@ -4,8 +4,20 @@ import '../providers/expense_provider.dart';
 import '../widgets/expense_card.dart';
 import '../widgets/category_summary.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Note: Data is already loaded by UserProvider initialization
+    // Only refresh if data seems stale (optional optimization)
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +124,7 @@ class DashboardScreen extends StatelessWidget {
                   (context, index) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      child: ExpenseCard(expense: expenses[index]),
+                      child: ExpenseCard(expense: expenses[index], index: index),
                     );
                   },
                   childCount: expenses.length,
@@ -129,8 +141,69 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-class TotalExpenseWidget extends StatelessWidget {
+class TotalExpenseWidget extends StatefulWidget {
   const TotalExpenseWidget({super.key});
+
+  @override
+  State<TotalExpenseWidget> createState() => _TotalExpenseWidgetState();
+}
+
+class _TotalExpenseWidgetState extends State<TotalExpenseWidget>
+    with TickerProviderStateMixin {
+  late AnimationController _numberController;
+  late AnimationController _progressController;
+  
+  late Animation<double> _numberAnimation;
+  late Animation<double> _progressAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAnimations();
+  }
+
+  void _initializeAnimations() {
+    _numberController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+
+    _progressController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+
+    _numberAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _numberController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _progressAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _progressController,
+      curve: Curves.easeInOut,
+    ));
+
+    // Start animations with a slight delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _numberController.forward();
+        _progressController.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _numberController.dispose();
+    _progressController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -153,26 +226,24 @@ class TotalExpenseWidget extends StatelessWidget {
                     color: Colors.grey,
                   ),
                 ),
-                if (isOverBudget) ...[
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.warning,
-                    color: Colors.red,
-                    size: 20,
-                  ),
-                ],
               ],
             ),
             const SizedBox(height: 4),
             Row(
               children: [
-                Text(
-                  '₹${totalExpense.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: isOverBudget ? Colors.red : Theme.of(context).colorScheme.primary,
-                  ),
+                AnimatedBuilder(
+                  animation: _numberAnimation,
+                  builder: (context, child) {
+                    final animatedValue = totalExpense * _numberAnimation.value;
+                    return Text(
+                      '₹${animatedValue.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: isOverBudget ? Colors.red : Theme.of(context).colorScheme.primary,
+                      ),
+                    );
+                  },
                 ),
                 if (isOverBudget) ...[
                   const SizedBox(width: 8),
@@ -219,18 +290,19 @@ class TotalExpenseWidget extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: (totalExpense / monthlyBudget).clamp(0.0, 1.0),
-                backgroundColor: Colors.grey.withValues(alpha: 0.3),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  isOverBudget ? Colors.red : Theme.of(context).colorScheme.primary,
-                ),
+              AnimatedBuilder(
+                animation: _progressAnimation,
+                builder: (context, child) {
+                  final progressValue = (totalExpense / monthlyBudget).clamp(0.0, 1.0) * _progressAnimation.value;
+                  return LinearProgressIndicator(
+                    value: progressValue,
+                    backgroundColor: Colors.grey.withValues(alpha: 0.3),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isOverBudget ? Colors.red : Theme.of(context).colorScheme.primary,
+                    ),
+                  );
+                },
               ),
-            ],
-            // Show warning for over-budget categories
-            if (expenseProvider.categoryTotals.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _buildOverBudgetCategoriesWarning(expenseProvider),
             ],
           ],
         );
@@ -238,52 +310,4 @@ class TotalExpenseWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildOverBudgetCategoriesWarning(ExpenseProvider provider) {
-    final overBudgetCategories = provider.categories
-        .where((category) => provider.isCategoryOverBudget(category.name))
-        .toList();
-
-    if (overBudgetCategories.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.warning,
-                color: Colors.red,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Budget Alert',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${overBudgetCategories.length} ${overBudgetCategories.length == 1 ? 'category is' : 'categories are'} over budget',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

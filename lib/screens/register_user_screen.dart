@@ -1,24 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
+import 'existing_user_screen.dart';
 
-class ExistingUserScreen extends StatefulWidget {
-  final VoidCallback onUserFetched;
-  const ExistingUserScreen({super.key, required this.onUserFetched});
+class RegisterUserScreen extends StatefulWidget {
+  final VoidCallback onRegistered;
+  const RegisterUserScreen({super.key, required this.onRegistered});
 
   @override
-  State<ExistingUserScreen> createState() => _ExistingUserScreenState();
+  State<RegisterUserScreen> createState() => _RegisterUserScreenState();
 }
 
-class _ExistingUserScreenState extends State<ExistingUserScreen> {
+class _RegisterUserScreenState extends State<RegisterUserScreen> {
   final TextEditingController _controller = TextEditingController();
   String? _errorMessage;
 
-  Future<void> _loginUser() async {
-    final userInput = _controller.text.trim();
-    if (userInput.isEmpty) {
+  Future<void> _registerUser() async {
+    final userName = _controller.text.trim();
+    
+    if (userName.isEmpty) {
       setState(() {
-        _errorMessage = 'Please enter your username.';
+        _errorMessage = 'Please enter a username.';
+      });
+      return;
+    }
+
+    if (userName.length < 3) {
+      setState(() {
+        _errorMessage = 'Username must be at least 3 characters long.';
       });
       return;
     }
@@ -28,15 +37,13 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
     });
 
     final userProvider = context.read<UserProvider>();
-    
-    // Try to login with username
-    final success = await userProvider.loginWithUsername(userInput);
+    final success = await userProvider.registerUser(userName);
 
     if (success) {
-      widget.onUserFetched();
+      widget.onRegistered();
     } else {
       setState(() {
-        _errorMessage = userProvider.errorMessage ?? 'Login failed';
+        _errorMessage = userProvider.errorMessage ?? 'Registration failed';
       });
     }
   }
@@ -46,7 +53,7 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        title: const Text('Sign In'),
+        title: const Text('Register New User'),
         backgroundColor: const Color(0xFF121212),
       ),
       body: Center(
@@ -56,13 +63,14 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Welcome Back',
+                'Create New Account',
                 style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               const Text(
-                'Enter your username to continue',
+                'Enter a unique username to get started',
                 style: TextStyle(fontSize: 16, color: Colors.white70),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
               TextField(
@@ -81,7 +89,6 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
                   ),
                   prefixIcon: const Icon(Icons.person, color: Colors.white70),
                 ),
-                onSubmitted: (_) => _loginUser(),
               ),
               const SizedBox(height: 24),
               if (_errorMessage != null)
@@ -104,9 +111,9 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
                   return SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: userProvider.isLoading ? null : _loginUser,
+                      onPressed: userProvider.isLoading ? null : _registerUser,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        backgroundColor: Colors.blue,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -119,12 +126,28 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                             )
                           : const Text(
-                              'Sign In',
+                              'Create Account',
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                     ),
                   );
                 },
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => ExistingUserScreen(
+                        onUserFetched: widget.onRegistered,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'Already have an account? Sign In',
+                  style: TextStyle(color: Colors.blueAccent, fontSize: 16),
+                ),
               ),
             ],
           ),

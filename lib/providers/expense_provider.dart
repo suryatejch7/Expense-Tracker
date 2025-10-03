@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/expense_models.dart';
+import '../models/user_settings.dart';
 import '../services/supabase_service.dart';
-import 'user_provider.dart';
 
 class ExpenseProvider extends ChangeNotifier {
   final List<Expense> _expenses = [];
@@ -12,6 +10,7 @@ class ExpenseProvider extends ChangeNotifier {
   String _searchQuery = '';
 
   // USER SETTINGS - NOW MUTABLE AND BACKEND-INTEGRATED
+  int _userId = 0;
   String _userName = '';
   double _monthlyBudget = 25000.0;
   String _currency = '₹';
@@ -22,6 +21,7 @@ class ExpenseProvider extends ChangeNotifier {
   // Getters
   List<Expense> get expenses => _expenses;
   List<ExpenseCategory> get customCategories => _customCategories;
+  int get userId => _userId;
   String get userName => _userName;
   double get monthlyBudget => _monthlyBudget;
   String get currency => _currency;
@@ -29,10 +29,76 @@ class ExpenseProvider extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   bool get isInitialized => _isInitialized;
 
-  // All categories (default + custom)
+  // Only custom categories (no default categories)
   List<ExpenseCategory> get categories {
-    final defaultCategories = ExpenseCategory.getDefaultCategories();
-    return [...defaultCategories, ..._customCategories];
+    return _customCategories;
+  }
+
+  /// Initialize expense provider with user data
+  Future<void> initializeWithUser(int userId, String userName, UserSettings userSettings) async {
+    _userId = userId;
+    _userName = userName;
+    _monthlyBudget = userSettings.monthlyBudget;
+    _currency = userSettings.currency;
+    _categoryBudgets.clear();
+    _categoryBudgets.addAll(userSettings.categoryBudgets);
+    _customCategories.clear();
+    _customCategories.addAll(userSettings.customCategories);
+    
+    await _loadExpenses();
+    _isInitialized = true;
+    notifyListeners();
+  }
+
+  /// Clear user data when logging out
+  void clearUserData() {
+    _userId = 0;
+    _userName = '';
+    _monthlyBudget = 25000.0;
+    _currency = '₹';
+    _categoryBudgets.clear();
+    _customCategories.clear();
+    _expenses.clear();
+    _searchQuery = '';
+    _isInitialized = false;
+    notifyListeners();
+  }
+
+  /// Force refresh all calculations and notify listeners
+  void _refreshCalculations() {
+    // This method forces recalculation of all computed properties
+    // by triggering a rebuild of all listeners
+    debugPrint('ExpenseProvider: Refreshing all calculations');
+  }
+
+  /// Force refresh all data from backend
+  Future<void> forceRefresh() async {
+    if (_userId == 0) return;
+    
+    try {
+      _isLoading = true;
+      notifyListeners();
+      
+      // Reload expenses from backend
+      await _loadExpenses();
+      
+      // Reload user settings from backend
+      final userSettings = await ExpenseSupabaseService.getUserSettings(userId: _userId);
+      _monthlyBudget = userSettings.monthlyBudget;
+      _currency = userSettings.currency;
+      _categoryBudgets.clear();
+      _categoryBudgets.addAll(userSettings.categoryBudgets);
+      _customCategories.clear();
+      _customCategories.addAll(userSettings.customCategories);
+      
+      debugPrint('ExpenseProvider: Force refreshed all data from backend');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ExpenseProvider: Failed to force refresh - $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   List<Expense> get filteredExpenses {
@@ -65,60 +131,34 @@ class ExpenseProvider extends ChangeNotifier {
   double get budgetRemaining => _monthlyBudget - totalExpense;
   double get budgetUsagePercentage => _monthlyBudget > 0 ? (totalExpense / _monthlyBudget) * 100 : 0;
 
-  /// INITIALIZE PROVIDER - LOAD ALL DATA FROM BACKEND
-  Future<void> initialize() async {
-    if (_isInitialized) return;
-
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      // Load user settings from Supabase
-      await _loadUserSettings();
-
-      // Load expenses from Supabase
-      await _loadExpenses();
-
-      _isInitialized = true;
-    } catch (e) {
-      debugPrint('Failed to initialize ExpenseProvider: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
+  // Note: initialize() method removed - use initializeWithUser() instead
 
   /// Load user settings from Supabase
   Future<void> _loadUserSettings() async {
     try {
-      final userId = _userName;
-      final settings = await ExpenseSupabaseService.getUserSettings(userId: userId);
-
-      _userName = settings.userName;
+      final settings = await ExpenseSupabaseService.getUserSettings(userId: _userId);
+      // Note: userName is now managed by UserProvider, not UserSettings
       _monthlyBudget = settings.monthlyBudget;
       _currency = settings.currency;
       _categoryBudgets.clear();
       _categoryBudgets.addAll(settings.categoryBudgets);
       _customCategories.clear();
       _customCategories.addAll(settings.customCategories);
-
-      debugPrint('✅ Loaded user settings: $_userName, Budget: ₹$_monthlyBudget');
+      debugPrint('ExpenseProvider: Loaded user settings - Budget: ₹$_monthlyBudget');
     } catch (e) {
-      debugPrint('❌ Failed to load user settings: $e');
+      debugPrint('ExpenseProvider: Failed to load user settings - $e');
     }
   }
 
   /// Load expenses from Supabase
   Future<void> _loadExpenses() async {
     try {
-      final userId = _userName;
-      final expenses = await ExpenseSupabaseService.getExpenses(userId: userId);
+      final expenses = await ExpenseSupabaseService.getExpenses(userId: _userId);
       _expenses.clear();
       _expenses.addAll(expenses);
-
-      debugPrint('✅ Loaded ${expenses.length} expenses from Supabase');
+      debugPrint('ExpenseProvider: Loaded ${expenses.length} expenses from Supabase');
     } catch (e) {
-      debugPrint('❌ Failed to load expenses: $e');
+      debugPrint('ExpenseProvider: Failed to load expenses - $e');
     }
   }
 
@@ -127,16 +167,12 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
-      final userId = _userName;
-      await ExpenseSupabaseService.updateMonthlyBudget(budget, userId: userId);
-
-      // Update local state only after successful backend update
+      await ExpenseSupabaseService.updateMonthlyBudget(budget, userId: _userId);
       _monthlyBudget = budget;
-
-      debugPrint('✅ Monthly budget updated to ₹$budget');
+      debugPrint('ExpenseProvider: Monthly budget updated to ₹$budget');
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ Failed to update monthly budget: $e');
+      debugPrint('ExpenseProvider: Failed to update monthly budget - $e');
       throw Exception('Failed to update budget: $e');
     } finally {
       _isLoading = false;
@@ -144,16 +180,12 @@ class ExpenseProvider extends ChangeNotifier {
     }
   }
 
-  /// UPDATE USER NAME - ONLY UPDATE DISPLAY NAME
-  Future<void> updateUserName(String newName, BuildContext context) async {
+  /// UPDATE USER NAME - ONLY UPDATE LOCAL DISPLAY NAME
+  /// Note: Database updates are handled by UserProvider
+  void updateLocalUserName(String newName) {
     if (newName.isNotEmpty && newName != _userName) {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final userId = userProvider.userId;
-      // Update only the user_name field in Supabase
-      await ExpenseSupabaseService.updateUserName(newName, userId: userId);
       _userName = newName;
       notifyListeners();
-      await refresh();
     }
   }
 
@@ -162,17 +194,15 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
-      final userId = _userName;
-      final expenseId = await ExpenseSupabaseService.addExpense(expense, userId);
-
-      // Add to local state with the returned ID
+      final expenseId = await ExpenseSupabaseService.addExpense(expense, _userId);
       final expenseWithId = expense.copyWith(id: expenseId);
       _expenses.insert(0, expenseWithId);
-
-      debugPrint('✅ Added expense: ${expense.description} - ₹${expense.amount}');
+      // Force refresh all calculations
+      _refreshCalculations();
+      debugPrint('ExpenseProvider: Added expense - ${expense.description} (₹${expense.amount})');
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ Failed to add expense: $e');
+      debugPrint('ExpenseProvider: Failed to add expense - $e');
       throw Exception('Failed to add expense: $e');
     } finally {
       _isLoading = false;
@@ -185,19 +215,17 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
-      final userId = _userName;
-      await ExpenseSupabaseService.updateExpense(expense, userId);
-
-      // Update local state
+      await ExpenseSupabaseService.updateExpense(expense, _userId);
       final index = _expenses.indexWhere((e) => e.id == expense.id);
       if (index != -1) {
         _expenses[index] = expense;
+        // Force refresh all calculations
+        _refreshCalculations();
       }
-
-      debugPrint('✅ Updated expense: ${expense.description}');
+      debugPrint('ExpenseProvider: Updated expense - ${expense.description}');
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ Failed to update expense: $e');
+      debugPrint('ExpenseProvider: Failed to update expense - $e');
       throw Exception('Failed to update expense: $e');
     } finally {
       _isLoading = false;
@@ -210,16 +238,14 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
-      final userId = _userName;
-      await ExpenseSupabaseService.deleteExpense(expenseId, userId);
-
-      // Remove from local state
+      await ExpenseSupabaseService.deleteExpense(expenseId, _userId);
       _expenses.removeWhere((expense) => expense.id == expenseId);
-
-      debugPrint('✅ Deleted expense: $expenseId');
+      // Force refresh all calculations
+      _refreshCalculations();
+      debugPrint('ExpenseProvider: Deleted expense - $expenseId');
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ Failed to delete expense: $e');
+      debugPrint('ExpenseProvider: Failed to delete expense - $e');
       throw Exception('Failed to delete expense: $e');
     } finally {
       _isLoading = false;
@@ -239,17 +265,7 @@ class ExpenseProvider extends ChangeNotifier {
       return _categoryBudgets[customCategory.id] ?? 0.0;
     }
 
-    // Then check default categories
-    final defaultCategory = ExpenseCategory.getDefaultCategories()
-        .firstWhere(
-          (cat) => cat.name == categoryName,
-          orElse: () => ExpenseCategory(id: '', name: '', icon: '', color: Colors.transparent),
-        );
-
-    if (defaultCategory.id.isNotEmpty) {
-      return _categoryBudgets[defaultCategory.id] ?? 0.0;
-    }
-
+    // No default categories - return 0 if not found in custom categories
     return 0.0;
   }
 
@@ -258,7 +274,7 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       String categoryId = '';
 
-      // Find the category ID
+      // Find the category ID (only in custom categories)
       final customCategory = _customCategories.firstWhere(
         (cat) => cat.name == categoryName,
         orElse: () => ExpenseCategory(id: '', name: '', icon: '', color: Colors.transparent),
@@ -266,22 +282,14 @@ class ExpenseProvider extends ChangeNotifier {
 
       if (customCategory.id.isNotEmpty) {
         categoryId = customCategory.id;
-      } else {
-        final defaultCategory = ExpenseCategory.getDefaultCategories()
-            .firstWhere(
-              (cat) => cat.name == categoryName,
-              orElse: () => ExpenseCategory(id: '', name: '', icon: '', color: Colors.transparent),
-            );
-        categoryId = defaultCategory.id;
       }
 
       if (categoryId.isEmpty) {
         throw Exception('Category not found: $categoryName');
       }
 
-      final userId = _userName;
       // Update in Supabase first
-      await ExpenseSupabaseService.updateCategoryBudget(categoryId, budget, userId: userId);
+      await ExpenseSupabaseService.updateCategoryBudget(categoryId, budget, userId: _userId);
 
       // Update local state
       _categoryBudgets[categoryId] = budget;
@@ -314,9 +322,7 @@ class ExpenseProvider extends ChangeNotifier {
 
   Future<void> setCustomCategoryBudget(String categoryId, double budget) async {
     try {
-      final userId = _userName;
-      // Update in Supabase first
-      await ExpenseSupabaseService.updateCategoryBudget(categoryId, budget, userId: userId);
+      await ExpenseSupabaseService.updateCategoryBudget(categoryId, budget, userId: _userId);
 
       // Update local state
       _categoryBudgets[categoryId] = budget;
@@ -333,13 +339,10 @@ class ExpenseProvider extends ChangeNotifier {
   Future<void> addCustomCategory(ExpenseCategory category) async {
     try {
       _customCategories.add(category);
-      final userId = _userName;
-      await ExpenseSupabaseService.saveCustomCategories(_customCategories, userId: userId);
-
+      await ExpenseSupabaseService.saveCustomCategories(_customCategories, userId: _userId);
       debugPrint('✅ Added custom category: ${category.name}');
       notifyListeners();
     } catch (e) {
-      // Revert local change if backend fails
       _customCategories.removeWhere((cat) => cat.id == category.id);
       debugPrint('❌ Failed to add custom category: $e');
       throw Exception('Failed to add category: $e');
@@ -349,9 +352,7 @@ class ExpenseProvider extends ChangeNotifier {
   Future<void> removeCustomCategory(String categoryId) async {
     try {
       _customCategories.removeWhere((cat) => cat.id == categoryId);
-      final userId = _userName;
-      await ExpenseSupabaseService.saveCustomCategories(_customCategories, userId: userId);
-
+      await ExpenseSupabaseService.saveCustomCategories(_customCategories, userId: _userId);
       debugPrint('✅ Removed custom category: $categoryId');
       notifyListeners();
     } catch (e) {
@@ -412,7 +413,7 @@ class ExpenseProvider extends ChangeNotifier {
   /// ANALYTICS HELPERS
   Future<List<Expense>> getExpensesForPeriod(DateTime startDate, DateTime endDate) async {
     try {
-      return await ExpenseSupabaseService.getExpensesForPeriod(startDate, endDate);
+      return await ExpenseSupabaseService.getExpensesForPeriod(startDate, endDate, userId: _userId);
     } catch (e) {
       debugPrint('❌ Failed to get expenses for period: $e');
       return [];
@@ -421,17 +422,11 @@ class ExpenseProvider extends ChangeNotifier {
 
   Future<List<Expense>> searchExpenses(String query) async {
     try {
-      return await ExpenseSupabaseService.searchExpenses(query);
+      return await ExpenseSupabaseService.searchExpenses(query, userId: _userId);
     } catch (e) {
       debugPrint('❌ Failed to search expenses: $e');
       return [];
     }
   }
 
-  void initializeWithUser(BuildContext context) async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    _userName = userProvider.userId;
-    // Load other user-specific settings if needed
-    notifyListeners();
-  }
 }

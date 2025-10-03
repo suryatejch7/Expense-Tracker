@@ -1,9 +1,41 @@
 import '../models/expense_models.dart';
 
+/// Model for user data
+class User {
+  final int id;
+  final String userName;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  User({
+    required this.id,
+    required this.userName,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory User.fromSupabase(Map<String, dynamic> data) {
+    return User(
+      id: data['id'] as int,
+      userName: data['user_name'] as String,
+      createdAt: DateTime.parse(data['created_at'] as String),
+      updatedAt: DateTime.parse(data['updated_at'] as String),
+    );
+  }
+
+  Map<String, dynamic> toSupabase() {
+    return {
+      'id': id,
+      'user_name': userName,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+}
+
 /// Model for user settings stored in Supabase
 class UserSettings {
-  final String userId;
-  final String userName;
+  final int userId;
   final double monthlyBudget;
   final String currency;
   final Map<String, double> categoryBudgets;
@@ -13,15 +45,13 @@ class UserSettings {
 
   UserSettings({
     required this.userId,
-    required this.userName,
     required this.monthlyBudget,
     required this.currency,
     required this.categoryBudgets,
     required this.customCategories,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) : createdAt = createdAt ?? DateTime.now(),
-       updatedAt = updatedAt ?? DateTime.now();
+    required this.createdAt,
+    required this.updatedAt,
+  });
 
   /// Create UserSettings from Supabase data
   factory UserSettings.fromSupabase(Map<String, dynamic> data) {
@@ -39,18 +69,13 @@ class UserSettings {
         .toList();
 
     return UserSettings(
-      userId: data['user_id'] ?? 'default_user',
-      userName: data['user_name'] ?? 'User',
+      userId: data['user_id'] as int,
       monthlyBudget: (data['monthly_budget'] as num?)?.toDouble() ?? 25000.0,
       currency: data['currency'] ?? '₹',
       categoryBudgets: categoryBudgets,
       customCategories: customCategories,
-      createdAt: data['created_at'] != null
-          ? DateTime.parse(data['created_at'])
-          : DateTime.now(),
-      updatedAt: data['updated_at'] != null
-          ? DateTime.parse(data['updated_at'])
-          : DateTime.now(),
+      createdAt: DateTime.parse(data['created_at'] as String),
+      updatedAt: DateTime.parse(data['updated_at'] as String),
     );
   }
 
@@ -58,19 +83,18 @@ class UserSettings {
   Map<String, dynamic> toSupabase() {
     return {
       'user_id': userId,
-      'user_name': userName,
       'monthly_budget': monthlyBudget,
       'currency': currency,
       'category_budgets': categoryBudgets,
       'custom_categories': customCategories.map((cat) => cat.toSupabase()).toList(),
-      'updated_at': DateTime.now().toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 
   /// Create a copy with updated fields
   UserSettings copyWith({
-    String? userId,
-    String? userName,
+    int? userId,
     double? monthlyBudget,
     String? currency,
     Map<String, double>? categoryBudgets,
@@ -80,7 +104,6 @@ class UserSettings {
   }) {
     return UserSettings(
       userId: userId ?? this.userId,
-      userName: userName ?? this.userName,
       monthlyBudget: monthlyBudget ?? this.monthlyBudget,
       currency: currency ?? this.currency,
       categoryBudgets: categoryBudgets ?? Map.from(this.categoryBudgets),
