@@ -144,7 +144,11 @@ class ImagePreprocessingService {
   }
 
   /// Preprocess PhonePe image into two separate crops: left 60% (payee) and right 40% (amount)
-  static Future<Map<String, File>> preprocessPhonePeDualCrops(File imageFile) async {
+  static Future<Map<String, File>> preprocessPhonePeDualCrops(
+    File imageFile, {
+    double cropTop = 0.17,
+    double cropBottom = 0.21,
+  }) async {
     try {
       // Read image
       final bytes = await imageFile.readAsBytes();
@@ -154,9 +158,9 @@ class ImagePreprocessingService {
         throw Exception('Failed to decode image');
       }
 
-      // Step 1: Crop to the horizontal strip (17%-21% from top)
-      final stripY = (originalImage.height * 0.17).round();
-      final stripHeight = (originalImage.height * 0.04).round(); // 4% height (21% - 17%)
+      // Step 1: Crop to the horizontal strip using user-defined crop settings
+      final stripY = (originalImage.height * cropTop).round();
+      final stripHeight = (originalImage.height * (cropBottom - cropTop)).round();
       final stripImage = img.copyCrop(originalImage,
         x: 0,
         y: stripY,

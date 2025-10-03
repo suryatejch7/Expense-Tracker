@@ -6,13 +6,15 @@ class FieldExtractionService {
   /// Extract transaction fields from OCR results
   static ExtractedTransaction extractFields(
     OcrResult ocrResult,
-    PaymentApp app
-  ) {
+    PaymentApp app, {
+    double cropTop = 0.17,
+    double cropBottom = 0.21,
+  }) {
     final template = PaymentAppTemplate.getTemplate(app);
 
     // Extract individual fields
-    final amount = _extractAmount(ocrResult.textBlocks, template);
-    final payee = _extractPayee(ocrResult.textBlocks, template);
+    final amount = _extractAmount(ocrResult.textBlocks, template, cropTop: cropTop, cropBottom: cropBottom);
+    final payee = _extractPayee(ocrResult.textBlocks, template, cropTop: cropTop, cropBottom: cropBottom);
 
     return ExtractedTransaction(
       amount: amount,
@@ -24,10 +26,15 @@ class FieldExtractionService {
   }
 
   /// Extract amount using currency patterns and position heuristics
-  static String? _extractAmount(List<TextBlock> textBlocks, PaymentAppTemplate template) {
-    // For PhonePe, use region-based extraction with your specified coordinates
+  static String? _extractAmount(
+    List<TextBlock> textBlocks, 
+    PaymentAppTemplate template, {
+    double cropTop = 0.17,
+    double cropBottom = 0.21,
+  }) {
+    // For PhonePe, use region-based extraction with user-defined coordinates
     if (template.app == PaymentApp.phonePe) {
-      return _extractPhonePeAmount(textBlocks, template);
+      return _extractPhonePeAmount(textBlocks, template, cropTop: cropTop, cropBottom: cropBottom);
     }
 
     // Simple approach for other apps: look for currency patterns in all text blocks
@@ -72,7 +79,12 @@ class FieldExtractionService {
   }
 
   /// Extract amount specifically from PhonePe's optimized crop region
-  static String? _extractPhonePeAmount(List<TextBlock> textBlocks, PaymentAppTemplate template) {
+  static String? _extractPhonePeAmount(
+    List<TextBlock> textBlocks, 
+    PaymentAppTemplate template, {
+    double cropTop = 0.17,
+    double cropBottom = 0.21,
+  }) {
     final amountRegion = template.fieldRegions['amount'];
     if (amountRegion == null) return null;
 
@@ -96,11 +108,11 @@ class FieldExtractionService {
       final blockCenterX = block.boundingBox.x + (block.boundingBox.width / 2);
       final blockCenterY = block.boundingBox.y + (block.boundingBox.height / 2);
 
-      // Convert region coordinates to pixel coordinates
+      // Convert region coordinates to pixel coordinates using user-defined crop settings
       final regionLeft = 0.6 * maxX;   // 60% from left (right 40% for amount)
       final regionRight = 1.0 * maxX;  // 100% from left
-      final regionTop = 0.17 * maxY;   // 17% from top
-      final regionBottom = 0.21 * maxY; // 21% from top (4% height strip)
+      final regionTop = cropTop * maxY;   // User-defined top crop
+      final regionBottom = cropBottom * maxY; // User-defined bottom crop
 
       // Check if block center is in the amount region
       return blockCenterX >= regionLeft &&
@@ -424,11 +436,16 @@ class FieldExtractionService {
   }
 
   /// Extract payee name using position and keyword heuristics
-  static String? _extractPayee(List<TextBlock> textBlocks, PaymentAppTemplate template) {
+  static String? _extractPayee(
+    List<TextBlock> textBlocks, 
+    PaymentAppTemplate template, {
+    double cropTop = 0.17,
+    double cropBottom = 0.21,
+  }) {
     // For PhonePe: Since the image is cropped to only contain name (left 60%) and amount (right 40%),
     // we don't need keywords - just extract whatever text is in the left 60%
     if (template.app == PaymentApp.phonePe) {
-      return _extractPhonePePayee(textBlocks, template);
+      return _extractPhonePePayee(textBlocks, template, cropTop: cropTop, cropBottom: cropBottom);
     }
 
     // Look for text blocks near payee keywords for other apps
@@ -457,7 +474,12 @@ class FieldExtractionService {
   }
 
   /// Extract payee specifically from PhonePe's optimized crop region (left 60%)
-  static String? _extractPhonePePayee(List<TextBlock> textBlocks, PaymentAppTemplate template) {
+  static String? _extractPhonePePayee(
+    List<TextBlock> textBlocks, 
+    PaymentAppTemplate template, {
+    double cropTop = 0.17,
+    double cropBottom = 0.21,
+  }) {
     // Get image dimensions from text blocks (approximate)
     double maxX = 0, maxY = 0;
     for (final block in textBlocks) {

@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import '../models/transaction_ocr_models.dart';
 import '../services/transaction_processing_service.dart';
 import '../screens/add_expense_screen.dart';
+import '../providers/user_provider.dart';
 
 /// Screen for handling transaction screenshot intake and processing
 class TransactionScannerScreen extends StatefulWidget {
@@ -531,14 +533,33 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
     });
 
     try {
-      final result = await TransactionProcessingService.processTransactionScreenshot(
-        _selectedImage!,
-        onProgress: (progress) {
-          setState(() {
-            _processingProgress = progress;
-          });
-        },
-      );
+      // Get user's crop settings from UserProvider
+      final userProvider = context.read<UserProvider>();
+      final userSettings = userProvider.userSettings;
+      
+      ProcessingResult result;
+      if (userSettings != null && userSettings.isCropCalibrated) {
+        // Use user's calibrated crop settings
+        result = await TransactionProcessingService.processTransactionScreenshotWithUserSettings(
+          _selectedImage!,
+          userSettings,
+          onProgress: (progress) {
+            setState(() {
+              _processingProgress = progress;
+            });
+          },
+        );
+      } else {
+        // Use default crop settings (your working values)
+        result = await TransactionProcessingService.processTransactionScreenshot(
+          _selectedImage!,
+          onProgress: (progress) {
+            setState(() {
+              _processingProgress = progress;
+            });
+          },
+        );
+      }
 
       setState(() {
         _isProcessing = false;

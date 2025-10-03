@@ -6,6 +6,7 @@ import '../widgets/glass_bottom_sheet.dart';
 import '../screens/search_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/analytics_screen.dart';
+import '../screens/crop_calibration_screen.dart';
 
 class GlassNavBar extends StatefulWidget {
   final int currentIndex;
@@ -179,6 +180,20 @@ class _GlassNavBarState extends State<GlassNavBar>
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+            );
+          },
+        ),
+        QuickActionItem(
+          id: 'crop_calibration',
+          icon: Icons.crop_free,
+          title: 'Crop Calibration',
+          subtitle: 'Calibrate PhonePe OCR',
+          color: Colors.orange,
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CropCalibrationScreen()),
             );
           },
         ),

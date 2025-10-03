@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../models/transaction_ocr_models.dart';
+import '../models/user_settings.dart';
 import 'image_preprocessing_service.dart';
 import 'primary_ocr_service.dart';
 import 'field_extraction_service.dart';
@@ -10,11 +11,27 @@ import 'tesseract_ocr_service.dart';
 /// Main service orchestrating the complete transaction processing pipeline
 class TransactionProcessingService {
   
+  /// Process transaction screenshot with user's crop settings
+  static Future<ProcessingResult> processTransactionScreenshotWithUserSettings(
+    File imageFile,
+    UserSettings userSettings, {
+    Function(double)? onProgress,
+  }) async {
+    return processTransactionScreenshot(
+      imageFile,
+      onProgress: onProgress,
+      cropTop: userSettings.cropTop,
+      cropBottom: userSettings.cropBottom,
+    );
+  }
+  
   /// Process transaction screenshot with complete pipeline (PhonePe only)
   static Future<ProcessingResult> processTransactionScreenshot(
-    File imageFile,
-    {Function(double)? onProgress}
-  ) async {
+    File imageFile, {
+    Function(double)? onProgress,
+    double cropTop = 0.17,
+    double cropBottom = 0.21,
+  }) async {
     List<String> processingSteps = [];
     const selectedApp = PaymentApp.phonePe; // Hardcoded since you only use PhonePe
 
@@ -42,9 +59,11 @@ class TransactionProcessingService {
 
       Map<String, File>? dualCrops;
       try {
-        // Create separate crops for payee (left 60%) and amount (right 40%)
+        // Create separate crops for payee (left 60%) and amount (right 40%) using user crop settings
         dualCrops = await ImagePreprocessingService.preprocessPhonePeDualCrops(
-          imageFile
+          imageFile,
+          cropTop: cropTop,
+          cropBottom: cropBottom,
         ).timeout(const Duration(seconds: 30));
       } catch (e) {
         debugPrint('Dual-crop preprocessing failed, using fallback: $e');
@@ -64,7 +83,7 @@ class TransactionProcessingService {
         final amountOcr = await PrimaryOcrService.extractText(dualCrops['amount']!)
             .timeout(const Duration(minutes: 1));
 
-        // Extract using the WORKING GitHub logic for payee and CURRENT logic for amount
+        // Extract using the WORKING GitHub logic for payee and CURRENT logic for amount with user crop settings
         final payeeExtracted = FieldExtractionService.extractPayeeFromLeftCrop(payeeOcr.textBlocks);
         final amountExtracted = FieldExtractionService.extractAmountFromRightCrop(amountOcr.textBlocks);
 
@@ -80,19 +99,29 @@ class TransactionProcessingService {
         processingSteps.add('Dual-crop extraction completed: ${payeeExtracted != null ? "Payee found" : "Payee not found"}, ${amountExtracted != null ? "Amount found" : "Amount not found"}');
       } else {
         // Fallback to single image processing if dual-crop fails
-        final preprocessedImage = await ImagePreprocessingService.preprocessImage(
+        // Use the same dual-crop approach but with fallback extraction
+        final fallbackCrops = await ImagePreprocessingService.preprocessPhonePeDualCrops(
           imageFile,
-          selectedApp
+          cropTop: cropTop,
+          cropBottom: cropBottom,
         ).timeout(const Duration(seconds: 30));
 
-        final ocrResult = await PrimaryOcrService.extractText(preprocessedImage)
-            .timeout(const Duration(minutes: 2));
+        final payeeOcr = await PrimaryOcrService.extractText(fallbackCrops['payee']!)
+            .timeout(const Duration(minutes: 1));
+        final amountOcr = await PrimaryOcrService.extractText(fallbackCrops['amount']!)
+            .timeout(const Duration(minutes: 1));
 
-        if (ocrResult.textBlocks.isEmpty && ocrResult.rawText.isEmpty) {
-          throw Exception('No text found in image. Please ensure the image is clear and contains text.');
-        }
+        // Extract using the same methods as dual-crop
+        final payeeExtracted = FieldExtractionService.extractPayeeFromLeftCrop(payeeOcr.textBlocks);
+        final amountExtracted = FieldExtractionService.extractAmountFromRightCrop(amountOcr.textBlocks);
 
-        extractedData = FieldExtractionService.extractFields(ocrResult, selectedApp);
+        extractedData = ExtractedTransaction(
+          amount: amountExtracted,
+          payeeName: payeeExtracted,
+          date: null,
+          transactionId: null,
+          confidence: _calculateCombinedConfidence([amountExtracted, payeeExtracted]),
+        );
         processingSteps.add('Fallback extraction completed');
       }
 
