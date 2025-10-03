@@ -3,7 +3,9 @@ import 'dashboard_screen.dart';
 import 'categories_screen.dart';
 import 'add_expense_screen.dart';
 import 'transaction_scanner_screen.dart';
+import '../services/sharing_intent_service.dart';
 import '../widgets/liquid_glass_nav_bar.dart';
+
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -35,6 +37,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         curve: Curves.easeInOutCubic,
       ),
     );
+
+    // Set the context for sharing service after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SharingIntentService.setContext(context);
+    });
   }
 
   @override
@@ -49,69 +56,65 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
       extendBody: true,
       body: Stack(
         children: [
+          // Background gradient
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF121212),
+                  Color(0xFF1E1E1E),
+                ],
+              ),
+            ),
+          ),
           // Main content
-          _screens[_currentIndex],
-
-          // Custom Glass Navigation Bar
-          GlassNavBar(
-            currentIndex: _currentIndex,
-            onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
+          IndexedStack(
+            index: _currentIndex,
+            children: _screens,
           ),
         ],
       ),
-      floatingActionButton: Container(
-        margin: const EdgeInsets.only(bottom: 100), // Slightly lowered
-        child: AnimatedBuilder(
-          animation: _fabScaleAnimation,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _fabScaleAnimation.value,
-              child: GestureDetector(
-                onLongPress: () {
-                  _fabController.forward().then((_) => _fabController.reverse());
-                  _showTransactionOptions(context);
-                },
-                onVerticalDragEnd: (details) {
-                  if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
-                    // Swipe up detected
-                    _fabController.forward().then((_) => _fabController.reverse());
-                    _showTransactionOptions(context);
-                  }
-                },
-                child: FloatingActionButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const AddExpenseScreen(),
-                      ),
-                    );
-                  },
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  elevation: 8,
-                  child: const Icon(Icons.add, size: 28),
-                ),
-              ),
-            );
+      floatingActionButton: ScaleTransition(
+        scale: _fabScaleAnimation,
+        child: FloatingActionButton(
+          onPressed: () {
+            _fabController.forward().then((_) {
+              _fabController.reverse();
+            });
+            _showAddExpenseOptions();
           },
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          child: const Icon(Icons.add, color: Colors.black),
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: GlassNavBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+      ),
     );
   }
 
-  void _showTransactionOptions(BuildContext context) {
+  void _showAddExpenseOptions() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF2A2A2A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => Container(
         padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -119,37 +122,32 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey,
+                color: Colors.grey[600],
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Add Expense',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 20),
             ListTile(
               leading: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.edit, color: Colors.blue),
+                child: Icon(
+                  Icons.edit,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
-              title: const Text(
-                'Manual Entry',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-              ),
-              subtitle: const Text(
-                'Enter expense details manually',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
+              title: const Text('Manual Entry'),
+              subtitle: const Text('Enter expense details manually'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -162,21 +160,18 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             ),
             ListTile(
               leading: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.document_scanner, color: Colors.green),
+                child: Icon(
+                  Icons.camera_alt,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
-              title: const Text(
-                'Scan Transaction',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-              ),
-              subtitle: const Text(
-                'Extract data from payment app screenshot',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
+              title: const Text('Scan Receipt'),
+              subtitle: const Text('Scan transaction screenshot'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -187,7 +182,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                 );
               },
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 20),
           ],
         ),
       ),

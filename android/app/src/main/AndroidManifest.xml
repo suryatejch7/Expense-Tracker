@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="ExpenseTracker"
+        android:label="Expensify"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

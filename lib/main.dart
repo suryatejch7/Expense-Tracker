@@ -77,7 +77,10 @@ class _ExpenseTrackerAppState extends State<ExpenseTrackerApp> {
     try {
       final provider = context.read<ExpenseProvider>();
       await provider.initialize();
+
+      // Initialize sharing intent service
       await SharingIntentService.initialize();
+
       setState(() {
         _initialized = true;
       });
@@ -91,32 +94,38 @@ class _ExpenseTrackerAppState extends State<ExpenseTrackerApp> {
   @override
   Widget build(BuildContext context) {
     final userId = context.watch<UserProvider>().userId;
+
     if (!_userLoaded) {
       return SplashScreen(
         onInit: () async {},
         onReady: () {},
       );
     }
+
     if (userId.isEmpty) {
       return UserSelectorScreen(onUserSelected: () async {
         await _initializeApp();
-        setState(() {});
       });
     }
+
     if (!_initialized) {
       return SplashScreen(
-        onInit: () async {
-          final provider = context.read<ExpenseProvider>();
-          await provider.initialize();
-          await SharingIntentService.initialize();
-        },
-        onReady: () {
-          setState(() {
-            _initialized = true;
-          });
-        },
+        onInit: () async {},
+        onReady: () {},
       );
     }
+
+    // Set context for sharing service once main screen is loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SharingIntentService.setContext(context);
+    });
+
     return const MainScreen();
+  }
+
+  @override
+  void dispose() {
+    SharingIntentService.dispose();
+    super.dispose();
   }
 }
