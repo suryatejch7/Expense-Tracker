@@ -403,7 +403,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       if (mounted) {
                         Navigator.of(context).pushAndRemoveUntil(
                           MaterialPageRoute(
-                            builder: (context) => const UserSelectorScreen(),
+                            builder: (context) => UserSelectorScreen(
+                              onUserSelected: () async {
+                                // Initialize expense provider when user is selected
+                                if (userProvider.isLoggedIn) {
+                                  await userProvider.initializeExpenseProvider(context.read<ExpenseProvider>());
+                                }
+                              },
+                            ),
                           ),
                           (route) => false,
                         );

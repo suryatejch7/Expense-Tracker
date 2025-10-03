@@ -10,6 +10,7 @@ class Expense {
   final String? payee;
   final String? paymentApp;
   final String? transactionId;
+  final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -22,6 +23,7 @@ class Expense {
     this.payee,
     this.paymentApp,
     this.transactionId,
+    this.notes,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -37,6 +39,7 @@ class Expense {
       payee: data['payee'],
       paymentApp: data['payment_app'],
       transactionId: data['transaction_id'],
+      notes: data['notes'],
       createdAt: DateTime.parse(data['created_at']),
       updatedAt: DateTime.parse(data['updated_at']),
     );
@@ -53,6 +56,7 @@ class Expense {
       'payee': payee,
       'payment_app': paymentApp,
       'transaction_id': transactionId,
+      'notes': notes,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -68,6 +72,7 @@ class Expense {
     String? payee,
     String? paymentApp,
     String? transactionId,
+    String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -80,6 +85,7 @@ class Expense {
       payee: payee ?? this.payee,
       paymentApp: paymentApp ?? this.paymentApp,
       transactionId: transactionId ?? this.transactionId,
+      notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

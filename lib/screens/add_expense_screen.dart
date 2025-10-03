@@ -45,7 +45,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _titleController.text = widget.expense!.description;
       _amountController.text = widget.expense!.amount.toString();
       _payeeController.text = widget.expense!.payee ?? '';
-      _noteController.text = '';
+      _noteController.text = widget.expense!.notes ?? '';
       _selectedCategory = widget.expense!.category;
       _selectedDate = widget.expense!.date;
     } else {
@@ -247,7 +247,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         final categories = provider.customCategories;
 
         return SizedBox(
-          height: 120,
+          height: 110,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: categories.length,
@@ -263,20 +263,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       _selectedCategory = category.name;
                     });
                   },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    transform: Matrix4.identity()..scale(isSelected ? 1.1 : 1.0),
-                    child: Container(
-                      width: 80,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: category.color,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected ? Colors.white : Colors.transparent,
-                          width: 2,
-                        ),
+                  child: Container(
+                    width: 90,
+                    height: 55,
+                    decoration: BoxDecoration(
+                      color: category.color,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? Colors.white : Colors.transparent,
+                        width: 2,
                       ),
+                    ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -299,7 +296,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         ],
                       ),
                     ),
-                  ),
                 ),
               );
             },
@@ -373,6 +369,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         payee: payee,
         paymentApp: widget.prefilledPaymentApp ?? 'PhonePe',
         transactionId: widget.prefilledTransactionId,
+        notes: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
         createdAt: widget.expense?.createdAt ?? now,
         updatedAt: now,
       );
