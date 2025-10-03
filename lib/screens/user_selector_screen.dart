@@ -23,6 +23,7 @@ class _UserSelectorScreenState extends State<UserSelectorScreen> {
   }
 
   Future<void> _loadUsers() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
@@ -30,15 +31,19 @@ class _UserSelectorScreenState extends State<UserSelectorScreen> {
     try {
       final userProvider = context.read<UserProvider>();
       final users = await userProvider.getAllUsers();
-      setState(() {
-        _users = users;
-      });
+      if (mounted) {
+        setState(() {
+          _users = users;
+        });
+      }
     } catch (e) {
       // Handle error silently for now
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -63,10 +68,20 @@ class _UserSelectorScreenState extends State<UserSelectorScreen> {
   }
 
   Future<void> _selectUser(dynamic user) async {
+    if (!mounted) return;
+    
+    debugPrint('👤 _selectUser called for user: ${user.userName} (ID: ${user.id})');
     final userProvider = context.read<UserProvider>();
+    debugPrint('🔐 Attempting login with userId: ${user.id}');
     final success = await userProvider.loginWithUserId(user.id);
-    if (success) {
+    debugPrint('🔐 Login result: success=$success, isLoggedIn=${userProvider.isLoggedIn}, userId=${userProvider.userId}');
+    if (success && mounted) {
+      debugPrint('✅ Login successful, calling onUserSelected');
+      // Add a small delay to ensure state is properly set
+      await Future.delayed(const Duration(milliseconds: 100));
       widget.onUserSelected();
+    } else {
+      debugPrint('❌ Login failed or widget not mounted');
     }
   }
 

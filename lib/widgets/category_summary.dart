@@ -89,15 +89,15 @@ class _CategorySummaryState extends State<CategorySummary> {
                           Text(
                             category.icon,
                             style: TextStyle(
-                              fontSize: 24,
+                              fontSize: 22,
                               color: isOverBudget ? Colors.red : category.color,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             category.displayName,
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               color: Colors.white70,
                               fontWeight: FontWeight.w500,
                             ),
@@ -105,11 +105,11 @@ class _CategorySummaryState extends State<CategorySummary> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             '₹${amount.toStringAsFixed(0)}',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.bold,
                               color: isOverBudget ? Colors.red : Colors.white,
                             ),
@@ -118,7 +118,7 @@ class _CategorySummaryState extends State<CategorySummary> {
                             Text(
                               '${percentage.toStringAsFixed(0)}%',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9,
                                 color: isOverBudget ? Colors.red : Colors.white60,
                               ),
                             ),

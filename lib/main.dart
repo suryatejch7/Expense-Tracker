@@ -37,21 +37,22 @@ class MyApp extends StatelessWidget {
           cardColor: const Color(0xFF1E1E1E),
           useMaterial3: true,
         ),
-        home: const ExpenseTrackerApp(),
+        home: const AuthWrapper(),
         debugShowCheckedModeBanner: false,
       ),
     );
   }
 }
 
-class ExpenseTrackerApp extends StatefulWidget {
-  const ExpenseTrackerApp({super.key});
+// AuthWrapper handles authentication state
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
 
   @override
-  State<ExpenseTrackerApp> createState() => _ExpenseTrackerAppState();
+  State<AuthWrapper> createState() => _AuthWrapperState();
 }
 
-class _ExpenseTrackerAppState extends State<ExpenseTrackerApp> {
+class _AuthWrapperState extends State<AuthWrapper> {
   bool _initialized = false;
 
   @override
@@ -62,17 +63,19 @@ class _ExpenseTrackerAppState extends State<ExpenseTrackerApp> {
 
   Future<void> _initializeApp() async {
     // Load user from storage
-    await context.read<UserProvider>().loadUserFromStorage();
+    final userProvider = context.read<UserProvider>();
+    await userProvider.loadUserFromStorage();
     
     // Initialize expense provider if user is logged in
-    final userProvider = context.read<UserProvider>();
     if (userProvider.isLoggedIn) {
       await userProvider.initializeExpenseProvider(context.read<ExpenseProvider>());
     }
     
-    setState(() {
-      _initialized = true;
-    });
+    if (mounted) {
+      setState(() {
+        _initialized = true;
+      });
+    }
   }
 
   @override
@@ -96,18 +99,36 @@ class _ExpenseTrackerAppState extends State<ExpenseTrackerApp> {
       );
     }
 
-    return Consumer<UserProvider>(
-      builder: (context, userProvider, child) {
-        if (userProvider.isLoggedIn) {
+    // Use Selector to monitor only isLoggedIn boolean
+    return Selector<UserProvider, bool>(
+      selector: (_, userProvider) => userProvider.isLoggedIn,
+      builder: (context, isLoggedIn, child) {
+        debugPrint('🔄 AuthWrapper rebuild - isLoggedIn: $isLoggedIn');
+        debugPrint('📍 AuthWrapper route: ${ModalRoute.of(context)?.settings.name}');
+        debugPrint('🗂️ AuthWrapper navigation stack: ${Navigator.of(context).toString()}');
+        
+        if (isLoggedIn) {
+          debugPrint('✅ AuthWrapper: Navigating to MainScreen');
           return const MainScreen();
         } else {
+          debugPrint('🚪 AuthWrapper: Showing UserSelectorScreen');
           return UserSelectorScreen(
             onUserSelected: () async {
+              debugPrint('🎯 AuthWrapper: onUserSelected callback triggered');
+              
+              final userProvider = context.read<UserProvider>();
+              
               // Initialize expense provider when user is selected
               if (userProvider.isLoggedIn) {
+                debugPrint('🔧 AuthWrapper: Initializing ExpenseProvider for user: ${userProvider.userId}');
                 await userProvider.initializeExpenseProvider(context.read<ExpenseProvider>());
               }
-              // The Consumer will automatically rebuild when userProvider.notifyListeners() is called
+              
+              // Force rebuild by calling setState
+              if (mounted) {
+                debugPrint('🔄 AuthWrapper: Calling setState to trigger rebuild');
+                setState(() {});
+              }
             },
           );
         }

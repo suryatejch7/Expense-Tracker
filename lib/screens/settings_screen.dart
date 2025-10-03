@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/user_provider.dart';
 import '../models/expense_models.dart';
-import 'user_selector_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -24,12 +23,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('🏠 SettingsScreen initState called');
     _loadUserData();
   }
 
 
   @override
   void dispose() {
+    debugPrint('🏠 SettingsScreen dispose called');
     _nameController.dispose();
     _budgetController.dispose();
     _categoryNameController.dispose();
@@ -38,9 +39,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _loadUserData() {
+    debugPrint('📊 SettingsScreen _loadUserData called');
     final provider = context.read<ExpenseProvider>();
+    debugPrint('👤 Loading user data - userName: ${provider.userName}, monthlyBudget: ${provider.monthlyBudget}');
     _nameController.text = provider.userName;
     _budgetController.text = provider.monthlyBudget.toString();
+    debugPrint('✅ User data loaded into controllers');
   }
 
   Future<void> _saveUserName() async {
@@ -59,6 +63,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('🏠 SettingsScreen build called');
+    debugPrint('📍 SettingsScreen route: ${ModalRoute.of(context)?.settings.name}');
+    debugPrint('🗂️ Navigation stack depth: ${Navigator.of(context).widget.toString().length}');
+    
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -69,9 +77,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: Colors.black,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            debugPrint('🔙 SettingsScreen back button pressed');
+            debugPrint('📍 Current route before back: ${ModalRoute.of(context)?.settings.name}');
+            Navigator.of(context).pop();
+            debugPrint('📍 Current route after back: ${ModalRoute.of(context)?.settings.name}');
+          },
+        ),
       ),
       body: Consumer2<UserProvider, ExpenseProvider>(
         builder: (context, userProvider, expenseProvider, child) {
+          debugPrint('🔄 SettingsScreen Consumer2 rebuilding');
+          debugPrint('👤 UserProvider state - isLoggedIn: ${userProvider.isLoggedIn}, userId: ${userProvider.userId}, userName: ${userProvider.userName}');
+          debugPrint('💰 ExpenseProvider state - categories: ${expenseProvider.customCategories.length}');
+          
           return SingleChildScrollView(
             child: Column(
               children: [
@@ -177,42 +198,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Budget Section
                 _buildSectionCard(
                   title: 'Monthly Budget',
-                  child: Column(
+                  child: Row(
                     children: [
-                      TextField(
-                        controller: _budgetController,
-                        style: const TextStyle(color: Colors.white),
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          labelText: 'Monthly Budget (₹)',
-                          labelStyle: const TextStyle(color: Colors.grey),
-                          prefixText: '₹ ',
-                          prefixStyle: const TextStyle(color: Colors.white),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: Theme.of(context).colorScheme.primary,
+                      Expanded(
+                        child: TextField(
+                          controller: _budgetController,
+                          style: const TextStyle(color: Colors.white),
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Monthly Budget (₹)',
+                            labelStyle: const TextStyle(color: Colors.grey),
+                            prefixText: '₹ ',
+                            prefixStyle: const TextStyle(color: Colors.white),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                             ),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
+                          onSubmitted: (value) {
+                            final budget = double.tryParse(value) ?? 0;
+                            expenseProvider.updateMonthlyBudget(budget);
+                          },
                         ),
-                        onSubmitted: (value) {
-                          final budget = double.tryParse(value) ?? 0;
-                          expenseProvider.updateMonthlyBudget(budget);
-                        },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: () {
                           final budget = double.tryParse(_budgetController.text) ?? 0;
@@ -230,8 +253,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                         ),
-                        child: const Text('Update Budget'),
+                        child: const Text('Update'),
                       ),
                     ],
                   ),
@@ -240,27 +264,112 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 20),
 
                 // Categories Section
-                _buildSectionCard(
-                  title: 'Categories',
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A1A),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.grey.withValues(alpha: 0.2),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Add Category Button
-                      ElevatedButton.icon(
-                        onPressed: _showAddCategoryDialog,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Category'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      // Header with title and add button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Categories',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
+                          if (expenseProvider.customCategories.isEmpty)
+                            ElevatedButton.icon(
+                              onPressed: _showAddCategoryDialog,
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('Add Category'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 16),
 
-                      // Custom Categories List
-                      ...expenseProvider.customCategories.map((category) {
+                      // Show empty state if no categories
+                      if (expenseProvider.customCategories.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2A2A2A),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.grey.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.category_outlined,
+                                size: 48,
+                                color: Colors.grey.withValues(alpha: 0.6),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No categories yet',
+                                style: TextStyle(
+                                  color: Colors.grey.withValues(alpha: 0.8),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Add your first category to organize your expenses',
+                                style: TextStyle(
+                                  color: Colors.grey.withValues(alpha: 0.6),
+                                  fontSize: 14,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        )
+                      else ...[
+                        // Add Category Button (when categories exist)
+                        ElevatedButton.icon(
+                          onPressed: _showAddCategoryDialog,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add Category'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).colorScheme.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Custom Categories List
+                        ...expenseProvider.customCategories.map((category) {
                         final budget = expenseProvider.getCustomCategoryBudget(category.id);
                         final spent = expenseProvider.getCustomCategoryExpenses(category.id);
                         final isOverBudget = budget > 0 && spent > budget;
@@ -374,6 +483,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         );
                      }),
+                      ],
                     ],
                   ),
                 ),
@@ -394,26 +504,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     onPressed: () async {
+                      debugPrint('🚪 Logout button pressed');
+                      
                       // Clear user session
+                      debugPrint('🧹 Clearing user session');
                       await userProvider.clearUser();
+                      
                       // Clear expense provider data
+                      debugPrint('🧹 Clearing expense provider data');
                       expenseProvider.clearUserData();
                       
-                      // Navigate to login screen
-                      if (mounted) {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(
-                            builder: (context) => UserSelectorScreen(
-                              onUserSelected: () async {
-                                // Initialize expense provider when user is selected
-                                if (userProvider.isLoggedIn) {
-                                  await userProvider.initializeExpenseProvider(context.read<ExpenseProvider>());
-                                }
-                              },
-                            ),
-                          ),
-                          (route) => false,
-                        );
+                      debugPrint('✅ Logout completed - provider state should trigger rebuild');
+                      
+                      // Pop the SettingsScreen to return to the underlying screen
+                      if (mounted && Navigator.of(context).canPop()) {
+                        debugPrint('🔙 Popping SettingsScreen from navigation stack');
+                        Navigator.of(context).pop();
                       }
                     },
                   ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_settings.dart' as models;
 import '../services/supabase_service.dart';
@@ -9,6 +10,7 @@ class UserProvider extends ChangeNotifier {
   models.UserSettings? _userSettings;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _hasLoadedFromStorage = false;
 
   models.User? get currentUser => _currentUser;
   models.UserSettings? get userSettings => _userSettings;
@@ -20,28 +22,52 @@ class UserProvider extends ChangeNotifier {
 
   /// Load user from SharedPreferences on app start
   Future<void> loadUserFromStorage() async {
-    _setLoading(true);
+    debugPrint('📱 loadUserFromStorage called - _hasLoadedFromStorage: $_hasLoadedFromStorage');
+    // Only load from storage once during app startup
+    if (_hasLoadedFromStorage) {
+      debugPrint('⏭️ loadUserFromStorage: Already loaded, skipping');
+      return;
+    }
+    _hasLoadedFromStorage = true;
+    debugPrint('🔄 loadUserFromStorage: Starting load process');
+    
+    // Set loading state without notifying listeners during build
+    _isLoading = true;
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getInt('userId');
+      debugPrint('💾 loadUserFromStorage: Found userId in storage: $userId');
       
       if (userId != null && userId > 0) {
         // Load user from database
+        debugPrint('🔍 loadUserFromStorage: Loading user from database');
         final user = await ExpenseSupabaseService.getUserById(userId);
         if (user != null) {
+          debugPrint('✅ loadUserFromStorage: User found - ${user.userName} (ID: ${user.id})');
           _currentUser = user;
           // Load user settings
           _userSettings = await ExpenseSupabaseService.getUserSettings(userId: userId);
+          debugPrint('⚙️ loadUserFromStorage: User settings loaded');
         } else {
+          debugPrint('❌ loadUserFromStorage: User not found in database, clearing storage');
           // User not found in database, clear storage
           await clearUser();
         }
+      } else {
+        debugPrint('ℹ️ loadUserFromStorage: No userId in storage');
       }
     } catch (e) {
+      debugPrint('💥 loadUserFromStorage: Error - $e');
       _errorMessage = 'Failed to load user: $e';
       await clearUser();
     } finally {
-      _setLoading(false);
+      _isLoading = false;
+      debugPrint('🏁 loadUserFromStorage: Completed, notifying listeners');
+      // Defer all notifyListeners calls to avoid calling during build
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        debugPrint('📢 loadUserFromStorage: PostFrameCallback - notifyListeners()');
+        notifyListeners();
+      });
     }
   }
 
@@ -68,6 +94,9 @@ class UserProvider extends ChangeNotifier {
       await _saveUserToStorage(user);
       _currentUser = user;
       _userSettings = settings;
+      
+      // Notify listeners that the user state has changed
+      notifyListeners();
       
       return true;
     } catch (e) {
@@ -112,33 +141,44 @@ class UserProvider extends ChangeNotifier {
 
   /// Login with user ID
   Future<bool> loginWithUserId(int userId) async {
+    debugPrint('🔐 loginWithUserId called with userId: $userId');
     _setLoading(true);
     _errorMessage = null;
     
     try {
+      debugPrint('🔍 loginWithUserId: Fetching user from database');
       final user = await ExpenseSupabaseService.getUserById(userId);
       if (user == null) {
+        debugPrint('❌ loginWithUserId: User not found for ID: $userId');
         _errorMessage = 'User not found';
         return false;
       }
+      debugPrint('✅ loginWithUserId: User found - ${user.userName} (ID: ${user.id})');
 
       // Load user settings
+      debugPrint('⚙️ loginWithUserId: Loading user settings');
       final settings = await ExpenseSupabaseService.getUserSettings(userId: user.id);
       
       // Save to storage and state
+      debugPrint('💾 loginWithUserId: Saving user to storage');
       await _saveUserToStorage(user);
       _currentUser = user;
       _userSettings = settings;
+      debugPrint('✅ loginWithUserId: User state updated - isLoggedIn: ${isLoggedIn}, userId: ${this.userId}');
       
       // Notify listeners that the user state has changed
+      debugPrint('📢 loginWithUserId: Calling notifyListeners()');
       notifyListeners();
+      debugPrint('✅ loginWithUserId: notifyListeners() completed');
       
       return true;
     } catch (e) {
+      debugPrint('💥 loginWithUserId: Error - $e');
       _errorMessage = 'Login failed: $e';
       return false;
     } finally {
       _setLoading(false);
+      debugPrint('🏁 loginWithUserId: Completed');
     }
   }
 
@@ -191,24 +231,35 @@ class UserProvider extends ChangeNotifier {
 
   /// Clear user data and logout
   Future<void> clearUser() async {
+    debugPrint('🚪 clearUser called - Current user: ${_currentUser?.userName} (ID: ${_currentUser?.id})');
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userId');
     await prefs.remove('userName');
+    debugPrint('🗑️ clearUser: Removed user data from storage');
     
     _currentUser = null;
     _userSettings = null;
     _errorMessage = null;
+    _hasLoadedFromStorage = false; // Reset flag to allow loading from storage again
+    debugPrint('🔄 clearUser: Reset all user state - isLoggedIn: ${isLoggedIn}, userId: ${userId}');
+    debugPrint('📢 clearUser: Calling notifyListeners()');
     notifyListeners();
+    debugPrint('✅ clearUser: Completed');
   }
 
   /// Initialize expense provider with current user data
   Future<void> initializeExpenseProvider(ExpenseProvider expenseProvider) async {
+    debugPrint('🔧 initializeExpenseProvider called - _currentUser: ${_currentUser?.userName}, _userSettings: ${_userSettings != null}');
     if (_currentUser != null && _userSettings != null) {
+      debugPrint('✅ initializeExpenseProvider: Initializing with user ${_currentUser!.userName} (ID: ${_currentUser!.id})');
       await expenseProvider.initializeWithUser(
         _currentUser!.id,
         _currentUser!.userName,
         _userSettings!,
       );
+      debugPrint('✅ initializeExpenseProvider: Completed');
+    } else {
+      debugPrint('❌ initializeExpenseProvider: Cannot initialize - _currentUser: ${_currentUser != null}, _userSettings: ${_userSettings != null}');
     }
   }
 
