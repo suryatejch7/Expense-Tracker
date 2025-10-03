@@ -247,7 +247,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         final categories = provider.customCategories;
 
         return SizedBox(
-          height: 100,
+          height: 120,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: categories.length,

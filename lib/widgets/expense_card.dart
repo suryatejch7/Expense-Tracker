@@ -190,23 +190,18 @@ class _ExpenseCardState extends State<ExpenseCard>
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      AnimatedBuilder(
-                        animation: _iconAnimation,
-                        builder: (context, child) {
-                          return Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: _colorAnimation.value?.withValues(alpha: 0.2) ?? categoryColor.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              categoryIcon,
-                              color: _colorAnimation.value ?? categoryColor,
-                              size: 24,
-                            ),
-                          );
-                        },
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: _colorAnimation.value?.withValues(alpha: 0.2) ?? categoryColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          categoryIcon,
+                          color: _colorAnimation.value ?? categoryColor,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(

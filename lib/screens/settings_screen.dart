@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/user_provider.dart';
 import '../models/expense_models.dart';
+import 'user_selector_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -397,8 +398,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       await userProvider.clearUser();
                       // Clear expense provider data
                       expenseProvider.clearUserData();
-                      // The Consumer in main.dart will automatically show UserSelectorScreen
-                      // No need to manually navigate - just let the state change handle it
+                      
+                      // Navigate to login screen
+                      if (mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (context) => const UserSelectorScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      }
                     },
                   ),
                 ),
