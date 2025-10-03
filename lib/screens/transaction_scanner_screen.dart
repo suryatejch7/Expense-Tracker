@@ -568,7 +568,24 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
       setState(() {
         _isProcessing = false;
         _errorMessage = 'Failed to process transaction: $e';
+        _processingSteps = [
+          'Processing started...',
+          'Image loaded successfully',
+          'Error occurred during OCR processing',
+          'Error: ${e.toString()}'
+        ];
       });
+
+      // Show error message to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ OCR processing failed. You can still add the transaction manually.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 

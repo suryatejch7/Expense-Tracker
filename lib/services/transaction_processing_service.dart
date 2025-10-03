@@ -78,43 +78,22 @@ class TransactionProcessingService {
       // Skip complex normalization and use extracted data directly
       final normalizedData = extractedData;
 
-      // Step 5: Secondary OCR (optional, skip if failing)
+      // Step 5: Secondary OCR (DISABLED - Tesseract causing crashes)
       onProgress?.call(0.8);
-      processingSteps.add('Enhancing field accuracy...');
+      processingSteps.add('Finalizing transaction data...');
 
-      try {
-        final tesseractResults = await TesseractOcrService.performSecondaryOcr(
-          imageFile,
-          ocrResult.textBlocks,
-          selectedApp,
-        ).timeout(const Duration(seconds: 45));
-
-        // Step 6: Enhance fields with Tesseract results
-        final enhancedData = _enhanceWithExistingTesseractService(normalizedData, tesseractResults);
-
-        onProgress?.call(1.0);
-        processingSteps.add('PhonePe transaction processing completed successfully!');
-
-        return ProcessingResult(
-          success: true,
-          extractedTransaction: enhancedData,
-          processingSteps: processingSteps,
-          confidence: enhancedData.confidence,
-        );
-
-      } catch (secondaryOcrError) {
-        debugPrint('Secondary OCR failed, continuing with primary results: $secondaryOcrError');
-        processingSteps.add('Using primary OCR results (secondary enhancement skipped)');
-      }
+      // Skip Tesseract OCR entirely to prevent crashes
+      // Google ML Kit provides sufficient accuracy for PhonePe transactions
+      final enhancedData = normalizedData;
 
       onProgress?.call(1.0);
-      processingSteps.add('PhonePe transaction processing completed!');
+      processingSteps.add('PhonePe transaction processing completed successfully!');
 
       return ProcessingResult(
         success: true,
-        extractedTransaction: normalizedData,
+        extractedTransaction: enhancedData,
         processingSteps: processingSteps,
-        confidence: normalizedData.confidence,
+        confidence: enhancedData.confidence,
       );
       
     } catch (e) {

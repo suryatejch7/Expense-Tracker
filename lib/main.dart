@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/expense_provider.dart';
 import 'screens/main_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/sharing_intent_service.dart';
 import 'services/supabase_init_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Supabase with your real credentials
-  await SupabaseInitService.initialize();
 
   runApp(const MyApp());
 }
@@ -48,27 +46,28 @@ class ExpenseTrackerApp extends StatefulWidget {
 }
 
 class _ExpenseTrackerAppState extends State<ExpenseTrackerApp> {
-  @override
-  void initState() {
-    super.initState();
-    _initializeSharingIntent();
+  bool _initialized = false;
+
+  Future<void> _initApp() async {
+    // Initialize Supabase and any other services here
+    await SupabaseInitService.initialize();
+    // Add other initialization if needed (e.g., Tesseract, permissions)
   }
 
-  void _initializeSharingIntent() {
-    // Initialize sharing intent listeners for OCR processing
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      SharingIntentService.initializeSharingListeners(context);
+  void _onReady() {
+    setState(() {
+      _initialized = true;
     });
   }
 
   @override
-  void dispose() {
-    SharingIntentService.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    if (!_initialized) {
+      return SplashScreen(
+        onInit: _initApp,
+        onReady: _onReady,
+      );
+    }
     return const MainScreen();
   }
 }

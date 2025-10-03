@@ -123,13 +123,26 @@ class MainActivity: FlutterActivity() {
 
     private fun runTesseractOCR(imageBytes: ByteArray, config: String, fieldType: String): String {
         try {
+            // Check if Tesseract is properly initialized
+            if (tessBaseApi == null) {
+                throw Exception("Tesseract not initialized")
+            }
+
             val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+            if (bitmap == null) {
+                throw Exception("Failed to decode image")
+            }
 
             // Apply field-specific preprocessing
             val processedBitmap = when (fieldType) {
                 "amount" -> preprocessForAmount(bitmap)
                 "payee" -> preprocessForPayee(bitmap)
                 else -> bitmap
+            }
+
+            // Validate bitmap before setting
+            if (processedBitmap.isRecycled) {
+                throw Exception("Processed bitmap is recycled")
             }
 
             tessBaseApi?.setImage(processedBitmap)
@@ -141,24 +154,34 @@ class MainActivity: FlutterActivity() {
                 else -> tessBaseApi?.pageSegMode = 3 // Default
             }
 
-            // Apply configuration
+            // Apply configuration safely
             if (config.isNotEmpty()) {
-                val configParts = config.split(" ")
-                for (part in configParts) {
-                    if (part.startsWith("-c ")) {
-                        val configOption = part.substring(3)
-                        val keyValue = configOption.split("=")
-                        if (keyValue.size == 2) {
-                            tessBaseApi?.setVariable(keyValue[0], keyValue[1])
+                try {
+                    val configParts = config.split(" ")
+                    for (part in configParts) {
+                        if (part.startsWith("-c ")) {
+                            val configOption = part.substring(3)
+                            val keyValue = configOption.split("=")
+                            if (keyValue.size == 2) {
+                                tessBaseApi?.setVariable(keyValue[0], keyValue[1])
+                            }
+                        } else if (part.startsWith("--psm ")) {
+                            val psmValue = part.substring(6).toIntOrNull() ?: 3
+                            tessBaseApi?.pageSegMode = psmValue
                         }
-                    } else if (part.startsWith("--psm ")) {
-                        val psmValue = part.substring(6).toIntOrNull() ?: 3
-                        tessBaseApi?.pageSegMode = psmValue
                     }
+                } catch (e: Exception) {
+                    android.util.Log.w("Tesseract", "Failed to apply config: ${e.message}")
                 }
             }
 
-            val rawResult = tessBaseApi?.utF8Text ?: ""
+            // Get text with proper error handling
+            val rawResult = try {
+                tessBaseApi?.utF8Text ?: ""
+            } catch (e: Exception) {
+                android.util.Log.e("Tesseract", "Failed to get UTF8 text: ${e.message}")
+                throw Exception("Tesseract text extraction failed: ${e.message}")
+            }
 
             // Post-process result based on field type
             val result = when (fieldType) {
@@ -167,14 +190,20 @@ class MainActivity: FlutterActivity() {
                 else -> rawResult.trim()
             }
 
-            bitmap.recycle()
-            if (processedBitmap != bitmap) {
-                processedBitmap.recycle()
+            // Clean up bitmaps
+            try {
+                bitmap.recycle()
+                if (processedBitmap != bitmap && !processedBitmap.isRecycled) {
+                    processedBitmap.recycle()
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("Tesseract", "Bitmap cleanup warning: ${e.message}")
             }
 
             return result
 
         } catch (e: Exception) {
+            android.util.Log.e("Tesseract", "OCR processing failed: ${e.message}")
             throw Exception("Tesseract OCR processing failed: ${e.message}")
         }
     }

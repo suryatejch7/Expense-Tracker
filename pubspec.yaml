@@ -34,6 +34,7 @@ dependencies:
   # UI and state management
   cupertino_icons: ^1.0.8
   provider: ^6.1.1
+  lottie: ^3.1.2
 
   # Firebase backend (replaced with Supabase)
   # firebase_core: ^3.6.0
@@ -62,3 +63,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Assets
+  assets:
+    - assets/tessdata/eng.traineddata
+    - assets/animations/splash.json
