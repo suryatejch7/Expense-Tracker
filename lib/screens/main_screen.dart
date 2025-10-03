@@ -69,35 +69,64 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               ),
             ),
           ),
-          // Main content
+          // Main content without bottom padding
           IndexedStack(
             index: _currentIndex,
             children: _screens,
+          ),
+          // Glass navigation bar positioned at bottom
+          GlassNavBar(
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
           ),
         ],
       ),
       floatingActionButton: ScaleTransition(
         scale: _fabScaleAnimation,
-        child: FloatingActionButton(
-          onPressed: () {
+        child: GestureDetector(
+          onTap: () {
+            _fabController.forward().then((_) {
+              _fabController.reverse();
+            });
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AddExpenseScreen(),
+              ),
+            );
+          },
+          onLongPress: () {
             _fabController.forward().then((_) {
               _fabController.reverse();
             });
             _showAddExpenseOptions();
           },
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          child: const Icon(Icons.add, color: Colors.black),
+          onVerticalDragEnd: (details) {
+            if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
+              // Swipe up detected
+              _fabController.forward().then((_) {
+                _fabController.reverse();
+              });
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TransactionScannerScreen(),
+                ),
+              );
+            }
+          },
+          child: FloatingActionButton(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            child: const Icon(Icons.add, color: Colors.black),
+            onPressed: null, // Disable default onPressed
+          ),
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: GlassNavBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 

@@ -126,3 +126,7 @@ local.properties
 
 # Ignore Android heap dumps
 android/java_pid21420.hprof
+
+# Keystore and signing config
+android/app/expensify-key.jks
+android/key.properties
