@@ -357,7 +357,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     await context.read<UserProvider>().setUserId('');
                     // Navigate to main login page
                     Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => const UserSelectorScreen(onUserSelected: () {})),
+                      MaterialPageRoute(builder: (context) => UserSelectorScreen(onUserSelected: () {})),
                       (route) => false,
                     );
                   },

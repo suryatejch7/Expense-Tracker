@@ -277,8 +277,8 @@ class ExpenseSupabaseService {
     try {
       final response = await _supabase
           .from('user_settings')
-          .select('user_id', const FetchOptions(count: CountOption.exact));
-      return response.count ?? 0;
+          .select('user_id');
+      return (response as List).length;
     } catch (e) {
       throw Exception('Failed to get user count: $e');
     }
