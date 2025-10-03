@@ -217,12 +217,18 @@ class ExpenseSupabaseService {
 
   /// Check if a userId is already taken in Supabase
   static Future<bool> isUserIdTaken(String userId) async {
-    final response = await _supabase
-        .from('user_settings')
-        .select('user_id')
-        .eq('user_id', userId)
-        .maybeSingle();
-    return response != null;
+    try {
+      final response = await _supabase
+          .from('user_settings')
+          .select('user_id')
+          .eq('user_id', userId)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 10), onTimeout: () => null);
+      return response != null;
+    } catch (e) {
+      // Optionally log or handle error
+      return false;
+    }
   }
 
   /// Migrate all user data from oldUserId to newUserId in Supabase
@@ -237,5 +243,44 @@ class ExpenseSupabaseService {
       .from('user_settings')
       .update({'user_id': newUserId, 'user_name': newUserId})
       .eq('user_id', oldUserId);
+  }
+
+  /// Get all users from the user_settings table
+  static Future<List<Map<String, dynamic>>> getAllUsers() async {
+    try {
+      final response = await _supabase
+          .from('user_settings')
+          .select('user_id, user_name, monthly_budget, currency, created_at')
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      throw Exception('Failed to fetch users: $e');
+    }
+  }
+
+  /// Get user profile information from user_settings
+  static Future<Map<String, dynamic>?> getUserProfile(String userId) async {
+    try {
+      final response = await _supabase
+          .from('user_settings')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+      return response;
+    } catch (e) {
+      throw Exception('Failed to fetch user profile: $e');
+    }
+  }
+
+  /// Get total number of users
+  static Future<int> getUserCount() async {
+    try {
+      final response = await _supabase
+          .from('user_settings')
+          .select('user_id', const FetchOptions(count: CountOption.exact));
+      return response.count ?? 0;
+    } catch (e) {
+      throw Exception('Failed to get user count: $e');
+    }
   }
 }

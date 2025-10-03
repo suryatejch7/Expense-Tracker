@@ -17,8 +17,8 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
   String? _errorMessage;
 
   Future<void> _fetchUser() async {
-    final userId = _controller.text.trim();
-    if (userId.isEmpty) {
+    final userInput = _controller.text.trim();
+    if (userInput.isEmpty) {
       setState(() {
         _errorMessage = 'Please enter your user name or ID.';
       });
@@ -28,16 +28,41 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
       _isLoading = true;
       _errorMessage = null;
     });
-    final exists = await ExpenseSupabaseService.isUserIdTaken(userId);
-    if (!exists) {
+
+    try {
+      // First check if the input matches a user_id directly
+      bool existsById = await ExpenseSupabaseService.isUserIdTaken(userInput);
+      String? actualUserId;
+
+      if (existsById) {
+        actualUserId = userInput;
+      } else {
+        // If not found by user_id, search by user_name
+        final users = await ExpenseSupabaseService.getAllUsers();
+        for (var user in users) {
+          if (user['user_name']?.toString().toLowerCase() == userInput.toLowerCase()) {
+            actualUserId = user['user_id']?.toString();
+            break;
+          }
+        }
+      }
+
+      if (actualUserId == null) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'No user found with that name or ID.';
+        });
+        return;
+      }
+
+      await context.read<UserProvider>().setUserId(actualUserId);
+      widget.onUserFetched();
+    } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'No user found with that name or ID.';
+        _errorMessage = 'Error logging in: $e';
       });
-      return;
     }
-    await context.read<UserProvider>().setUserId(userId);
-    widget.onUserFetched();
   }
 
   @override
@@ -96,4 +121,3 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
     );
   }
 }
-

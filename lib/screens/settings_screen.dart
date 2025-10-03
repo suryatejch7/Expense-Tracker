@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/user_provider.dart';
 import '../models/expense_models.dart';
+import 'user_selector_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -59,9 +60,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: Consumer<UserProvider>(
         builder: (context, userProvider, child) {
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // User Profile Section
                 _buildSectionCard(
@@ -341,6 +340,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 32),
+
+                // Logout Button
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Logout'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                  ),
+                  onPressed: () async {
+                    // Clear user session
+                    await context.read<UserProvider>().setUserId('');
+                    // Navigate to main login page
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const UserSelectorScreen(onUserSelected: () {})),
+                      (route) => false,
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 32),
               ],
             ),
           );
