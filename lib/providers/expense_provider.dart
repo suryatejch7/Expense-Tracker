@@ -144,19 +144,15 @@ class ExpenseProvider extends ChangeNotifier {
     }
   }
 
-  /// UPDATE USER NAME - WITH BACKEND MIGRATION
+  /// UPDATE USER NAME - ONLY UPDATE DISPLAY NAME
   Future<void> updateUserName(String newName, BuildContext context) async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final oldName = userProvider.userId;
-    if (newName != oldName && newName.isNotEmpty) {
-      // Migrate all data in Supabase
-      await ExpenseSupabaseService.migrateUserId(oldName, newName);
-      await userProvider.setUserId(newName);
+    if (newName.isNotEmpty && newName != _userName) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final userId = userProvider.userId;
+      // Update only the user_name field in Supabase
+      await ExpenseSupabaseService.updateUserName(newName, userId: userId);
       _userName = newName;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userId', newName);
       notifyListeners();
-      // Optionally, reload data for the new user
       await refresh();
     }
   }

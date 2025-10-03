@@ -132,16 +132,13 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Update user name
+  /// Update user name (display name only)
   static Future<void> updateUserName(String name, {required String userId}) async {
     try {
       await _supabase
           .from('user_settings')
-          .upsert({
-            'user_id': userId,
-            'user_name': name,
-            'updated_at': DateTime.now().toIso8601String(),
-          }, onConflict: 'user_id');
+          .update({'user_name': name, 'updated_at': DateTime.now().toIso8601String()})
+          .eq('user_id', userId);
     } catch (e) {
       throw Exception('Failed to update user name: $e');
     }
