@@ -1,26 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // Import for debugPrint
 import '../models/expense_models.dart';
 import '../services/supabase_service.dart';
 
 class ExpenseProvider extends ChangeNotifier {
   final List<Expense> _expenses = [];
-  final List<ExpenseCategory> _categories = [];
   final List<ExpenseCategory> _customCategories = [];
   final Map<String, double> _categoryBudgets = {};
   String _searchQuery = '';
-  final String _userName = 'Surya Tej';
-  final double _monthlyBudget = 25000.0;
+
+  // USER SETTINGS - NOW MUTABLE AND BACKEND-INTEGRATED
+  String _userName = 'User';
+  double _monthlyBudget = 25000.0;
+  String _currency = '₹';
+
   bool _isLoading = false;
+  bool _isInitialized = false;
 
   // Getters
   List<Expense> get expenses => _expenses;
-  List<ExpenseCategory> get categories => _categories;
   List<ExpenseCategory> get customCategories => _customCategories;
   String get userName => _userName;
   double get monthlyBudget => _monthlyBudget;
+  String get currency => _currency;
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
+  bool get isInitialized => _isInitialized;
+
+  // All categories (default + custom)
+  List<ExpenseCategory> get categories {
+    final defaultCategories = ExpenseCategory.getDefaultCategories();
+    return [...defaultCategories, ..._customCategories];
+  }
 
   List<Expense> get filteredExpenses {
     if (_searchQuery.isEmpty) {
@@ -48,14 +58,346 @@ class ExpenseProvider extends ChangeNotifier {
   // Budget-related getters
   bool get isOverBudget => totalExpense > _monthlyBudget;
   double get budgetExcess => totalExpense - _monthlyBudget;
+  double get budgetUsed => totalExpense;
+  double get budgetRemaining => _monthlyBudget - totalExpense;
+  double get budgetUsagePercentage => _monthlyBudget > 0 ? (totalExpense / _monthlyBudget) * 100 : 0;
 
+  /// INITIALIZE PROVIDER - LOAD ALL DATA FROM BACKEND
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // Load user settings from Supabase
+      await _loadUserSettings();
+
+      // Load expenses from Supabase
+      await _loadExpenses();
+
+      _isInitialized = true;
+    } catch (e) {
+      debugPrint('Failed to initialize ExpenseProvider: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Load user settings from Supabase
+  Future<void> _loadUserSettings() async {
+    try {
+      final settings = await ExpenseSupabaseService.getUserSettings();
+
+      _userName = settings.userName;
+      _monthlyBudget = settings.monthlyBudget;
+      _currency = settings.currency;
+      _categoryBudgets.clear();
+      _categoryBudgets.addAll(settings.categoryBudgets);
+      _customCategories.clear();
+      _customCategories.addAll(settings.customCategories);
+
+      debugPrint('✅ Loaded user settings: $_userName, Budget: ₹$_monthlyBudget');
+    } catch (e) {
+      debugPrint('❌ Failed to load user settings: $e');
+    }
+  }
+
+  /// Load expenses from Supabase
+  Future<void> _loadExpenses() async {
+    try {
+      final expenses = await ExpenseSupabaseService.getExpenses();
+      _expenses.clear();
+      _expenses.addAll(expenses);
+
+      debugPrint('✅ Loaded ${expenses.length} expenses from Supabase');
+    } catch (e) {
+      debugPrint('❌ Failed to load expenses: $e');
+    }
+  }
+
+  /// UPDATE MONTHLY BUDGET - WITH BACKEND SYNC
+  Future<void> updateMonthlyBudget(double budget) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Update in Supabase first
+      await ExpenseSupabaseService.updateMonthlyBudget(budget);
+
+      // Update local state only after successful backend update
+      _monthlyBudget = budget;
+
+      debugPrint('✅ Monthly budget updated to ₹$budget');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Failed to update monthly budget: $e');
+      throw Exception('Failed to update budget: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// UPDATE USER NAME - WITH BACKEND SYNC
+  Future<void> updateUserName(String name) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Update in Supabase first
+      await ExpenseSupabaseService.updateUserName(name);
+
+      // Update local state only after successful backend update
+      _userName = name;
+
+      debugPrint('✅ User name updated to $name');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Failed to update user name: $e');
+      throw Exception('Failed to update name: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// ADD EXPENSE - WITH BACKEND SYNC
+  Future<void> addExpense(Expense expense) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Add to Supabase first
+      final expenseId = await ExpenseSupabaseService.addExpense(expense);
+
+      // Add to local state with the returned ID
+      final expenseWithId = expense.copyWith(id: expenseId);
+      _expenses.insert(0, expenseWithId);
+
+      debugPrint('✅ Added expense: ${expense.description} - ₹${expense.amount}');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Failed to add expense: $e');
+      throw Exception('Failed to add expense: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// UPDATE EXPENSE - WITH BACKEND SYNC
+  Future<void> updateExpense(Expense expense) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Update in Supabase first
+      await ExpenseSupabaseService.updateExpense(expense);
+
+      // Update local state
+      final index = _expenses.indexWhere((e) => e.id == expense.id);
+      if (index != -1) {
+        _expenses[index] = expense;
+      }
+
+      debugPrint('✅ Updated expense: ${expense.description}');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Failed to update expense: $e');
+      throw Exception('Failed to update expense: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// DELETE EXPENSE - WITH BACKEND SYNC
+  Future<void> deleteExpense(String expenseId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Delete from Supabase first
+      await ExpenseSupabaseService.deleteExpense(expenseId);
+
+      // Remove from local state
+      _expenses.removeWhere((expense) => expense.id == expenseId);
+
+      debugPrint('✅ Deleted expense: $expenseId');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Failed to delete expense: $e');
+      throw Exception('Failed to delete expense: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// CATEGORY BUDGET METHODS - WITH BACKEND SYNC
+  double getCategoryBudget(String categoryName) {
+    // First check if it's a custom category
+    final customCategory = _customCategories.firstWhere(
+      (cat) => cat.name == categoryName,
+      orElse: () => ExpenseCategory(id: '', name: '', icon: '', color: Colors.transparent),
+    );
+
+    if (customCategory.id.isNotEmpty) {
+      return _categoryBudgets[customCategory.id] ?? 0.0;
+    }
+
+    // Then check default categories
+    final defaultCategory = ExpenseCategory.getDefaultCategories()
+        .firstWhere(
+          (cat) => cat.name == categoryName,
+          orElse: () => ExpenseCategory(id: '', name: '', icon: '', color: Colors.transparent),
+        );
+
+    if (defaultCategory.id.isNotEmpty) {
+      return _categoryBudgets[defaultCategory.id] ?? 0.0;
+    }
+
+    return 0.0;
+  }
+
+  /// Set budget for any category (default or custom)
+  Future<void> setCategoryBudget(String categoryName, double budget) async {
+    try {
+      String categoryId = '';
+
+      // Find the category ID
+      final customCategory = _customCategories.firstWhere(
+        (cat) => cat.name == categoryName,
+        orElse: () => ExpenseCategory(id: '', name: '', icon: '', color: Colors.transparent),
+      );
+
+      if (customCategory.id.isNotEmpty) {
+        categoryId = customCategory.id;
+      } else {
+        final defaultCategory = ExpenseCategory.getDefaultCategories()
+            .firstWhere(
+              (cat) => cat.name == categoryName,
+              orElse: () => ExpenseCategory(id: '', name: '', icon: '', color: Colors.transparent),
+            );
+        categoryId = defaultCategory.id;
+      }
+
+      if (categoryId.isEmpty) {
+        throw Exception('Category not found: $categoryName');
+      }
+
+      // Update in Supabase first
+      await ExpenseSupabaseService.updateCategoryBudget(categoryId, budget);
+
+      // Update local state
+      _categoryBudgets[categoryId] = budget;
+
+      debugPrint('✅ Updated category budget: $categoryName = ₹$budget');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Failed to update category budget: $e');
+      throw Exception('Failed to update category budget: $e');
+    }
+  }
+
+  double getCustomCategoryBudget(String categoryId) {
+    return _categoryBudgets[categoryId] ?? 0.0;
+  }
+
+  /// Get custom category expenses by category ID
+  double getCustomCategoryExpenses(String categoryId) {
+    final category = _customCategories.firstWhere(
+      (cat) => cat.id == categoryId,
+      orElse: () => ExpenseCategory(
+        id: categoryId,
+        name: 'Unknown Category',
+        icon: '📦',
+        color: Colors.grey,
+      ),
+    );
+    return getCategoryExpenses(category.name);
+  }
+
+  Future<void> setCustomCategoryBudget(String categoryId, double budget) async {
+    try {
+      // Update in Supabase first
+      await ExpenseSupabaseService.updateCategoryBudget(categoryId, budget);
+
+      // Update local state
+      _categoryBudgets[categoryId] = budget;
+
+      debugPrint('✅ Updated category budget: $categoryId = ₹$budget');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Failed to update category budget: $e');
+      throw Exception('Failed to update category budget: $e');
+    }
+  }
+
+  /// CUSTOM CATEGORY METHODS - WITH BACKEND SYNC
+  Future<void> addCustomCategory(ExpenseCategory category) async {
+    try {
+      _customCategories.add(category);
+
+      // Save to Supabase
+      await ExpenseSupabaseService.saveCustomCategories(_customCategories);
+
+      debugPrint('✅ Added custom category: ${category.name}');
+      notifyListeners();
+    } catch (e) {
+      // Revert local change if backend fails
+      _customCategories.removeWhere((cat) => cat.id == category.id);
+      debugPrint('❌ Failed to add custom category: $e');
+      throw Exception('Failed to add category: $e');
+    }
+  }
+
+  Future<void> removeCustomCategory(String categoryId) async {
+    try {
+      _customCategories.removeWhere((cat) => cat.id == categoryId);
+
+      // Save to Supabase
+      await ExpenseSupabaseService.saveCustomCategories(_customCategories);
+
+      debugPrint('✅ Removed custom category: $categoryId');
+      notifyListeners();
+    } catch (e) {
+      // Revert local change if backend fails
+      if (_customCategories.every((cat) => cat.id != categoryId)) {
+        _customCategories.add(ExpenseCategory(
+          id: categoryId,
+          name: 'Restored Category',
+          icon: '📦',
+          color: Colors.grey,
+        ));
+      }
+      debugPrint('❌ Failed to remove custom category: $e');
+      throw Exception('Failed to remove category: $e');
+    }
+  }
+
+  /// SEARCH AND FILTER
+  void setSearchQuery(String query) {
+    _searchQuery = query;
+    notifyListeners();
+  }
+
+  void clearSearch() {
+    _searchQuery = '';
+    notifyListeners();
+  }
+
+  /// UTILITY METHODS
   List<Expense> getExpensesByCategory(String category) {
     return _expenses.where((expense) => expense.category == category).toList();
   }
 
-  // Category budget methods
-  double getCategoryBudget(String category) {
-    return _categoryBudgets[category] ?? 0.0;
+  double getCategoryExpenses(String category) {
+    return _expenses
+        .where((expense) => expense.category == category)
+        .fold(0.0, (sum, expense) => sum + expense.amount);
   }
 
   bool isCategoryOverBudget(String category) {
@@ -70,184 +412,28 @@ class ExpenseProvider extends ChangeNotifier {
     return expenses - budget;
   }
 
-  double getCategoryExpenses(String category) {
-    return _expenses
-        .where((expense) => expense.category == category)
-        .fold(0.0, (sum, expense) => sum + expense.amount);
+  /// REFRESH DATA FROM BACKEND
+  Future<void> refresh() async {
+    await _loadUserSettings();
+    await _loadExpenses();
   }
 
-  // Custom category methods
-  void addCustomCategory(ExpenseCategory category) {
-    _customCategories.add(category);
-    notifyListeners();
-  }
-
-  void removeCustomCategory(String categoryId) {
-    _customCategories.removeWhere((cat) => cat.id == categoryId);
-    notifyListeners();
-  }
-
-  double getCustomCategoryBudget(String categoryId) {
-    return _categoryBudgets[categoryId] ?? 0.0;
-  }
-
-  void setCustomCategoryBudget(String categoryId, double budget) {
-    _categoryBudgets[categoryId] = budget;
-    notifyListeners();
-  }
-
-  double getCustomCategoryExpenses(String categoryId) {
-    final category = _customCategories.firstWhere((cat) => cat.id == categoryId);
-    return getCategoryExpenses(category.name);
-  }
-
-  // Search methods
-  void setSearchQuery(String query) {
-    _searchQuery = query;
-    notifyListeners();
-  }
-
-  // User profile methods
-  void updateUserName(String name) {
-    // Note: _userName is final, so this is a placeholder for future implementation
-    notifyListeners();
-  }
-
-  void updateMonthlyBudget(double budget) {
-    // Note: _monthlyBudget is final, so this is a placeholder for future implementation
-    notifyListeners();
-  }
-
-  /// Add expense to Supabase
-  Future<void> addExpense(Expense expense) async {
+  /// ANALYTICS HELPERS
+  Future<List<Expense>> getExpensesForPeriod(DateTime startDate, DateTime endDate) async {
     try {
-      // Add to local list first for immediate UI update
-      _expenses.add(expense);
-      notifyListeners();
-
-      // Then save to Supabase
-      final id = await ExpenseSupabaseService.addExpense(expense);
-
-      // Update the expense with the returned ID
-      final index = _expenses.indexWhere((e) => e == expense);
-      if (index != -1) {
-        _expenses[index] = expense.copyWith(id: id);
-        notifyListeners();
-      }
+      return await ExpenseSupabaseService.getExpensesForPeriod(startDate, endDate);
     } catch (e) {
-      // Remove from local list if Supabase save failed
-      _expenses.remove(expense);
-      notifyListeners();
-      debugPrint('Failed to add expense: $e');
-      rethrow;
+      debugPrint('❌ Failed to get expenses for period: $e');
+      return [];
     }
   }
 
-  /// Update expense in Supabase
-  Future<void> updateExpense(Expense expense) async {
+  Future<List<Expense>> searchExpenses(String query) async {
     try {
-      _isLoading = true;
-      notifyListeners();
-
-      await ExpenseSupabaseService.updateExpense(expense);
-
-      final index = _expenses.indexWhere((e) => e.id == expense.id);
-      if (index != -1) {
-        _expenses[index] = expense;
-        _expenses.sort((a, b) => b.date.compareTo(a.date));
-      }
-
-      _isLoading = false;
-      notifyListeners();
+      return await ExpenseSupabaseService.searchExpenses(query);
     } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      debugPrint('Failed to update expense: $e');
-      rethrow;
+      debugPrint('❌ Failed to search expenses: $e');
+      return [];
     }
-  }
-
-  /// Delete expense from Supabase
-  Future<void> deleteExpense(String expenseId) async {
-    try {
-      _isLoading = true;
-      notifyListeners();
-
-      await ExpenseSupabaseService.deleteExpense(expenseId);
-
-      _expenses.removeWhere((expense) => expense.id == expenseId);
-
-      _isLoading = false;
-      notifyListeners();
-    } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      debugPrint('Failed to delete expense: $e');
-      rethrow;
-    }
-  }
-
-  /// Load expenses from Supabase
-  Future<void> loadExpenses() async {
-    try {
-      _isLoading = true;
-      notifyListeners();
-
-      final expenses = await ExpenseSupabaseService.getRecentExpenses();
-      _expenses.clear();
-      _expenses.addAll(expenses);
-
-      _isLoading = false;
-      notifyListeners();
-    } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      debugPrint('Failed to load expenses: $e');
-    }
-  }
-
-  /// Load categories from Supabase
-  Future<void> loadCategories() async {
-    try {
-      final categories = await ExpenseSupabaseService.getCategories();
-      _categories.clear();
-      _categories.addAll(categories);
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Failed to load categories: $e');
-    }
-  }
-
-  /// Search expenses
-  Future<void> searchExpenses(String query) async {
-    _searchQuery = query;
-
-    if (query.isEmpty) {
-      notifyListeners();
-      return;
-    }
-
-    try {
-      final results = await ExpenseSupabaseService.searchExpenses(query);
-      _expenses.clear();
-      _expenses.addAll(results);
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Search failed: $e');
-      notifyListeners();
-    }
-  }
-
-  void clearSearch() {
-    _searchQuery = '';
-    loadExpenses(); // Reload all expenses
-  }
-
-  /// Initialize provider data
-  Future<void> initialize() async {
-    await Future.wait([
-      loadExpenses(),
-      loadCategories(),
-    ]);
   }
 }

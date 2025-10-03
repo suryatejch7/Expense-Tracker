@@ -25,8 +25,7 @@ class AnalyticsListWidgets {
               id: categoryName,
               name: categoryName,
               icon: '📦',
-              colorHex: '#747D8C',
-              createdAt: DateTime.now(),
+              color: const Color(0xFF747D8C),
             ),
           );
 
@@ -337,8 +336,7 @@ class AnalyticsListWidgets {
           id: topCategory.key,
           name: topCategory.key,
           icon: '📦',
-          colorHex: '#747D8C',
-          createdAt: DateTime.now(),
+          color: const Color(0xFF747D8C),
         ),
       );
 

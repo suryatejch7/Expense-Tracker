@@ -2,82 +2,75 @@
 -- Run this in your Supabase SQL Editor
 
 -- Create expenses table
-CREATE TABLE public.expenses (
-    id BIGSERIAL PRIMARY KEY,
-    amount DECIMAL(12,2) NOT NULL CHECK (amount > 0),
+CREATE TABLE IF NOT EXISTS expenses (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    amount DECIMAL(10,2) NOT NULL,
     description TEXT NOT NULL,
     category TEXT NOT NULL,
-    date TIMESTAMPTZ NOT NULL,
+    date DATE NOT NULL,
     payee TEXT,
-    payment_app TEXT DEFAULT 'PhonePe',
+    payment_app TEXT,
     transaction_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add user_settings table for budget and preferences (CRITICAL FOR BUDGET FUNCTIONALITY)
+CREATE TABLE IF NOT EXISTS public.user_settings (
+    user_id TEXT PRIMARY KEY,
+    user_name TEXT NOT NULL DEFAULT 'User',
+    monthly_budget DECIMAL(12,2) NOT NULL DEFAULT 25000.00,
+    currency TEXT NOT NULL DEFAULT '₹',
+    category_budgets JSONB DEFAULT '{}',
+    custom_categories JSONB DEFAULT '[]',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Create categories table
-CREATE TABLE public.categories (
-    id BIGSERIAL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    icon TEXT NOT NULL,
-    color TEXT NOT NULL,
-    is_default BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Enable RLS for user_settings
+ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for user_settings
+CREATE POLICY "Allow all operations on user_settings" ON public.user_settings
+    FOR ALL USING (true) WITH CHECK (true);
 
 -- Create indexes for better performance
-CREATE INDEX idx_expenses_date ON public.expenses(date DESC);
-CREATE INDEX idx_expenses_category ON public.expenses(category);
-CREATE INDEX idx_expenses_payee ON public.expenses(payee);
-CREATE INDEX idx_expenses_created_at ON public.expenses(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
+CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category);
+CREATE INDEX IF NOT EXISTS idx_expenses_created_at ON expenses(created_at);
+CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON public.user_settings(user_id);
 
--- Enable Row Level Security (but allow all operations for your personal use)
-ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
-
--- Create policies that allow all operations (since you're the only user)
-CREATE POLICY "Allow all operations on expenses" ON public.expenses
-    FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Allow all operations on categories" ON public.categories
-    FOR ALL USING (true) WITH CHECK (true);
-
--- Insert default categories
-INSERT INTO public.categories (name, icon, color, is_default) VALUES
-('Food & Dining', '🍽️', '#FF6B6B', true),
-('Transportation', '🚗', '#4ECDC4', true),
-('Shopping', '🛒', '#45B7D1', true),
-('Entertainment', '🎬', '#96CEB4', true),
-('Bills & Utilities', '💡', '#FECA57', true),
-('Healthcare', '🏥', '#FF9FF3', true),
-('Education', '📚', '#54A0FF', true),
-('Other', '📦', '#747D8C', true);
-
--- Create function for monthly totals (for analytics)
-CREATE OR REPLACE FUNCTION get_monthly_totals()
-RETURNS TABLE (
-    month TEXT,
-    total DECIMAL
-) LANGUAGE sql AS $$
-    SELECT
-        TO_CHAR(date, 'YYYY-MM') as month,
-        SUM(amount) as total
-    FROM public.expenses
-    WHERE date >= (CURRENT_DATE - INTERVAL '12 months')
-    GROUP BY TO_CHAR(date, 'YYYY-MM')
-    ORDER BY month DESC;
-$$;
-
--- Create trigger to automatically update updated_at column
+-- Create function to automatically update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
+RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$;
+$$ language 'plpgsql';
 
+-- Create triggers for automatic timestamp updates
+DROP TRIGGER IF EXISTS update_expenses_updated_at ON expenses;
 CREATE TRIGGER update_expenses_updated_at
-    BEFORE UPDATE ON public.expenses
+    BEFORE UPDATE ON expenses
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_user_settings_updated_at ON public.user_settings;
+CREATE TRIGGER update_user_settings_updated_at
+    BEFORE UPDATE ON public.user_settings
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert default user settings for testing
+INSERT INTO public.user_settings (user_id, user_name, monthly_budget, currency, category_budgets, custom_categories)
+VALUES ('default_user', 'Surya Tej', 25000.00, '₹', '{}', '[]')
+ON CONFLICT (user_id) DO NOTHING;
+
+-- Enable Row Level Security (optional, for multi-user apps)
+-- ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+
+-- Grant necessary permissions
+-- GRANT ALL ON expenses TO authenticated;
+-- GRANT ALL ON user_settings TO authenticated;

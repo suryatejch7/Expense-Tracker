@@ -242,7 +242,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               name: categoryName,
               icon: '📦',
               colorHex: '#747D8C',
-              createdAt: DateTime.now(),
             ),
           );
 
@@ -606,7 +605,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           name: topCategory.key,
           icon: '📦',
           colorHex: '#747D8C',
-          createdAt: DateTime.now(),
         ),
       );
 

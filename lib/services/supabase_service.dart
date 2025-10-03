@@ -1,19 +1,21 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/expense_models.dart';
+import '../models/user_settings.dart';
 
-/// Service for managing expenses in Supabase
+/// Service for managing expenses and user settings in Supabase
 class ExpenseSupabaseService {
   static final SupabaseClient _supabase = Supabase.instance.client;
 
   /// Add a new expense to Supabase
-  static Future<String> addExpense(Expense expense) async {
+  static Future<String> addExpense(Expense expense, String userId) async {
     try {
+      final data = expense.toSupabase();
+      data['user_id'] = userId;
       final response = await _supabase
           .from('expenses')
-          .insert(expense.toSupabase())
+          .insert(data)
           .select()
           .single();
-
       return response['id'].toString();
     } catch (e) {
       throw Exception('Failed to add expense: $e');
@@ -21,42 +23,43 @@ class ExpenseSupabaseService {
   }
 
   /// Update an existing expense
-  static Future<void> updateExpense(Expense expense) async {
+  static Future<void> updateExpense(Expense expense, String userId) async {
     if (expense.id == null) throw Exception('Expense ID is required for update');
-
     try {
+      final data = expense.toSupabase();
+      data['user_id'] = userId;
       await _supabase
           .from('expenses')
-          .update(expense.toSupabase())
-          .eq('id', expense.id!);
+          .update(data)
+          .eq('id', expense.id!)
+          .eq('user_id', userId);
     } catch (e) {
       throw Exception('Failed to update expense: $e');
     }
   }
 
   /// Delete an expense
-  static Future<void> deleteExpense(String expenseId) async {
+  static Future<void> deleteExpense(String expenseId, String userId) async {
     try {
       await _supabase
           .from('expenses')
           .delete()
-          .eq('id', expenseId);
+          .eq('id', expenseId)
+          .eq('user_id', userId);
     } catch (e) {
       throw Exception('Failed to delete expense: $e');
     }
   }
 
-  /// Get all expenses with optional filtering
+  /// Get all expenses for a user
   static Future<List<Expense>> getExpenses({
+    required String userId,
     String? category,
     DateTime? startDate,
     DateTime? endDate,
-    int? limit,
   }) async {
     try {
-      var query = _supabase.from('expenses').select();
-
-      // Apply filters
+      var query = _supabase.from('expenses').select().eq('user_id', userId);
       if (category != null) {
         query = query.eq('category', category);
       }
@@ -66,264 +69,149 @@ class ExpenseSupabaseService {
       if (endDate != null) {
         query = query.lte('date', endDate.toIso8601String());
       }
-
-      final orderedQuery = query.order('date', ascending: false);
-
-      final finalQuery = limit != null ? orderedQuery.limit(limit) : orderedQuery;
-
-      final data = await finalQuery;
-      return (data as List).map((json) => Expense.fromSupabase(json)).toList();
+      final response = await query.order('date', ascending: false);
+      return (response as List)
+          .map((item) => Expense.fromSupabase(item))
+          .toList();
     } catch (e) {
-      throw Exception('Failed to get expenses: $e');
+      throw Exception('Failed to fetch expenses: $e');
     }
   }
 
-  /// Get expenses for current month
-  static Future<List<Expense>> getCurrentMonthExpenses() async {
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1);
-    final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-
-    return getExpenses(startDate: startOfMonth, endDate: endOfMonth);
-  }
-
-  /// Get recent expenses (last 30 days)
-  static Future<List<Expense>> getRecentExpenses({int limit = 50}) async {
-    final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
-    return getExpenses(startDate: thirtyDaysAgo, limit: limit);
-  }
-
-  /// Search expenses by description or payee
-  static Future<List<Expense>> searchExpenses(String searchTerm) async {
+  /// Get user settings from Supabase
+  static Future<UserSettings> getUserSettings({required String userId}) async {
     try {
-      final List<dynamic> data = await _supabase
+      final response = await _supabase
+          .from('user_settings')
+          .select()
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (response == null) {
+        final defaultSettings = UserSettings(
+          userId: userId,
+          userName: 'User',
+          monthlyBudget: 25000.0,
+          currency: '₹',
+          categoryBudgets: {},
+          customCategories: [],
+        );
+        await saveUserSettings(defaultSettings, userId: userId);
+        return defaultSettings;
+      }
+      return UserSettings.fromSupabase(response);
+    } catch (e) {
+      throw Exception('Failed to fetch user settings: $e');
+    }
+  }
+
+  /// Save user settings to Supabase
+  static Future<void> saveUserSettings(UserSettings settings, {required String userId}) async {
+    try {
+      final data = settings.toSupabase();
+      data['user_id'] = userId;
+      await _supabase
+          .from('user_settings')
+          .upsert(data, onConflict: 'user_id');
+    } catch (e) {
+      throw Exception('Failed to save user settings: $e');
+    }
+  }
+
+  /// Update monthly budget
+  static Future<void> updateMonthlyBudget(double budget, {required String userId}) async {
+    try {
+      await _supabase
+          .from('user_settings')
+          .upsert({
+            'user_id': userId,
+            'monthly_budget': budget,
+            'updated_at': DateTime.now().toIso8601String(),
+          }, onConflict: 'user_id');
+    } catch (e) {
+      throw Exception('Failed to update monthly budget: $e');
+    }
+  }
+
+  /// Update user name
+  static Future<void> updateUserName(String name, {required String userId}) async {
+    try {
+      await _supabase
+          .from('user_settings')
+          .upsert({
+            'user_id': userId,
+            'user_name': name,
+            'updated_at': DateTime.now().toIso8601String(),
+          }, onConflict: 'user_id');
+    } catch (e) {
+      throw Exception('Failed to update user name: $e');
+    }
+  }
+
+  /// Update category budget
+  static Future<void> updateCategoryBudget(String categoryId, double budget, {required String userId}) async {
+    try {
+      final settings = await getUserSettings(userId: userId);
+      settings.categoryBudgets[categoryId] = budget;
+      await _supabase
+          .from('user_settings')
+          .upsert({
+            'user_id': userId,
+            'category_budgets': settings.categoryBudgets,
+            'updated_at': DateTime.now().toIso8601String(),
+          }, onConflict: 'user_id');
+    } catch (e) {
+      throw Exception('Failed to update category budget: $e');
+    }
+  }
+
+  /// Save custom categories
+  static Future<void> saveCustomCategories(List<ExpenseCategory> categories, {required String userId}) async {
+    try {
+      final categoriesData = categories.map((cat) => cat.toSupabase()).toList();
+      await _supabase
+          .from('user_settings')
+          .upsert({
+            'user_id': userId,
+            'custom_categories': categoriesData,
+            'updated_at': DateTime.now().toIso8601String(),
+          }, onConflict: 'user_id');
+    } catch (e) {
+      throw Exception('Failed to save custom categories: $e');
+    }
+  }
+
+  /// Get expenses for analytics
+  static Future<List<Expense>> getExpensesForPeriod(DateTime startDate, DateTime endDate) async {
+    try {
+      final response = await _supabase
           .from('expenses')
           .select()
-          .or('description.ilike.%$searchTerm%,payee.ilike.%$searchTerm%')
+          .gte('date', startDate.toIso8601String())
+          .lte('date', endDate.toIso8601String())
           .order('date', ascending: false);
 
-      return data.map((json) => Expense.fromSupabase(json)).toList();
+      return (response as List)
+          .map((item) => Expense.fromSupabase(item))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch expenses for period: $e');
+    }
+  }
+
+  /// Search expenses
+  static Future<List<Expense>> searchExpenses(String query) async {
+    try {
+      final response = await _supabase
+          .from('expenses')
+          .select()
+          .or('description.ilike.%$query%,payee.ilike.%$query%,category.ilike.%$query%')
+          .order('date', ascending: false);
+
+      return (response as List)
+          .map((item) => Expense.fromSupabase(item))
+          .toList();
     } catch (e) {
       throw Exception('Failed to search expenses: $e');
     }
-  }
-
-  /// Get analytics data for a date range
-  static Future<ExpenseAnalytics> getAnalytics({
-    DateTime? startDate,
-    DateTime? endDate,
-  }) async {
-    try {
-      final expenses = await getExpenses(
-        startDate: startDate,
-        endDate: endDate,
-      );
-
-      // Calculate totals
-      double totalExpenses = 0;
-      Map<String, double> categoryTotals = {};
-      Map<String, int> categoryCount = {};
-
-      for (final expense in expenses) {
-        totalExpenses += expense.amount;
-
-        categoryTotals[expense.category] =
-            (categoryTotals[expense.category] ?? 0) + expense.amount;
-
-        categoryCount[expense.category] =
-            (categoryCount[expense.category] ?? 0) + 1;
-      }
-
-      // Calculate monthly average
-      final monthsDiff = _getMonthsDifference(
-        startDate ?? DateTime.now().subtract(const Duration(days: 365)),
-        endDate ?? DateTime.now(),
-      );
-      final monthlyAverage = monthsDiff > 0 ? (totalExpenses / monthsDiff).toDouble() : 0.0;
-
-      // Get recent transactions
-      final recentTransactions = expenses.take(10).toList();
-
-      return ExpenseAnalytics(
-        totalExpenses: totalExpenses,
-        monthlyAverage: monthlyAverage,
-        categoryTotals: categoryTotals,
-        categoryCount: categoryCount,
-        recentTransactions: recentTransactions,
-        periodStart: startDate ?? DateTime.now().subtract(const Duration(days: 365)),
-        periodEnd: endDate ?? DateTime.now(),
-      );
-    } catch (e) {
-      throw Exception('Failed to get analytics: $e');
-    }
-  }
-
-  /// Get monthly expense totals for the last 12 months using SQL
-  static Future<Map<String, double>> getMonthlyTotals() async {
-    try {
-      final List<dynamic> data = await _supabase.rpc('get_monthly_totals');
-
-      Map<String, double> monthlyTotals = {};
-      for (final row in data) {
-        monthlyTotals[row['month']] = row['total'].toDouble();
-      }
-
-      return monthlyTotals;
-    } catch (e) {
-      // Fallback to client-side calculation
-      final now = DateTime.now();
-      final twelveMonthsAgo = DateTime(now.year - 1, now.month, 1);
-
-      final expenses = await getExpenses(startDate: twelveMonthsAgo);
-
-      Map<String, double> monthlyTotals = {};
-
-      for (final expense in expenses) {
-        final monthKey = '${expense.date.year}-${expense.date.month.toString().padLeft(2, '0')}';
-        monthlyTotals[monthKey] = (monthlyTotals[monthKey] ?? 0) + expense.amount;
-      }
-
-      return monthlyTotals;
-    }
-  }
-
-  /// Initialize default categories if none exist
-  static Future<void> initializeDefaultCategories() async {
-    try {
-      final existingCategories = await getCategories();
-      if (existingCategories.isNotEmpty) return;
-
-      final defaultCategories = [
-        ExpenseCategory(
-          id: '',
-          name: 'Food & Dining',
-          icon: '🍽️',
-          colorHex: '#FF6B6B',
-          isDefault: true,
-          createdAt: DateTime.now(),
-        ),
-        ExpenseCategory(
-          id: '',
-          name: 'Transportation',
-          icon: '🚗',
-          colorHex: '#4ECDC4',
-          isDefault: true,
-          createdAt: DateTime.now(),
-        ),
-        ExpenseCategory(
-          id: '',
-          name: 'Shopping',
-          icon: '🛒',
-          colorHex: '#45B7D1',
-          isDefault: true,
-          createdAt: DateTime.now(),
-        ),
-        ExpenseCategory(
-          id: '',
-          name: 'Entertainment',
-          icon: '🎬',
-          colorHex: '#96CEB4',
-          isDefault: true,
-          createdAt: DateTime.now(),
-        ),
-        ExpenseCategory(
-          id: '',
-          name: 'Bills & Utilities',
-          icon: '💡',
-          colorHex: '#FECA57',
-          isDefault: true,
-          createdAt: DateTime.now(),
-        ),
-        ExpenseCategory(
-          id: '',
-          name: 'Healthcare',
-          icon: '🏥',
-          colorHex: '#FF9FF3',
-          isDefault: true,
-          createdAt: DateTime.now(),
-        ),
-        ExpenseCategory(
-          id: '',
-          name: 'Education',
-          icon: '📚',
-          colorHex: '#54A0FF',
-          isDefault: true,
-          createdAt: DateTime.now(),
-        ),
-        ExpenseCategory(
-          id: '',
-          name: 'Other',
-          icon: '📦',
-          colorHex: '#747D8C',
-          isDefault: true,
-          createdAt: DateTime.now(),
-        ),
-      ];
-
-      for (final category in defaultCategories) {
-        await addCategory(category);
-      }
-    } catch (e) {
-      throw Exception('Failed to initialize categories: $e');
-    }
-  }
-
-  /// Add a new category
-  static Future<String> addCategory(ExpenseCategory category) async {
-    try {
-      final response = await _supabase
-          .from('categories')
-          .insert(category.toSupabase())
-          .select()
-          .single();
-
-      return response['id'].toString();
-    } catch (e) {
-      throw Exception('Failed to add category: $e');
-    }
-  }
-
-  /// Get all categories
-  static Future<List<ExpenseCategory>> getCategories() async {
-    try {
-      final List<dynamic> data = await _supabase
-          .from('categories')
-          .select()
-          .order('name');
-
-      return data.map((json) => ExpenseCategory.fromSupabase(json)).toList();
-    } catch (e) {
-      throw Exception('Failed to get categories: $e');
-    }
-  }
-
-  /// Stream of expenses for real-time updates
-  static Stream<List<Expense>> getExpensesStream({
-    String? category,
-    int? limit,
-  }) {
-    var query = _supabase
-        .from('expenses')
-        .stream(primaryKey: ['id'])
-        .order('date', ascending: false);
-
-    if (limit != null) {
-      query = query.limit(limit);
-    }
-
-    return query.map((data) {
-      var expenses = data.map((json) => Expense.fromSupabase(json)).toList();
-
-      if (category != null) {
-        expenses = expenses.where((expense) => expense.category == category).toList();
-      }
-
-      return expenses;
-    });
-  }
-
-  /// Helper method to calculate months difference
-  static int _getMonthsDifference(DateTime start, DateTime end) {
-    return (end.year - start.year) * 12 + end.month - start.month + 1;
   }
 }

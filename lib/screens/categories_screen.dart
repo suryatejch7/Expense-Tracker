@@ -69,7 +69,6 @@ class CategoriesScreen extends StatelessWidget {
                   name: categoryName,
                   icon: '📦',
                   colorHex: '#747D8C',
-                  createdAt: DateTime.now(),
                 ),
               );
 
@@ -239,7 +238,6 @@ class CategoryDetailScreen extends StatelessWidget {
             name: categoryName,
             icon: '📦',
             colorHex: '#747D8C',
-            createdAt: DateTime.now(),
           ),
         );
 

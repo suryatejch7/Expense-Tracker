@@ -9,6 +9,12 @@ class SharingIntentService {
   static bool _isInitialized = false;
   static StreamSubscription? _intentDataStreamSubscription;
 
+  /// Initialize sharing intent service
+  static Future<void> initialize() async {
+    // No async initialization needed for sharing intent service
+    debugPrint('✅ SharingIntentService initialized');
+  }
+
   /// Initialize sharing intent listeners
   static void initializeSharingListeners(BuildContext context) {
     if (_isInitialized) return;

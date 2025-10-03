@@ -542,7 +542,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: selectedIcon,
                     colorHex: '#${(selectedColor.r * 255.0).round().toRadixString(16).padLeft(2, '0')}${(selectedColor.g * 255.0).round().toRadixString(16).padLeft(2, '0')}${(selectedColor.b * 255.0).round().toRadixString(16).padLeft(2, '0')}',
                     isDefault: false,
-                    createdAt: DateTime.now(),
                   );
 
                   context.read<ExpenseProvider>().addCustomCategory(newCategory);

@@ -42,34 +42,10 @@ class Expense {
     );
   }
 
-  /// Create Expense from extracted transaction data
-  factory Expense.fromExtractedTransaction({
-    required String extractedAmount,
-    required String category,
-    String? payee,
-    String? paymentApp,
-    String? transactionId,
-    DateTime? transactionDate,
-  }) {
-    final now = DateTime.now();
-    final amount = double.tryParse(extractedAmount.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
-
-    return Expense(
-      amount: amount,
-      description: payee != null ? 'Payment to $payee' : 'Transaction',
-      category: category,
-      date: transactionDate ?? now,
-      payee: payee,
-      paymentApp: paymentApp,
-      transactionId: transactionId,
-      createdAt: now,
-      updatedAt: now,
-    );
-  }
-
-  /// Convert to Supabase row data
+  /// Convert Expense to Supabase format
   Map<String, dynamic> toSupabase() {
     return {
+      if (id != null) 'id': id,
       'amount': amount,
       'description': description,
       'category': category,
@@ -105,13 +81,8 @@ class Expense {
       paymentApp: paymentApp ?? this.paymentApp,
       transactionId: transactionId ?? this.transactionId,
       createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? this.updatedAt,
     );
-  }
-
-  @override
-  String toString() {
-    return 'Expense(id: $id, amount: ₹$amount, description: $description, category: $category)';
   }
 }
 
@@ -120,80 +91,111 @@ class ExpenseCategory {
   final String id;
   final String name;
   final String icon;
-  final String colorHex;
+  final Color color;
   final bool isDefault;
-  final DateTime createdAt;
 
   ExpenseCategory({
     required this.id,
     required this.name,
     required this.icon,
-    required this.colorHex,
+    Color? color,
     this.isDefault = false,
-    required this.createdAt,
-  });
+    String? colorHex, // Add support for colorHex parameter
+  }) : color = colorHex != null ? _parseColorFromHex(colorHex) : (color ?? Colors.grey);
 
-  // Helper getters for UI
-  String get displayName => name;
-
-  Color get color {
-    try {
-      final hex = colorHex.replaceAll('#', '');
-      return Color(int.parse('FF$hex', radix: 16));
-    } catch (e) {
-      return const Color(0xFF747D8C); // Default color
+  /// Parse color from hex string
+  static Color _parseColorFromHex(String hexColor) {
+    String cleanHex = hexColor.replaceAll('#', '');
+    if (cleanHex.length == 6) {
+      cleanHex = 'FF$cleanHex'; // Add alpha if not present
     }
+    return Color(int.parse(cleanHex, radix: 16));
   }
 
-  // For compatibility with existing code
-  Map<String, dynamic> get values => {
-        'id': id,
-        'name': name,
-        'icon': icon,
-        'color': colorHex,
-        'isDefault': isDefault,
-        'createdAt': createdAt.toIso8601String(),
-      };
+  /// Get display name (alias for name)
+  String get displayName => name;
 
+  /// Create ExpenseCategory from Supabase data
   factory ExpenseCategory.fromSupabase(Map<String, dynamic> data) {
     return ExpenseCategory(
-      id: data['id']?.toString() ?? '',
+      id: data['id'],
       name: data['name'],
       icon: data['icon'],
-      colorHex: data['color'],
+      color: Color(data['color']),
       isDefault: data['is_default'] ?? false,
-      createdAt: DateTime.parse(data['created_at']),
     );
   }
 
+  /// Convert ExpenseCategory to Supabase format
   Map<String, dynamic> toSupabase() {
     return {
+      'id': id,
       'name': name,
       'icon': icon,
-      'color': colorHex,
+      'color': color.toARGB32(),
       'is_default': isDefault,
-      'created_at': createdAt.toIso8601String(),
     };
   }
-}
 
-/// Model for analytics data
-class ExpenseAnalytics {
-  final double totalExpenses;
-  final double monthlyAverage;
-  final Map<String, double> categoryTotals;
-  final Map<String, int> categoryCount;
-  final List<Expense> recentTransactions;
-  final DateTime periodStart;
-  final DateTime periodEnd;
-
-  ExpenseAnalytics({
-    required this.totalExpenses,
-    required this.monthlyAverage,
-    required this.categoryTotals,
-    required this.categoryCount,
-    required this.recentTransactions,
-    required this.periodStart,
-    required this.periodEnd,
-  });
+  /// Create default categories
+  static List<ExpenseCategory> getDefaultCategories() {
+    return [
+      ExpenseCategory(
+        id: 'food',
+        name: 'Food',
+        icon: '🍕',
+        color: Colors.orange,
+        isDefault: true,
+      ),
+      ExpenseCategory(
+        id: 'transport',
+        name: 'Transport',
+        icon: '🚗',
+        color: Colors.blue,
+        isDefault: true,
+      ),
+      ExpenseCategory(
+        id: 'shopping',
+        name: 'Shopping',
+        icon: '🛍️',
+        color: Colors.purple,
+        isDefault: true,
+      ),
+      ExpenseCategory(
+        id: 'entertainment',
+        name: 'Entertainment',
+        icon: '🎬',
+        color: Colors.red,
+        isDefault: true,
+      ),
+      ExpenseCategory(
+        id: 'health',
+        name: 'Health',
+        icon: '🏥',
+        color: Colors.green,
+        isDefault: true,
+      ),
+      ExpenseCategory(
+        id: 'bills',
+        name: 'Bills',
+        icon: '📄',
+        color: Colors.amber,
+        isDefault: true,
+      ),
+      ExpenseCategory(
+        id: 'education',
+        name: 'Education',
+        icon: '📚',
+        color: Colors.indigo,
+        isDefault: true,
+      ),
+      ExpenseCategory(
+        id: 'other',
+        name: 'Other',
+        icon: '📦',
+        color: Colors.grey,
+        isDefault: true,
+      ),
+    ];
+  }
 }

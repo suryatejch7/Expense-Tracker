@@ -158,15 +158,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               TextFormField(
                 controller: _payeeController,
                 decoration: const InputDecoration(
-                  labelText: 'Payee',
-                  hintText: 'Enter payee name',
+                  labelText: 'Payee (Optional)',
+                  hintText: 'Enter payee name (optional)',
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a payee';
-                  }
-                  return null;
-                },
+                // Removed validator to make payee optional
               ),
               const SizedBox(height: 24),
               _buildSectionTitle('Category'),

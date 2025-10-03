@@ -506,6 +506,9 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
           _errorMessage = null;
           _processingSteps = [];
         });
+
+        // Automatically start processing when image is selected
+        _processTransaction();
       }
     }
   }
@@ -548,16 +551,50 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
           _extractedData = result.extractedTransaction;
         });
 
-        // Show success message
+        // Automatically navigate to Add Expense screen after successful extraction
         if (mounted) {
+          // Show brief success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '✅ Transaction data extracted successfully! Confidence: ${result.extractedTransaction!.confidence.toStringAsFixed(0)}%'
+                '✅ Extraction complete! Navigating to Add Expense...'
               ),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 1),
             ),
           );
+
+          // Wait briefly then auto-navigate to Add Expense
+          await Future.delayed(Duration(milliseconds: 800));
+
+          if (mounted) {
+            final result = await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => AddExpenseScreen(
+                  prefilledAmount: double.tryParse(_extractedData!.amount?.replaceAll(RegExp(r'[^\d.]'), '') ?? '0') ?? 0.0,
+                  prefilledPayee: _extractedData!.payeeName,
+                  prefilledPaymentApp: _selectedApp?.displayName,
+                  prefilledTransactionId: _extractedData!.transactionId,
+                  extractedData: _extractedData,
+                ),
+              ),
+            );
+
+            // If expense was saved successfully, show confirmation and go back
+            if (result == true) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('✅ Expense saved successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+
+                // Go back to previous screen or clear data for next transaction
+                Navigator.pop(context);
+              }
+            }
+          }
         }
       } else {
         setState(() {
