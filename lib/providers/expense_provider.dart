@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/expense_models.dart';
 import '../services/supabase_service.dart';
+import 'user_provider.dart';
 
 class ExpenseProvider extends ChangeNotifier {
   final List<Expense> _expenses = [];
@@ -9,7 +12,7 @@ class ExpenseProvider extends ChangeNotifier {
   String _searchQuery = '';
 
   // USER SETTINGS - NOW MUTABLE AND BACKEND-INTEGRATED
-  String _userName = 'User';
+  String _userName = '';
   double _monthlyBudget = 25000.0;
   String _currency = '₹';
 
@@ -88,7 +91,8 @@ class ExpenseProvider extends ChangeNotifier {
   /// Load user settings from Supabase
   Future<void> _loadUserSettings() async {
     try {
-      final settings = await ExpenseSupabaseService.getUserSettings();
+      final userId = _userName;
+      final settings = await ExpenseSupabaseService.getUserSettings(userId: userId);
 
       _userName = settings.userName;
       _monthlyBudget = settings.monthlyBudget;
@@ -107,7 +111,8 @@ class ExpenseProvider extends ChangeNotifier {
   /// Load expenses from Supabase
   Future<void> _loadExpenses() async {
     try {
-      final expenses = await ExpenseSupabaseService.getExpenses();
+      final userId = _userName;
+      final expenses = await ExpenseSupabaseService.getExpenses(userId: userId);
       _expenses.clear();
       _expenses.addAll(expenses);
 
@@ -122,9 +127,8 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
-
-      // Update in Supabase first
-      await ExpenseSupabaseService.updateMonthlyBudget(budget);
+      final userId = _userName;
+      await ExpenseSupabaseService.updateMonthlyBudget(budget, userId: userId);
 
       // Update local state only after successful backend update
       _monthlyBudget = budget;
@@ -140,26 +144,20 @@ class ExpenseProvider extends ChangeNotifier {
     }
   }
 
-  /// UPDATE USER NAME - WITH BACKEND SYNC
-  Future<void> updateUserName(String name) async {
-    try {
-      _isLoading = true;
+  /// UPDATE USER NAME - WITH BACKEND MIGRATION
+  Future<void> updateUserName(String newName, BuildContext context) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final oldName = userProvider.userId;
+    if (newName != oldName && newName.isNotEmpty) {
+      // Migrate all data in Supabase
+      await ExpenseSupabaseService.migrateUserId(oldName, newName);
+      await userProvider.setUserId(newName);
+      _userName = newName;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userId', newName);
       notifyListeners();
-
-      // Update in Supabase first
-      await ExpenseSupabaseService.updateUserName(name);
-
-      // Update local state only after successful backend update
-      _userName = name;
-
-      debugPrint('✅ User name updated to $name');
-      notifyListeners();
-    } catch (e) {
-      debugPrint('❌ Failed to update user name: $e');
-      throw Exception('Failed to update name: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      // Optionally, reload data for the new user
+      await refresh();
     }
   }
 
@@ -168,9 +166,8 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
-
-      // Add to Supabase first
-      final expenseId = await ExpenseSupabaseService.addExpense(expense);
+      final userId = _userName;
+      final expenseId = await ExpenseSupabaseService.addExpense(expense, userId);
 
       // Add to local state with the returned ID
       final expenseWithId = expense.copyWith(id: expenseId);
@@ -192,9 +189,8 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
-
-      // Update in Supabase first
-      await ExpenseSupabaseService.updateExpense(expense);
+      final userId = _userName;
+      await ExpenseSupabaseService.updateExpense(expense, userId);
 
       // Update local state
       final index = _expenses.indexWhere((e) => e.id == expense.id);
@@ -218,9 +214,8 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
-
-      // Delete from Supabase first
-      await ExpenseSupabaseService.deleteExpense(expenseId);
+      final userId = _userName;
+      await ExpenseSupabaseService.deleteExpense(expenseId, userId);
 
       // Remove from local state
       _expenses.removeWhere((expense) => expense.id == expenseId);
@@ -288,8 +283,9 @@ class ExpenseProvider extends ChangeNotifier {
         throw Exception('Category not found: $categoryName');
       }
 
+      final userId = _userName;
       // Update in Supabase first
-      await ExpenseSupabaseService.updateCategoryBudget(categoryId, budget);
+      await ExpenseSupabaseService.updateCategoryBudget(categoryId, budget, userId: userId);
 
       // Update local state
       _categoryBudgets[categoryId] = budget;
@@ -322,8 +318,9 @@ class ExpenseProvider extends ChangeNotifier {
 
   Future<void> setCustomCategoryBudget(String categoryId, double budget) async {
     try {
+      final userId = _userName;
       // Update in Supabase first
-      await ExpenseSupabaseService.updateCategoryBudget(categoryId, budget);
+      await ExpenseSupabaseService.updateCategoryBudget(categoryId, budget, userId: userId);
 
       // Update local state
       _categoryBudgets[categoryId] = budget;
@@ -340,9 +337,8 @@ class ExpenseProvider extends ChangeNotifier {
   Future<void> addCustomCategory(ExpenseCategory category) async {
     try {
       _customCategories.add(category);
-
-      // Save to Supabase
-      await ExpenseSupabaseService.saveCustomCategories(_customCategories);
+      final userId = _userName;
+      await ExpenseSupabaseService.saveCustomCategories(_customCategories, userId: userId);
 
       debugPrint('✅ Added custom category: ${category.name}');
       notifyListeners();
@@ -357,9 +353,8 @@ class ExpenseProvider extends ChangeNotifier {
   Future<void> removeCustomCategory(String categoryId) async {
     try {
       _customCategories.removeWhere((cat) => cat.id == categoryId);
-
-      // Save to Supabase
-      await ExpenseSupabaseService.saveCustomCategories(_customCategories);
+      final userId = _userName;
+      await ExpenseSupabaseService.saveCustomCategories(_customCategories, userId: userId);
 
       debugPrint('✅ Removed custom category: $categoryId');
       notifyListeners();
@@ -435,5 +430,12 @@ class ExpenseProvider extends ChangeNotifier {
       debugPrint('❌ Failed to search expenses: $e');
       return [];
     }
+  }
+
+  void initializeWithUser(BuildContext context) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    _userName = userProvider.userId;
+    // Load other user-specific settings if needed
+    notifyListeners();
   }
 }

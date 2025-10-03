@@ -214,4 +214,28 @@ class ExpenseSupabaseService {
       throw Exception('Failed to search expenses: $e');
     }
   }
+
+  /// Check if a userId is already taken in Supabase
+  static Future<bool> isUserIdTaken(String userId) async {
+    final response = await _supabase
+        .from('user_settings')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+    return response != null;
+  }
+
+  /// Migrate all user data from oldUserId to newUserId in Supabase
+  static Future<void> migrateUserId(String oldUserId, String newUserId) async {
+    // Update all expenses
+    await _supabase
+      .from('expenses')
+      .update({'user_id': newUserId})
+      .eq('user_id', oldUserId);
+    // Update user_settings
+    await _supabase
+      .from('user_settings')
+      .update({'user_id': newUserId, 'user_name': newUserId})
+      .eq('user_id', oldUserId);
+  }
 }

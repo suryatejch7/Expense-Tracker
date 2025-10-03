@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
+import '../services/supabase_service.dart';
+import 'existing_user_screen.dart';
 
 class UserSelectorScreen extends StatefulWidget {
   final VoidCallback onUserSelected;
@@ -12,6 +14,16 @@ class UserSelectorScreen extends StatefulWidget {
 
 class _UserSelectorScreenState extends State<UserSelectorScreen> {
   final TextEditingController _controller = TextEditingController();
+
+  void _navigateToExistingUser() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ExistingUserScreen(
+          onUserFetched: widget.onUserSelected,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,14 +56,36 @@ class _UserSelectorScreenState extends State<UserSelectorScreen> {
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   final userId = _controller.text.trim();
                   if (userId.isNotEmpty) {
-                    context.read<UserProvider>().setUserId(userId);
+                    final isTaken = await ExpenseSupabaseService.isUserIdTaken(userId);
+                    if (isTaken) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('This user name is already taken. Please choose another.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    await context.read<UserProvider>().setUserId(userId);
                     widget.onUserSelected();
                   }
                 },
                 child: const Text('Continue'),
+              ),
+              const SizedBox(height: 32),
+              GestureDetector(
+                onTap: _navigateToExistingUser,
+                child: const Text(
+                  'Already a member?',
+                  style: TextStyle(
+                    color: Colors.blueAccent,
+                    fontSize: 16,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
               ),
             ],
           ),
@@ -60,4 +94,3 @@ class _UserSelectorScreenState extends State<UserSelectorScreen> {
     );
   }
 }
-

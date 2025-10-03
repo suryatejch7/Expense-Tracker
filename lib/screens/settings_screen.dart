@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
+import '../providers/user_provider.dart';
 import '../models/expense_models.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -25,9 +26,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _loadUserData() {
+    final userProvider = context.read<UserProvider>();
+    _nameController.text = userProvider.userId;
     final provider = context.read<ExpenseProvider>();
-    _nameController.text = provider.userName;
     _budgetController.text = provider.monthlyBudget.toString();
+  }
+
+  void _saveUserName() async {
+    final newName = _nameController.text.trim();
+    if (newName.isNotEmpty && newName != context.read<UserProvider>().userId) {
+      await context.read<UserProvider>().setUserId(newName);
+      await context.read<ExpenseProvider>().updateUserName(newName, context);
+      setState(() {
+        _isEditingName = false;
+      });
+    }
   }
 
   @override
@@ -43,8 +56,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Consumer<ExpenseProvider>(
-        builder: (context, provider, child) {
+      body: Consumer<UserProvider>(
+        builder: (context, userProvider, child) {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -61,8 +74,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             radius: 30,
                             backgroundColor: Theme.of(context).colorScheme.primary,
                             child: Text(
-                              provider.userName.isNotEmpty
-                                  ? provider.userName[0].toUpperCase()
+                              userProvider.userId.isNotEmpty
+                                  ? userProvider.userId[0].toUpperCase()
                                   : 'S',
                               style: const TextStyle(
                                 fontSize: 24,
@@ -77,32 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ? TextField(
                                     controller: _nameController,
                                     style: const TextStyle(color: Colors.white),
-                                    decoration: InputDecoration(
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(
-                                          color: Theme.of(context).colorScheme.primary,
-                                        ),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(
-                                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-                                        ),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(
-                                          color: Theme.of(context).colorScheme.primary,
-                                        ),
-                                      ),
-                                    ),
-                                    onSubmitted: (value) {
-                                      provider.updateUserName(value);
-                                      setState(() {
-                                        _isEditingName = false;
-                                      });
-                                    },
+                                    decoration: const InputDecoration(hintText: 'User Name'),
                                   )
                                 : GestureDetector(
                                     onTap: () {
@@ -126,9 +114,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            provider.userName.isEmpty ? 'Tap to set name' : provider.userName,
+                                            userProvider.userId.isEmpty ? 'Tap to set name' : userProvider.userId,
                                             style: TextStyle(
-                                              color: provider.userName.isEmpty ? Colors.grey : Colors.white,
+                                              color: userProvider.userId.isEmpty ? Colors.grey : Colors.white,
                                               fontSize: 16,
                                             ),
                                           ),
@@ -185,14 +173,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         onSubmitted: (value) {
                           final budget = double.tryParse(value) ?? 0;
-                          provider.updateMonthlyBudget(budget);
+                          context.read<ExpenseProvider>().updateMonthlyBudget(budget);
                         },
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () {
                           final budget = double.tryParse(_budgetController.text) ?? 0;
-                          provider.updateMonthlyBudget(budget);
+                          context.read<ExpenseProvider>().updateMonthlyBudget(budget);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Budget updated successfully!'),
@@ -236,9 +224,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 16),
 
                       // Custom Categories List
-                      ...provider.customCategories.map((category) {
-                        final budget = provider.getCustomCategoryBudget(category.id);
-                        final spent = provider.getCustomCategoryExpenses(category.id);
+                      ...context.read<ExpenseProvider>().customCategories.map((category) {
+                        final budget = context.read<ExpenseProvider>().getCustomCategoryBudget(category.id);
+                        final spent = context.read<ExpenseProvider>().getCustomCategoryExpenses(category.id);
                         final isOverBudget = budget > 0 && spent > budget;
 
                         return Container(

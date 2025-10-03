@@ -55,24 +55,32 @@ class ExpenseTrackerApp extends StatefulWidget {
 
 class _ExpenseTrackerAppState extends State<ExpenseTrackerApp> {
   bool _initialized = false;
+  bool _userLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeApp();
+    _loadUserAndInitialize();
+  }
+
+  Future<void> _loadUserAndInitialize() async {
+    await context.read<UserProvider>().loadUserId();
+    setState(() {
+      _userLoaded = true;
+    });
+    if (context.read<UserProvider>().userId.isNotEmpty) {
+      await _initializeApp();
+    }
   }
 
   Future<void> _initializeApp() async {
     try {
-      final userId = context.read<UserProvider>().userId;
-      if (userId.isNotEmpty) {
-        final provider = context.read<ExpenseProvider>();
-        await provider.initialize();
-        await SharingIntentService.initialize();
-        setState(() {
-          _initialized = true;
-        });
-      }
+      final provider = context.read<ExpenseProvider>();
+      await provider.initialize();
+      await SharingIntentService.initialize();
+      setState(() {
+        _initialized = true;
+      });
     } catch (e) {
       setState(() {
         _initialized = true;
@@ -83,10 +91,16 @@ class _ExpenseTrackerAppState extends State<ExpenseTrackerApp> {
   @override
   Widget build(BuildContext context) {
     final userId = context.watch<UserProvider>().userId;
+    if (!_userLoaded) {
+      return SplashScreen(
+        onInit: () async {},
+        onReady: () {},
+      );
+    }
     if (userId.isEmpty) {
-      return UserSelectorScreen(onUserSelected: () {
+      return UserSelectorScreen(onUserSelected: () async {
+        await _initializeApp();
         setState(() {});
-        _initializeApp();
       });
     }
     if (!_initialized) {
