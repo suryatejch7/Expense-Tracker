@@ -112,7 +112,7 @@ class FieldExtractionService {
     // Sort by confidence and look for amount patterns
     amountBlocks.sort((a, b) => b.confidence.compareTo(a.confidence));
 
-    // First pass: look for currency symbols
+    // First pass: look for currency symbols (₹ or Rs)
     for (final block in amountBlocks) {
       final text = block.text.trim();
 
@@ -139,12 +139,40 @@ class FieldExtractionService {
       }
     }
 
-    // Second pass: look for standalone numbers in the region
+    // Second pass: look for ANY numbers in the region (more flexible)
     for (final block in amountBlocks) {
       final text = block.text.trim();
-      final numericValue = _extractNumericValue(text);
-      if (numericValue != null && numericValue > 10 && numericValue < 50000) {
-        return '₹${numericValue.toStringAsFixed(numericValue == numericValue.roundToDouble() ? 0 : 2)}';
+
+      // Look for any numeric patterns - be more flexible
+      final numberPatterns = [
+        RegExp(r'\b(\d{1,6}(?:\.\d{1,2})?)\b'), // Any numbers with optional decimal
+        RegExp(r'(\d+[,\d]*(?:\.\d{1,2})?)')     // Numbers with commas
+      ];
+
+      for (final pattern in numberPatterns) {
+        final match = pattern.firstMatch(text);
+        if (match != null) {
+          final amount = match.group(1)!.replaceAll(',', '');
+          final numValue = double.tryParse(amount);
+          if (numValue != null && numValue >= 1 && numValue < 100000) { // Lowered minimum from 10 to 1
+            return '₹$amount';
+          }
+        }
+      }
+    }
+
+    // Third pass: look for numbers anywhere in the text block
+    for (final block in amountBlocks) {
+      final text = block.text.trim();
+
+      // Extract any numbers from the text
+      final allNumbers = RegExp(r'\d+(?:\.\d{1,2})?').allMatches(text);
+      for (final match in allNumbers) {
+        final amount = match.group(0)!;
+        final numValue = double.tryParse(amount);
+        if (numValue != null && numValue >= 1 && numValue < 100000) {
+          return '₹$amount';
+        }
       }
     }
 
@@ -397,7 +425,8 @@ class FieldExtractionService {
 
   /// Extract payee name using position and keyword heuristics
   static String? _extractPayee(List<TextBlock> textBlocks, PaymentAppTemplate template) {
-    // For PhonePe, use region-based extraction in the left 60% of the optimized strip
+    // For PhonePe: Since the image is cropped to only contain name (left 60%) and amount (right 40%),
+    // we don't need keywords - just extract whatever text is in the left 60%
     if (template.app == PaymentApp.phonePe) {
       return _extractPhonePePayee(textBlocks, template);
     }
@@ -438,31 +467,25 @@ class FieldExtractionService {
       if (bottomY > maxY) maxY = bottomY;
     }
 
-    // If we can't determine image dimensions, fall back to keyword search
+    // If we can't determine image dimensions, take the first valid text block
     if (maxX == 0 || maxY == 0) {
-      return _extractPayeeWithKeywords(textBlocks, template);
+      for (final block in textBlocks) {
+        final text = block.text.trim();
+        if (text.isNotEmpty && text.length > 1 && !RegExp(r'^\d+$').hasMatch(text)) {
+          return _cleanPayeeName(text);
+        }
+      }
+      return null;
     }
 
-    // Filter text blocks that fall within the payee region
-    // Top 17%, Bottom 21% (so 4% height strip), Left 60% (0%-60% from left)
+    // Filter text blocks that fall within the payee region (left 60% of the strip)
     final payeeBlocks = textBlocks.where((block) {
       final blockCenterX = block.boundingBox.x + (block.boundingBox.width / 2);
-      final blockCenterY = block.boundingBox.y + (block.boundingBox.height / 2);
-
-      // Convert region coordinates to pixel coordinates
-      final regionLeft = 0.0 * maxX;   // 0% from left
       final regionRight = 0.6 * maxX;  // 60% from left (left 60% for payee)
-      final regionTop = 0.17 * maxY;   // 17% from top
-      final regionBottom = 0.21 * maxY; // 21% from top (4% height strip)
-
-      // Check if block center is in the payee region
-      return blockCenterX >= regionLeft &&
-             blockCenterX <= regionRight &&
-             blockCenterY >= regionTop &&
-             blockCenterY <= regionBottom;
+      return blockCenterX <= regionRight;
     }).toList();
 
-    // Sort by confidence and look for valid payee names
+    // Sort by confidence and take the best text in the payee region
     payeeBlocks.sort((a, b) => b.confidence.compareTo(a.confidence));
 
     // Find the best payee candidate in the region
@@ -542,9 +565,18 @@ class FieldExtractionService {
     String cleaned = text
         .replaceAll('₹', '')
         .replaceAll('Rs', '')
-        .replaceAll('\$', '')
-        .replaceAll(RegExp(r'[^\d\.,]'), '')
+        .replaceAll(RegExp(r'[^ -\d\.,]'), '') // Remove non-ASCII except digits, dot, comma
         .trim();
+
+    // Fix OCR artifact: if starts with '7' and rest is a valid number, and without '7' is plausible, remove '7'
+    if (cleaned.startsWith('7') && cleaned.length > 2) {
+      final possibleAmount = cleaned.substring(1);
+      final numValue = double.tryParse(possibleAmount);
+      // Only replace if the number without '7' is plausible
+      if (numValue != null && numValue > 0 && numValue < 100000) {
+        cleaned = possibleAmount;
+      }
+    }
 
     // Handle comma separators in Indian format
     if (cleaned.contains(',')) {
@@ -566,5 +598,104 @@ class FieldExtractionService {
         .replaceAll(RegExp(r'[^\w\s\-\.]'), '') // Keep only alphanumeric, spaces, hyphens, dots
         .replaceAll(RegExp(r'\s+'), ' ') // Normalize spaces
         .trim();
+  }
+
+  /// Extract payee from left crop using the WORKING logic from GitHub
+  static String? extractPayeeFromLeftCrop(List<TextBlock> textBlocks) {
+    // This is the EXACT working logic from your GitHub version
+    // Find the longest valid text block (simple approach that worked)
+    String? bestCandidate;
+    int maxLength = 0;
+
+    for (final block in textBlocks) {
+      final text = block.text.trim();
+      if (_isValidPayeeName(text) && text.length > maxLength) {
+        bestCandidate = text;
+        maxLength = text.length;
+      }
+    }
+
+    return bestCandidate != null ? _cleanPayeeName(bestCandidate) : null;
+  }
+
+  /// Extract amount from right crop using CURRENT enhanced logic with "7" fix
+  static String? extractAmountFromRightCrop(List<TextBlock> textBlocks) {
+    // Sort by confidence first
+    final sortedBlocks = List<TextBlock>.from(textBlocks);
+    sortedBlocks.sort((a, b) => b.confidence.compareTo(a.confidence));
+
+    // First pass: look for currency symbols
+    for (final block in sortedBlocks) {
+      final text = block.text.trim();
+
+      // Look for ₹ symbol followed by numbers
+      final rupeePattern = RegExp(r'₹\s*(\d+(?:[,\.]\d+)*)');
+      final rupeeMatch = rupeePattern.firstMatch(text);
+      if (rupeeMatch != null) {
+        final amount = rupeeMatch.group(1)!.replaceAll(',', '');
+        final numValue = double.tryParse(amount);
+        if (numValue != null && numValue > 0 && numValue < 100000) {
+          return '₹$amount';
+        }
+      }
+
+      // Look for Rs followed by numbers
+      final rsPattern = RegExp(r'Rs\.?\s*(\d+(?:[,\.]\d+)*)');
+      final rsMatch = rsPattern.firstMatch(text);
+      if (rsMatch != null) {
+        final amount = rsMatch.group(1)!.replaceAll(',', '');
+        final numValue = double.tryParse(amount);
+        if (numValue != null && numValue > 0 && numValue < 100000) {
+          return '₹$amount';
+        }
+      }
+    }
+
+    // Second pass: look for ANY numbers with flexible patterns
+    for (final block in sortedBlocks) {
+      final text = block.text.trim();
+
+      final numberPatterns = [
+        RegExp(r'\b(\d{1,6}(?:\.\d{1,2})?)\b'),
+        RegExp(r'(\d+[,\d]*(?:\.\d{1,2})?)')
+      ];
+
+      for (final pattern in numberPatterns) {
+        final match = pattern.firstMatch(text);
+        if (match != null) {
+          final amount = match.group(1)!.replaceAll(',', '');
+          final numValue = double.tryParse(amount);
+          if (numValue != null && numValue >= 1 && numValue < 100000) {
+            return '₹$amount';
+          }
+        }
+      }
+    }
+
+    // Third pass: extract any numbers and apply "7" prefix fix
+    for (final block in sortedBlocks) {
+      final text = block.text.trim();
+      final allNumbers = RegExp(r'\d+(?:\.\d{1,2})?').allMatches(text);
+
+      for (final match in allNumbers) {
+        var amount = match.group(0)!;
+
+        // Apply "7" prefix fix: if starts with 7 and rest is plausible, remove 7
+        if (amount.startsWith('7') && amount.length > 1) {
+          final withoutSeven = amount.substring(1);
+          final numValue = double.tryParse(withoutSeven);
+          if (numValue != null && numValue > 0 && numValue < 100000) {
+            amount = withoutSeven; // Remove the "7" prefix
+          }
+        }
+
+        final numValue = double.tryParse(amount);
+        if (numValue != null && numValue >= 1 && numValue < 100000) {
+          return '₹$amount';
+        }
+      }
+    }
+
+    return null;
   }
 }

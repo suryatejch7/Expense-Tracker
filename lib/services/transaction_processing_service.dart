@@ -36,41 +36,66 @@ class TransactionProcessingService {
         throw Exception('Image file too large (>50MB)');
       }
 
-      // Step 1: Image Preprocessing (PhonePe optimized crop)
+      // Step 1: Image Preprocessing - Use dual-crop approach for PhonePe
       onProgress?.call(0.2);
-      processingSteps.add('Preprocessing image with PhonePe crop settings...');
+      processingSteps.add('Preprocessing image with PhonePe dual-crop settings...');
 
-      File? preprocessedImage;
+      Map<String, File>? dualCrops;
       try {
-        preprocessedImage = await ImagePreprocessingService.preprocessImage(
+        // Create separate crops for payee (left 60%) and amount (right 40%)
+        dualCrops = await ImagePreprocessingService.preprocessPhonePeDualCrops(
+          imageFile
+        ).timeout(const Duration(seconds: 30));
+      } catch (e) {
+        debugPrint('Dual-crop preprocessing failed, using fallback: $e');
+        dualCrops = null;
+      }
+
+      // Step 2: Dual OCR with Google ML Kit on both crops
+      onProgress?.call(0.3);
+      processingSteps.add('Extracting text using dual-crop OCR...');
+
+      ExtractedTransaction extractedData;
+
+      if (dualCrops != null) {
+        // Process both crops separately for optimal extraction
+        final payeeOcr = await PrimaryOcrService.extractText(dualCrops['payee']!)
+            .timeout(const Duration(minutes: 1));
+        final amountOcr = await PrimaryOcrService.extractText(dualCrops['amount']!)
+            .timeout(const Duration(minutes: 1));
+
+        // Extract using the WORKING GitHub logic for payee and CURRENT logic for amount
+        final payeeExtracted = FieldExtractionService.extractPayeeFromLeftCrop(payeeOcr.textBlocks);
+        final amountExtracted = FieldExtractionService.extractAmountFromRightCrop(amountOcr.textBlocks);
+
+        // Combine results
+        extractedData = ExtractedTransaction(
+          amount: amountExtracted,
+          payeeName: payeeExtracted,
+          date: null,
+          transactionId: null,
+          confidence: _calculateCombinedConfidence([amountExtracted, payeeExtracted]),
+        );
+
+        processingSteps.add('Dual-crop extraction completed: ${payeeExtracted != null ? "Payee found" : "Payee not found"}, ${amountExtracted != null ? "Amount found" : "Amount not found"}');
+      } else {
+        // Fallback to single image processing if dual-crop fails
+        final preprocessedImage = await ImagePreprocessingService.preprocessImage(
           imageFile,
           selectedApp
         ).timeout(const Duration(seconds: 30));
-      } catch (e) {
-        debugPrint('Preprocessing failed, using original image: $e');
-        preprocessedImage = imageFile; // Fallback to original
+
+        final ocrResult = await PrimaryOcrService.extractText(preprocessedImage)
+            .timeout(const Duration(minutes: 2));
+
+        if (ocrResult.textBlocks.isEmpty && ocrResult.rawText.isEmpty) {
+          throw Exception('No text found in image. Please ensure the image is clear and contains text.');
+        }
+
+        extractedData = FieldExtractionService.extractFields(ocrResult, selectedApp);
+        processingSteps.add('Fallback extraction completed');
       }
 
-      // Step 2: Primary OCR with Google ML Kit
-      onProgress?.call(0.3);
-      processingSteps.add('Extracting text using OCR...');
-
-      final ocrResult = await PrimaryOcrService.extractText(preprocessedImage)
-          .timeout(const Duration(minutes: 2));
-
-      if (ocrResult.textBlocks.isEmpty && ocrResult.rawText.isEmpty) {
-        throw Exception('No text found in image. Please ensure the image is clear and contains text.');
-      }
-
-      // Step 3: Field Extraction using PhonePe templates
-      onProgress?.call(0.5);
-      processingSteps.add('Extracting transaction fields...');
-
-      final extractedData = FieldExtractionService.extractFields(
-        ocrResult, 
-        selectedApp
-      );
-      
       // Step 4: Text Normalization (simplified for PhonePe)
       onProgress?.call(0.6);
       processingSteps.add('Processing extracted data...');
@@ -215,6 +240,33 @@ class TransactionProcessingService {
       issues: issues,
       confidence: transaction.confidence,
     );
+  }
+
+  /// Clean amount to fix OCR "7" prefix issue
+  static String? _cleanAmount(String? amount) {
+    if (amount == null || amount.isEmpty) return amount;
+
+    // Remove currency symbol for processing
+    String cleaned = amount.replaceAll('₹', '').trim();
+
+    // Fix OCR artifact: if starts with '7' and rest is a valid number, remove the '7'
+    if (cleaned.startsWith('7') && cleaned.length > 1) {
+      final possibleAmount = cleaned.substring(1);
+      final numValue = double.tryParse(possibleAmount);
+      // Only remove '7' if the remaining number is plausible (1-99999)
+      if (numValue != null && numValue > 0 && numValue < 100000) {
+        cleaned = possibleAmount;
+      }
+    }
+
+    // Return with currency symbol
+    return '₹$cleaned';
+  }
+
+  /// Calculate combined confidence from multiple fields
+  static double _calculateCombinedConfidence(List<String?> fields) {
+    final nonNullFields = fields.where((f) => f != null && f.isNotEmpty).length;
+    return (nonNullFields / fields.length) * 100;
   }
 }
 

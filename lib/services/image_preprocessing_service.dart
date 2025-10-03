@@ -10,29 +10,32 @@ class ImagePreprocessingService {
     try {
       // Read image
       final bytes = await imageFile.readAsBytes();
-      img.Image? image = img.decodeImage(bytes);
+      img.Image? originalImage = img.decodeImage(bytes);
 
-      if (image == null) {
+      if (originalImage == null) {
         throw Exception('Failed to decode image');
       }
 
       // Step 1: Crop based on app template
-      image = _cropForApp(image, app);
+      img.Image croppedImage = _cropForApp(originalImage, app);
 
       // Step 2: Convert to grayscale
-      image = img.grayscale(image);
+      croppedImage = img.grayscale(croppedImage);
 
       // Step 3: Apply Gaussian blur then sharpen
-      image = img.gaussianBlur(image, radius: 1);
-      image = _sharpenImage(image);
+      croppedImage = img.gaussianBlur(croppedImage, radius: 1);
+      croppedImage = _sharpenImage(croppedImage);
 
-      // Step 4: Apply binary thresholding for better OCR
-      image = _applyThreshold(image);
+      // Step 4: Enhance contrast
+      croppedImage = _enhanceContrast(croppedImage);
+
+      // Step 5: Apply binary thresholding for better OCR
+      final processedImage = _applyAdaptiveThreshold(croppedImage);
 
       // Save processed image
       final processedPath = '${imageFile.parent.path}/processed_${DateTime.now().millisecondsSinceEpoch}.png';
       final processedFile = File(processedPath);
-      await processedFile.writeAsBytes(img.encodePng(image));
+      await processedFile.writeAsBytes(img.encodePng(processedImage));
 
       return processedFile;
     } catch (e) {
@@ -44,13 +47,12 @@ class ImagePreprocessingService {
   static img.Image _cropForApp(img.Image image, PaymentApp app) {
     final template = PaymentAppTemplate.getTemplate(app);
 
-    // Calculate crop coordinates based on percentage
+    // Default: use template crop region
     final cropX = (image.width * template.cropRegion.x).round();
     final cropY = (image.height * template.cropRegion.y).round();
     final cropWidth = (image.width * template.cropRegion.width).round();
     final cropHeight = (image.height * template.cropRegion.height).round();
 
-    // Ensure crop coordinates are within image bounds
     final safeX = cropX.clamp(0, image.width - 1);
     final safeY = cropY.clamp(0, image.height - 1);
     final safeWidth = cropWidth.clamp(1, image.width - safeX);
@@ -60,19 +62,39 @@ class ImagePreprocessingService {
       x: safeX,
       y: safeY,
       width: safeWidth,
-      height: safeHeight
+      height: safeHeight,
     );
   }
 
-  /// Apply sharpening filter
-  static img.Image _sharpenImage(img.Image image) {
-    // Sharpening kernel as flattened list
-    final kernel = [-1, -1, -1, -1, 9, -1, -1, -1, -1];
+  /// Apply adaptive thresholding
+  static img.Image _applyAdaptiveThreshold(img.Image image) {
+    // Calculate global mean luminance
+    int sum = 0;
+    int count = 0;
+    for (int y = 0; y < image.height; y++) {
+      for (int x = 0; x < image.width; x++) {
+        final pixel = image.getPixel(x, y);
+        sum += img.getLuminance(pixel).toInt();
+        count++;
+      }
+    }
+    final mean = (sum / count).round();
 
-    return img.convolution(image, filter: kernel);
+    // Apply threshold based on mean
+    for (int y = 0; y < image.height; y++) {
+      for (int x = 0; x < image.width; x++) {
+        final pixel = image.getPixel(x, y);
+        final luminance = img.getLuminance(pixel);
+        final newPixel = luminance > mean
+          ? img.ColorRgb8(255, 255, 255)
+          : img.ColorRgb8(0, 0, 0);
+        image.setPixel(x, y, newPixel);
+      }
+    }
+    return image;
   }
 
-  /// Apply binary thresholding
+  /// Apply basic binary thresholding
   static img.Image _applyThreshold(img.Image image) {
     const threshold = 128;
 
@@ -92,123 +114,14 @@ class ImagePreprocessingService {
     return image;
   }
 
-  /// Create region-specific crops for secondary OCR
-  static Future<List<File>> createRegionCrops(
-    File originalImage,
-    PaymentApp app,
-    List<TextBlock> textBlocks
-  ) async {
-    final bytes = await originalImage.readAsBytes();
-    img.Image? image = img.decodeImage(bytes);
-
-    if (image == null) {
-      throw Exception('Failed to decode image for region cropping');
-    }
-
-    final crops = <File>[];
-    final template = PaymentAppTemplate.getTemplate(app);
-
-    // Create specific crops for amount, payee, and date regions
-    for (final region in template.fieldRegions.entries) {
-      final regionName = region.key;
-      final regionRect = region.value;
-
-      // Find text blocks in this region
-      final regionBlocks = _findTextBlocksInRegion(textBlocks, regionRect, image);
-
-      if (regionBlocks.isNotEmpty) {
-        // Create expanded bounding box around all blocks in region
-        final boundingBox = _createExpandedBoundingBox(regionBlocks, image);
-
-        final croppedImage = img.copyCrop(
-          image,
-          x: boundingBox.x,
-          y: boundingBox.y,
-          width: boundingBox.width,
-          height: boundingBox.height,
-        );
-
-        // Apply preprocessing to the crop
-        final processedCrop = _preprocessCrop(croppedImage);
-
-        final cropPath = '${originalImage.parent.path}/crop_${regionName}_${DateTime.now().millisecondsSinceEpoch}.png';
-        final cropFile = File(cropPath);
-        await cropFile.writeAsBytes(img.encodePng(processedCrop));
-
-        crops.add(cropFile);
-      }
-    }
-
-    return crops;
+  /// Apply improved sharpening filter
+  static img.Image _sharpenImage(img.Image image) {
+    // Stronger sharpening kernel
+    final kernel = [0, -2, 0, -2, 11, -2, 0, -2, 0];
+    return img.convolution(image, filter: kernel);
   }
 
-  static List<TextBlock> _findTextBlocksInRegion(
-    List<TextBlock> textBlocks,
-    CropRegion region,
-    img.Image image
-  ) {
-    final regionBlocks = <TextBlock>[];
-
-    final regionX = (image.width * region.x).round();
-    final regionY = (image.height * region.y).round();
-    final regionWidth = (image.width * region.width).round();
-    final regionHeight = (image.height * region.height).round();
-
-    for (final block in textBlocks) {
-      final blockCenterX = block.boundingBox.x + (block.boundingBox.width / 2);
-      final blockCenterY = block.boundingBox.y + (block.boundingBox.height / 2);
-
-      if (blockCenterX >= regionX &&
-          blockCenterX <= regionX + regionWidth &&
-          blockCenterY >= regionY &&
-          blockCenterY <= regionY + regionHeight) {
-        regionBlocks.add(block);
-      }
-    }
-
-    return regionBlocks;
-  }
-
-  static BoundingBox _createExpandedBoundingBox(List<TextBlock> blocks, img.Image image) {
-    if (blocks.isEmpty) {
-      return BoundingBox(x: 0, y: 0, width: 100, height: 50);
-    }
-
-    int minX = blocks.first.boundingBox.x;
-    int minY = blocks.first.boundingBox.y;
-    int maxX = blocks.first.boundingBox.x + blocks.first.boundingBox.width;
-    int maxY = blocks.first.boundingBox.y + blocks.first.boundingBox.height;
-
-    for (final block in blocks) {
-      minX = (block.boundingBox.x).clamp(0, image.width);
-      minY = (block.boundingBox.y).clamp(0, image.height);
-      maxX = (block.boundingBox.x + block.boundingBox.width).clamp(0, image.width);
-      maxY = (block.boundingBox.y + block.boundingBox.height).clamp(0, image.height);
-    }
-
-    // Add padding
-    const padding = 10;
-    minX = (minX - padding).clamp(0, image.width);
-    minY = (minY - padding).clamp(0, image.height);
-    maxX = (maxX + padding).clamp(0, image.width);
-    maxY = (maxY + padding).clamp(0, image.height);
-
-    return BoundingBox(
-      x: minX,
-      y: minY,
-      width: maxX - minX,
-      height: maxY - minY,
-    );
-  }
-
-  static img.Image _preprocessCrop(img.Image crop) {
-    // Enhanced preprocessing for individual crops
-    crop = img.gaussianBlur(crop, radius: 1); // Use integer radius
-    crop = _sharpenImage(crop);
-    crop = _enhanceContrast(crop);
-    return crop;
-  }
-
+  /// Enhance contrast
   static img.Image _enhanceContrast(img.Image image) {
     const factor = 1.5;
 
@@ -228,5 +141,89 @@ class ImagePreprocessingService {
     }
 
     return image;
+  }
+
+  /// Preprocess PhonePe image into two separate crops: left 60% (payee) and right 40% (amount)
+  static Future<Map<String, File>> preprocessPhonePeDualCrops(File imageFile) async {
+    try {
+      // Read image
+      final bytes = await imageFile.readAsBytes();
+      img.Image? originalImage = img.decodeImage(bytes);
+
+      if (originalImage == null) {
+        throw Exception('Failed to decode image');
+      }
+
+      // Step 1: Crop to the horizontal strip (17%-21% from top)
+      final stripY = (originalImage.height * 0.17).round();
+      final stripHeight = (originalImage.height * 0.04).round(); // 4% height (21% - 17%)
+      final stripImage = img.copyCrop(originalImage,
+        x: 0,
+        y: stripY,
+        width: originalImage.width,
+        height: stripHeight,
+      );
+
+      // Step 2: Create left 60% crop (payee region)
+      final payeeWidth = (stripImage.width * 0.6).round();
+      final payeeCrop = img.copyCrop(stripImage,
+        x: 0,
+        y: 0,
+        width: payeeWidth,
+        height: stripImage.height,
+      );
+
+      // Step 3: Create right 40% crop (amount region)
+      final amountX = (stripImage.width * 0.6).round();
+      final amountWidth = stripImage.width - amountX;
+      final amountCrop = img.copyCrop(stripImage,
+        x: amountX,
+        y: 0,
+        width: amountWidth,
+        height: stripImage.height,
+      );
+
+      // Step 4: Apply preprocessing to both crops
+      final processedPayee = _preprocessForPayee(payeeCrop);
+      final processedAmount = _preprocessForAmount(amountCrop);
+
+      // Step 5: Save both processed crops
+      final payeePath = '${imageFile.parent.path}/payee_crop_${DateTime.now().millisecondsSinceEpoch}.png';
+      final amountPath = '${imageFile.parent.path}/amount_crop_${DateTime.now().millisecondsSinceEpoch}.png';
+
+      final payeeFile = File(payeePath);
+      final amountFile = File(amountPath);
+
+      await payeeFile.writeAsBytes(img.encodePng(processedPayee));
+      await amountFile.writeAsBytes(img.encodePng(processedAmount));
+
+      return {
+        'payee': payeeFile,
+        'amount': amountFile,
+      };
+    } catch (e) {
+      throw Exception('Dual crop preprocessing failed: $e');
+    }
+  }
+
+  /// Preprocessing optimized for payee name recognition (gentle processing)
+  static img.Image _preprocessForPayee(img.Image crop) {
+    // Light preprocessing to preserve text readability
+    img.Image processed = img.grayscale(crop);
+    processed = img.gaussianBlur(processed, radius: 1);
+    processed = _sharpenImage(processed);
+    processed = _applyThreshold(processed);
+    return processed;
+  }
+
+  /// Preprocessing optimized for amount recognition (enhanced processing)
+  static img.Image _preprocessForAmount(img.Image crop) {
+    // Enhanced preprocessing for better number recognition
+    img.Image processed = img.grayscale(crop);
+    processed = img.gaussianBlur(processed, radius: 1);
+    processed = _sharpenImage(processed);
+    processed = _enhanceContrast(processed);
+    processed = _applyAdaptiveThreshold(processed);
+    return processed;
   }
 }
