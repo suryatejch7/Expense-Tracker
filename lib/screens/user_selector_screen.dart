@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
+import '../providers/expense_provider.dart';
 import 'existing_user_screen.dart';
 import 'register_user_screen.dart';
 
@@ -84,9 +85,17 @@ class _UserSelectorScreenState extends State<UserSelectorScreen> {
     final success = await userProvider.loginWithUserId(user.id);
     debugPrint('🔐 Login result: success=$success, isLoggedIn=${userProvider.isLoggedIn}, userId=${userProvider.userId}');
     if (success && mounted) {
-      debugPrint('✅ Login successful, calling onUserSelected');
+      debugPrint('✅ Login successful, initializing ExpenseProvider');
+      // Initialize expense provider
+      final expenseProvider = context.read<ExpenseProvider>();
+      await userProvider.initializeExpenseProvider(expenseProvider);
+      debugPrint('✅ ExpenseProvider initialized, calling onUserSelected');
       // Add a small delay to ensure state is properly set
       await Future.delayed(const Duration(milliseconds: 100));
+      // Pop this screen first, then call the callback
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
       widget.onUserSelected();
     } else {
       debugPrint('❌ Login failed or widget not mounted');

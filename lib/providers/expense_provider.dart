@@ -111,9 +111,25 @@ class ExpenseProvider extends ChangeNotifier {
       return _expenses;
     }
     return _expenses.where((expense) {
-      return expense.description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-             expense.category.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-             (expense.payee?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+      final query = _searchQuery.toLowerCase();
+      
+      // Search in Title (description)
+      final titleMatch = expense.description.toLowerCase().contains(query);
+      
+      // Search in Payee
+      final payeeMatch = expense.payee?.toLowerCase().contains(query) ?? false;
+      
+      // Search in Amount (convert to string and search)
+      final amountMatch = expense.amount.toString().contains(query) ||
+                         expense.amount.toStringAsFixed(0).contains(query);
+      
+      // Search in Notes
+      final notesMatch = expense.notes?.toLowerCase().contains(query) ?? false;
+      
+      // Search in Category (bonus search)
+      final categoryMatch = expense.category.toLowerCase().contains(query);
+      
+      return titleMatch || payeeMatch || amountMatch || notesMatch || categoryMatch;
     }).toList();
   }
 

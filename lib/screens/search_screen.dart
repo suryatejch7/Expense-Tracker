@@ -45,7 +45,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 context.read<ExpenseProvider>().setSearchQuery(value);
               },
               decoration: InputDecoration(
-                hintText: 'Search expenses...',
+                hintText: 'Search by title, payee, amount, notes...',
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 suffixIcon: _controller.text.isNotEmpty
                     ? IconButton(
@@ -98,6 +98,14 @@ class _SearchScreenState extends State<SearchScreen> {
                             color: Colors.grey,
                           ),
                         ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Search by: Title, Payee, Amount, Notes, Category',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -126,6 +134,14 @@ class _SearchScreenState extends State<SearchScreen> {
                           'Try searching with different keywords',
                           style: TextStyle(
                             fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Search in: Title, Payee, Amount, Notes, Category',
+                          style: TextStyle(
+                            fontSize: 12,
                             color: Colors.grey,
                           ),
                         ),

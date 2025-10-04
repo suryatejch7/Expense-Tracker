@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'providers/expense_provider.dart';
 import 'providers/user_provider.dart';
 import 'screens/main_screen.dart';
-import 'screens/user_selector_screen.dart';
+import 'screens/register_user_screen.dart';
 import 'services/supabase_init_service.dart';
 import 'services/notification_service.dart';
 
@@ -115,14 +115,14 @@ class _AuthWrapperState extends State<AuthWrapper> {
           debugPrint('✅ AuthWrapper: Navigating to MainScreen');
           return const MainScreen();
         } else {
-          debugPrint('🚪 AuthWrapper: Showing UserSelectorScreen');
-          return UserSelectorScreen(
-            onUserSelected: () async {
-              debugPrint('🎯 AuthWrapper: onUserSelected callback triggered');
+          debugPrint('🚪 AuthWrapper: Showing RegisterUserScreen');
+          return RegisterUserScreen(
+            onRegistered: () async {
+              debugPrint('🎯 AuthWrapper: onRegistered callback triggered');
               
               final userProvider = context.read<UserProvider>();
               
-              // Initialize expense provider when user is selected
+              // Initialize expense provider when user is registered
               if (userProvider.isLoggedIn) {
                 debugPrint('🔧 AuthWrapper: Initializing ExpenseProvider for user: ${userProvider.userId}');
                 await userProvider.initializeExpenseProvider(context.read<ExpenseProvider>());

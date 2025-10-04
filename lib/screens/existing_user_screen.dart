@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
+import 'user_selector_screen.dart';
 
 class ExistingUserScreen extends StatefulWidget {
   final VoidCallback onUserFetched;
@@ -13,6 +14,7 @@ class ExistingUserScreen extends StatefulWidget {
 class _ExistingUserScreenState extends State<ExistingUserScreen> {
   final TextEditingController _controller = TextEditingController();
   String? _errorMessage;
+  int _welcomeBackTapCount = 0;
 
   Future<void> _loginUser() async {
     final userInput = _controller.text.trim();
@@ -60,9 +62,34 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Welcome Back',
-                style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _welcomeBackTapCount++;
+                  });
+                  debugPrint('🔍 Welcome Back tapped: $_welcomeBackTapCount times');
+                  
+                  // If tapped 7 or more times, show existing users screen
+                  if (_welcomeBackTapCount >= 7) {
+                    debugPrint('🎯 Welcome Back tapped 7+ times - showing existing users');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => UserSelectorScreen(
+                          onUserSelected: () {
+                            widget.onUserFetched();
+                          },
+                        ),
+                      ),
+                    );
+                    // Reset counter
+                    _welcomeBackTapCount = 0;
+                  }
+                },
+                child: const Text(
+                  'Welcome Back',
+                  style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
+                ),
               ),
               const SizedBox(height: 8),
               const Text(
