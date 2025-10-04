@@ -51,7 +51,11 @@ class _UserSelectorScreenState extends State<UserSelectorScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ExistingUserScreen(
-          onUserFetched: widget.onUserSelected,
+          onUserFetched: () {
+            // Pop the ExistingUserScreen (already done in ExistingUserScreen)
+            // Then call the main callback
+            widget.onUserSelected();
+          },
         ),
       ),
     );
@@ -61,7 +65,11 @@ class _UserSelectorScreenState extends State<UserSelectorScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => RegisterUserScreen(
-          onRegistered: widget.onUserSelected,
+          onRegistered: () {
+            // Pop the RegisterUserScreen (already done in RegisterUserScreen)
+            // Then call the main callback
+            widget.onUserSelected();
+          },
         ),
       ),
     );

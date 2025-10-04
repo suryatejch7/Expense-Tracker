@@ -33,6 +33,11 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
     final success = await userProvider.loginWithUsername(userInput);
 
     if (success) {
+      // Pop this screen first before calling callback
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      // Then call the callback to trigger AuthWrapper rebuild
       widget.onUserFetched();
     } else {
       setState(() {

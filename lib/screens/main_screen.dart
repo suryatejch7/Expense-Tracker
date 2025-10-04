@@ -193,9 +193,9 @@ class _MainScreenState extends State<MainScreen> {
 class _CustomFABLocation extends FloatingActionButtonLocation {
   @override
   Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
-    // Standard FAB position: 16px from right edge, 16px from bottom
+    // Increased right padding: 32px from right edge, 16px from bottom
     // But we need to account for the custom navigation bar (70px height + 30px bottom margin = 100px)
-    final double right = 16.0;
+    final double right = 32.0; // Increased from 16px to 32px
     final double bottom = 16.0 + 100.0; // 16px standard + 100px for custom nav bar
     
     return Offset(
