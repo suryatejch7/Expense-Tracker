@@ -40,6 +40,11 @@ class _RegisterUserScreenState extends State<RegisterUserScreen> {
     final success = await userProvider.registerUser(userName);
 
     if (success) {
+      // Pop this screen first before calling callback
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      // Then call the callback to trigger AuthWrapper rebuild
       widget.onRegistered();
     } else {
       setState(() {

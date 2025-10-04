@@ -491,37 +491,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 32),
 
                 // Logout Button
-                Center(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.logout, size: 20),
-                    label: const Text('Logout'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.logout, size: 20),
+                      label: const Text('Logout'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
+                      onPressed: () async {
+                        debugPrint('🚪 Logout button pressed');
+                        
+                        // Clear user session
+                        debugPrint('🧹 Clearing user session');
+                        await userProvider.clearUser();
+                        
+                        // Clear expense provider data
+                        debugPrint('🧹 Clearing expense provider data');
+                        expenseProvider.clearUserData();
+                        
+                        debugPrint('✅ Logout completed - provider state should trigger rebuild');
+                        
+                        // Pop the SettingsScreen to return to the underlying screen
+                        if (mounted && Navigator.of(context).canPop()) {
+                          debugPrint('🔙 Popping SettingsScreen from navigation stack');
+                          Navigator.of(context).pop();
+                        }
+                      },
                     ),
-                    onPressed: () async {
-                      debugPrint('🚪 Logout button pressed');
-                      
-                      // Clear user session
-                      debugPrint('🧹 Clearing user session');
-                      await userProvider.clearUser();
-                      
-                      // Clear expense provider data
-                      debugPrint('🧹 Clearing expense provider data');
-                      expenseProvider.clearUserData();
-                      
-                      debugPrint('✅ Logout completed - provider state should trigger rebuild');
-                      
-                      // Pop the SettingsScreen to return to the underlying screen
-                      if (mounted && Navigator.of(context).canPop()) {
-                        debugPrint('🔙 Popping SettingsScreen from navigation stack');
-                        Navigator.of(context).pop();
-                      }
-                    },
                   ),
                 ),
 

@@ -124,11 +124,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 await userProvider.initializeExpenseProvider(context.read<ExpenseProvider>());
               }
               
-              // Force rebuild by calling setState
-              if (mounted) {
-                debugPrint('🔄 AuthWrapper: Calling setState to trigger rebuild');
-                setState(() {});
-              }
+              // Let the Selector handle the rebuild automatically when isLoggedIn changes
+              debugPrint('🔄 AuthWrapper: Selector will handle rebuild when isLoggedIn changes');
             },
           );
         }

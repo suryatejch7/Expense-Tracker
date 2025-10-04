@@ -271,7 +271,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected ? Colors.white : Colors.transparent,
-                        width: 2,
+                        width: 3,
                       ),
                     ),
                       child: Column(

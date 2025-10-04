@@ -40,6 +40,9 @@ class UserSettings {
   final String currency;
   final Map<String, double> categoryBudgets;
   final List<ExpenseCategory> customCategories;
+  final double cropTop;
+  final double cropBottom;
+  final bool isCropCalibrated;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -49,6 +52,9 @@ class UserSettings {
     required this.currency,
     required this.categoryBudgets,
     required this.customCategories,
+    this.cropTop = 0.17,
+    this.cropBottom = 0.21,
+    this.isCropCalibrated = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -74,6 +80,9 @@ class UserSettings {
       currency: data['currency'] ?? '₹',
       categoryBudgets: categoryBudgets,
       customCategories: customCategories,
+      cropTop: (data['crop_top'] as num?)?.toDouble() ?? 0.17,
+      cropBottom: (data['crop_bottom'] as num?)?.toDouble() ?? 0.21,
+      isCropCalibrated: data['is_crop_calibrated'] as bool? ?? false,
       createdAt: DateTime.parse(data['created_at'] as String),
       updatedAt: DateTime.parse(data['updated_at'] as String),
     );
@@ -87,6 +96,9 @@ class UserSettings {
       'currency': currency,
       'category_budgets': categoryBudgets,
       'custom_categories': customCategories.map((cat) => cat.toSupabase()).toList(),
+      'crop_top': cropTop,
+      'crop_bottom': cropBottom,
+      'is_crop_calibrated': isCropCalibrated,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -99,6 +111,9 @@ class UserSettings {
     String? currency,
     Map<String, double>? categoryBudgets,
     List<ExpenseCategory>? customCategories,
+    double? cropTop,
+    double? cropBottom,
+    bool? isCropCalibrated,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -108,6 +123,9 @@ class UserSettings {
       currency: currency ?? this.currency,
       categoryBudgets: categoryBudgets ?? Map.from(this.categoryBudgets),
       customCategories: customCategories ?? List.from(this.customCategories),
+      cropTop: cropTop ?? this.cropTop,
+      cropBottom: cropBottom ?? this.cropBottom,
+      isCropCalibrated: isCropCalibrated ?? this.isCropCalibrated,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
