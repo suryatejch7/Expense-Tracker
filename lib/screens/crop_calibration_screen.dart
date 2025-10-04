@@ -63,6 +63,7 @@ class _CropCalibrationScreenState extends State<CropCalibrationScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
+        duration: Duration(seconds: 1),
       ),
     );
   }
@@ -72,6 +73,7 @@ class _CropCalibrationScreenState extends State<CropCalibrationScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Theme.of(context).colorScheme.primary,
+        duration: Duration(seconds: 1),
       ),
     );
   }

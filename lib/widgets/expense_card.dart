@@ -239,6 +239,7 @@ class _ExpenseCardState extends State<ExpenseCard> {
                   SnackBar(
                     content: Text('${widget.expense.description} deleted'),
                     backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 1),
                   ),
                 );
               },

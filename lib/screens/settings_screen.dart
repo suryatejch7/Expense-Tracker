@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/user_provider.dart';
 import '../models/expense_models.dart';
+import '../services/notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -137,6 +138,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             SnackBar(
                                               content: const Text('Name updated successfully!'),
                                               backgroundColor: Theme.of(context).colorScheme.primary,
+                                              duration: const Duration(seconds: 1),
                                             ),
                                           );
                                         },
@@ -244,6 +246,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             SnackBar(
                               content: const Text('Budget updated successfully!'),
                               backgroundColor: Theme.of(context).colorScheme.primary,
+                              duration: const Duration(seconds: 1),
                             ),
                           );
                         },
@@ -488,6 +491,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
 
+                const SizedBox(height: 20),
+
+                // Notification Settings Section
+                _buildNotificationSettingsSection(),
+
                 const SizedBox(height: 32),
 
                 // Logout Button
@@ -569,6 +577,132 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
           child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationSettingsSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.grey.withValues(alpha: 0.2),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.notifications,
+                color: Theme.of(context).colorScheme.primary,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Notifications',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Notification Toggle
+          FutureBuilder<bool>(
+            future: NotificationService.areNotificationsEnabled(),
+            builder: (context, snapshot) {
+              final isEnabled = snapshot.data ?? true;
+              return SwitchListTile(
+                title: const Text(
+                  'Enable Notifications',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Get alerts about budget limits, spending patterns, and reminders',
+                  style: TextStyle(color: Colors.grey),
+                ),
+                value: isEnabled,
+                onChanged: (value) async {
+                  await NotificationService.setNotificationsEnabled(value);
+                  setState(() {});
+                },
+                activeColor: Theme.of(context).colorScheme.primary,
+                contentPadding: EdgeInsets.zero,
+              );
+            },
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Test Notification Button
+          ElevatedButton.icon(
+            onPressed: () async {
+              await NotificationService.checkDailyBudgetAlert(800, 1000);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Test notification sent! Check your notification shade.'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
+            icon: const Icon(Icons.notifications),
+            label: const Text('Test Notification'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Notification Types Info
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Notification Types:',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '• Budget alerts when you reach 80% of your limits\n'
+                  '• Weekly spending summaries\n'
+                  '• Monthly financial insights',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

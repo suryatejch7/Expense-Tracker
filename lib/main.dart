@@ -5,12 +5,16 @@ import 'providers/user_provider.dart';
 import 'screens/main_screen.dart';
 import 'screens/user_selector_screen.dart';
 import 'services/supabase_init_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Supabase
   await SupabaseInitService.initialize();
+  
+  // Initialize Notifications
+  await NotificationService.initialize();
 
   runApp(const MyApp());
 }

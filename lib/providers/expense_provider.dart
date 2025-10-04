@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/expense_models.dart';
 import '../models/user_settings.dart';
 import '../services/supabase_service.dart';
+import '../services/notification_service.dart';
 
 class ExpenseProvider extends ChangeNotifier {
   final List<Expense> _expenses = [];
@@ -47,6 +48,10 @@ class ExpenseProvider extends ChangeNotifier {
     
     await _loadExpenses();
     _isInitialized = true;
+    
+    // Schedule periodic notifications
+    await _schedulePeriodicNotifications();
+    
     notifyListeners();
   }
 
@@ -200,6 +205,10 @@ class ExpenseProvider extends ChangeNotifier {
       // Force refresh all calculations
       _refreshCalculations();
       debugPrint('ExpenseProvider: Added expense - ${expense.description} (₹${expense.amount})');
+      
+      // Trigger notifications after adding expense
+      await _triggerExpenseNotifications(expenseWithId);
+      
       notifyListeners();
     } catch (e) {
       debugPrint('ExpenseProvider: Failed to add expense - $e');
@@ -390,6 +399,134 @@ class ExpenseProvider extends ChangeNotifier {
     return _expenses
         .where((expense) => expense.category == category)
         .fold(0.0, (sum, expense) => sum + expense.amount);
+  }
+
+  /// Trigger notifications after adding expense
+  Future<void> _triggerExpenseNotifications(Expense expense) async {
+    try {
+      // Check if this is the first expense
+      if (_expenses.length == 1) {
+        await NotificationService.sendFirstExpenseNotification();
+      }
+
+      // Check daily budget
+      final todayExpenses = _getTodayExpenses();
+      final dailySpent = todayExpenses.fold(0.0, (sum, e) => sum + e.amount);
+      final dailyBudget = _monthlyBudget / 30; // Approximate daily budget
+      await NotificationService.checkDailyBudgetAlert(dailySpent, dailyBudget);
+
+      // Check monthly budget
+      final monthlyExpenses = _getMonthlyExpenses();
+      final monthlySpent = monthlyExpenses.fold(0.0, (sum, e) => sum + e.amount);
+      await NotificationService.checkMonthlyBudgetWarning(monthlySpent, _monthlyBudget);
+
+      // Check category budget
+      final categoryBudget = getCategoryBudget(expense.category);
+      if (categoryBudget > 0) {
+        final categorySpent = getCategoryExpenses(expense.category);
+        await NotificationService.checkCategoryBudgetAlert(
+          expense.category,
+          categorySpent,
+          categoryBudget,
+        );
+      }
+
+      // Check for unusual spending
+      // Analyze spending patterns
+      await NotificationService.analyzeSpendingPatterns(_expenses);
+
+      // Check budget crisis
+      await NotificationService.checkBudgetCrisis(monthlySpent, _monthlyBudget);
+
+    } catch (e) {
+      debugPrint('ExpenseProvider: Failed to trigger notifications - $e');
+    }
+  }
+
+  /// Get today's expenses
+  List<Expense> _getTodayExpenses() {
+    final today = DateTime.now();
+    return _expenses.where((expense) {
+      final expenseDate = expense.date;
+      return expenseDate.year == today.year &&
+             expenseDate.month == today.month &&
+             expenseDate.day == today.day;
+    }).toList();
+  }
+
+  /// Get this month's expenses
+  List<Expense> _getMonthlyExpenses() {
+    final now = DateTime.now();
+    return _expenses.where((expense) {
+      final expenseDate = expense.date;
+      return expenseDate.year == now.year && expenseDate.month == now.month;
+    }).toList();
+  }
+
+  /// Get this week's expenses
+  List<Expense> _getWeeklyExpenses() {
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final weekEnd = weekStart.add(Duration(days: 6));
+    
+    return _expenses.where((expense) {
+      final expenseDate = expense.date;
+      return expenseDate.isAfter(weekStart.subtract(Duration(days: 1))) &&
+             expenseDate.isBefore(weekEnd.add(Duration(days: 1)));
+    }).toList();
+  }
+
+
+  /// Schedule periodic notifications
+  Future<void> _schedulePeriodicNotifications() async {
+    try {
+      // Schedule weekly expense review
+      await NotificationService.scheduleWeeklyExpenseReview();
+      
+      // Send weekly spending summary if it's the end of the week
+      await _sendWeeklySummaryIfNeeded();
+      
+      // Send monthly summary if it's the end of the month
+      await _sendMonthlySummaryIfNeeded();
+      
+    } catch (e) {
+      debugPrint('ExpenseProvider: Failed to schedule periodic notifications - $e');
+    }
+  }
+
+  /// Send weekly summary if it's the end of the week
+  Future<void> _sendWeeklySummaryIfNeeded() async {
+    final now = DateTime.now();
+    if (now.weekday == DateTime.sunday) { // End of week
+      final weeklyExpenses = _getWeeklyExpenses();
+      final weeklyTotal = weeklyExpenses.fold(0.0, (sum, e) => sum + e.amount);
+      
+      if (weeklyTotal > 0) {
+        await NotificationService.sendWeeklySpendingSummary(weeklyTotal);
+      }
+    }
+  }
+
+  /// Send monthly summary if it's the end of the month
+  Future<void> _sendMonthlySummaryIfNeeded() async {
+    final now = DateTime.now();
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0).day;
+    
+    if (now.day == lastDayOfMonth) { // End of month
+      final monthlyExpenses = _getMonthlyExpenses();
+      final monthlyTotal = monthlyExpenses.fold(0.0, (sum, e) => sum + e.amount);
+      
+      if (monthlyTotal > 0) {
+        // Create category breakdown
+        final categoryBreakdown = <String, double>{};
+        for (final expense in monthlyExpenses) {
+          categoryBreakdown[expense.category] = (categoryBreakdown[expense.category] ?? 0) + expense.amount;
+        }
+        
+        await NotificationService.sendMonthlySummary(monthlyTotal, categoryBreakdown);
+        await NotificationService.sendCategoryBreakdown(categoryBreakdown, monthlyTotal);
+      }
+    }
   }
 
   bool isCategoryOverBudget(String category) {

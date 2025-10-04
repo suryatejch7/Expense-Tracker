@@ -608,6 +608,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
                   const SnackBar(
                     content: Text('✅ Expense saved successfully!'),
                     backgroundColor: Colors.green,
+                    duration: Duration(seconds: 1),
                   ),
                 );
 
@@ -640,7 +641,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
           SnackBar(
             content: Text('❌ OCR processing failed. You can still add the transaction manually.'),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -690,6 +691,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
             const SnackBar(
               content: Text('✅ Expense saved successfully!'),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 1),
             ),
           );
 
@@ -711,6 +713,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
           SnackBar(
             content: Text('❌ Failed to save expense: $e'),
             backgroundColor: Colors.red,
+            duration: Duration(seconds: 1),
           ),
         );
       }

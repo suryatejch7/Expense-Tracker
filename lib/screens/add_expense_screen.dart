@@ -383,7 +383,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             SnackBar(
               content: const Text('✅ Expense updated successfully!'),
               backgroundColor: Theme.of(context).colorScheme.primary,
-              duration: const Duration(seconds: 2),
+              duration: const Duration(seconds: 1),
             ),
           );
         }
@@ -394,7 +394,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             SnackBar(
               content: const Text('✅ Expense saved to cloud!'),
               backgroundColor: Theme.of(context).colorScheme.primary,
-              duration: const Duration(seconds: 2),
+              duration: const Duration(seconds: 1),
             ),
           );
         }
@@ -418,7 +418,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           SnackBar(
             content: Text('❌ $errorMessage'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 1),
             action: SnackBarAction(
               label: 'Retry',
               textColor: Colors.white,
