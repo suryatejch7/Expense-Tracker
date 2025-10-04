@@ -72,7 +72,6 @@ flutter:
 
   # Assets
   assets:
-    - assets/tessdata/eng.traineddata
     - assets/animations/splash.json
 
 flutter_launcher_icons:

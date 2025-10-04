@@ -24,14 +24,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    debugPrint('🏠 SettingsScreen initState called');
     _loadUserData();
   }
 
 
   @override
   void dispose() {
-    debugPrint('🏠 SettingsScreen dispose called');
     _nameController.dispose();
     _budgetController.dispose();
     _categoryNameController.dispose();
@@ -40,12 +38,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _loadUserData() {
-    debugPrint('📊 SettingsScreen _loadUserData called');
     final provider = context.read<ExpenseProvider>();
-    debugPrint('👤 Loading user data - userName: ${provider.userName}, monthlyBudget: ${provider.monthlyBudget}');
     _nameController.text = provider.userName;
     _budgetController.text = provider.monthlyBudget.toString();
-    debugPrint('✅ User data loaded into controllers');
   }
 
   Future<void> _saveUserName() async {
@@ -64,10 +59,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🏠 SettingsScreen build called');
-    debugPrint('📍 SettingsScreen route: ${ModalRoute.of(context)?.settings.name}');
-    debugPrint('🗂️ Navigation stack depth: ${Navigator.of(context).widget.toString().length}');
-    
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -81,19 +72,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            debugPrint('🔙 SettingsScreen back button pressed');
-            debugPrint('📍 Current route before back: ${ModalRoute.of(context)?.settings.name}');
             Navigator.of(context).pop();
-            debugPrint('📍 Current route after back: ${ModalRoute.of(context)?.settings.name}');
           },
         ),
       ),
       body: Consumer2<UserProvider, ExpenseProvider>(
         builder: (context, userProvider, expenseProvider, child) {
-          debugPrint('🔄 SettingsScreen Consumer2 rebuilding');
-          debugPrint('👤 UserProvider state - isLoggedIn: ${userProvider.isLoggedIn}, userId: ${userProvider.userId}, userName: ${userProvider.userName}');
-          debugPrint('💰 ExpenseProvider state - categories: ${expenseProvider.customCategories.length}');
-          
           return SingleChildScrollView(
             child: Column(
               children: [
@@ -133,12 +117,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       const SizedBox(width: 8),
                                       ElevatedButton(
                                         onPressed: () async {
+                                          final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                          final theme = Theme.of(context);
                                           await _saveUserName();
                                           if (mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
+                                            scaffoldMessenger.showSnackBar(
                                               SnackBar(
                                                 content: const Text('Name updated successfully!'),
-                                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                                backgroundColor: theme.colorScheme.primary,
                                                 duration: const Duration(seconds: 1),
                                               ),
                                             );
@@ -519,22 +505,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       onPressed: () async {
-                        debugPrint('🚪 Logout button pressed');
-                        
+                        final navigator = Navigator.of(context);
                         // Clear user session
-                        debugPrint('🧹 Clearing user session');
                         await userProvider.clearUser();
                         
                         // Clear expense provider data
-                        debugPrint('🧹 Clearing expense provider data');
                         expenseProvider.clearUserData();
                         
-                        debugPrint('✅ Logout completed - provider state should trigger rebuild');
-                        
                         // Pop the SettingsScreen to return to the underlying screen
-                        if (mounted && Navigator.of(context).canPop()) {
-                          debugPrint('🔙 Popping SettingsScreen from navigation stack');
-                          Navigator.of(context).pop();
+                        if (mounted && navigator.canPop()) {
+                          navigator.pop();
                         }
                       },
                     ),
@@ -873,15 +853,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       isDefault: false,
                     );
 
+                    final navigator = Navigator.of(context);
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    final theme = Theme.of(context);
+                    
                     await context.read<ExpenseProvider>().addCustomCategory(newCategory);
                     // No need for force refresh - addCustomCategory already handles local updates
-                    Navigator.pop(context);
+                    navigator.pop();
 
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      scaffoldMessenger.showSnackBar(
                         SnackBar(
                           content: Text('Category "${_categoryNameController.text}" added successfully!'),
-                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor: theme.colorScheme.primary,
                           duration: const Duration(seconds: 1),
                         ),
                       );
@@ -953,24 +937,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              final navigator = Navigator.of(context);
+              navigator.pop();
+            },
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final theme = Theme.of(context);
+              
               final budget = double.tryParse(_categoryBudgetController.text) ?? 0;
               await provider.setCustomCategoryBudget(category.id, budget);
               // No need for force refresh - setCustomCategoryBudget already handles local updates
-              Navigator.pop(context);
+              navigator.pop();
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                scaffoldMessenger.showSnackBar(
                   SnackBar(
                     content: Text(
                       budget > 0
                           ? 'Budget set to ₹${budget.toStringAsFixed(0)} for ${category.name}'
                           : 'Budget removed for ${category.name}',
                     ),
-                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    backgroundColor: theme.colorScheme.primary,
                     duration: const Duration(seconds: 1),
                   ),
                 );
@@ -1001,17 +992,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              final navigator = Navigator.of(context);
+              navigator.pop();
+            },
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              
               await context.read<ExpenseProvider>().removeCustomCategory(category.id);
               // No need for force refresh - removeCustomCategory already handles local updates
-              Navigator.pop(context);
+              navigator.pop();
 
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                scaffoldMessenger.showSnackBar(
                   SnackBar(
                     content: Text('Category "${category.name}" deleted successfully!'),
                     backgroundColor: Colors.red,

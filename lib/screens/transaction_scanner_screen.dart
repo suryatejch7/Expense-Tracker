@@ -35,6 +35,10 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
       _selectedImage = widget.initialImage;
       // PhonePe is automatically selected since it's the only supported app
       _selectedApp = PaymentApp.phonePe;
+      // Auto-start processing when image is shared
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _processTransaction();
+      });
     }
   }
 

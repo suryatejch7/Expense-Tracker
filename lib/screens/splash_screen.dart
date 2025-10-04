@@ -11,7 +11,6 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  bool _initialized = false;
 
   @override
   void initState() {
@@ -28,7 +27,7 @@ class _SplashScreenState extends State<SplashScreen> {
       await Future.delayed(minDuration - elapsed);
     }
     setState(() {
-      _initialized = true;
+      // Initialization complete
     });
     widget.onReady();
   }

@@ -156,7 +156,7 @@ class _CropCalibrationScreenState extends State<CropCalibrationScreen> {
         _croppedPreviewImage = previewFile;
       });
     } catch (e) {
-      debugPrint('Error generating crop preview: $e');
+      // Error generating crop preview - ignore
     }
   }
 

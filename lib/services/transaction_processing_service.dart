@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import '../models/transaction_ocr_models.dart';
 import '../models/user_settings.dart';
 import 'image_preprocessing_service.dart';
@@ -65,7 +64,6 @@ class TransactionProcessingService {
           cropBottom: cropBottom,
         ).timeout(const Duration(seconds: 30));
       } catch (e) {
-        debugPrint('Dual-crop preprocessing failed, using fallback: $e');
         dualCrops = null;
       }
 
@@ -81,6 +79,7 @@ class TransactionProcessingService {
             .timeout(const Duration(minutes: 1));
         final amountOcr = await PrimaryOcrService.extractText(dualCrops['amount']!)
             .timeout(const Duration(minutes: 1));
+
 
         // Extract using the WORKING GitHub logic for payee and CURRENT logic for amount with user crop settings
         final payeeExtracted = FieldExtractionService.extractPayeeFromLeftCrop(payeeOcr.textBlocks);
@@ -131,11 +130,11 @@ class TransactionProcessingService {
       // Skip complex normalization and use extracted data directly
       final normalizedData = extractedData;
 
-      // Step 5: Secondary OCR (DISABLED - Tesseract causing crashes)
+      // Step 5: Secondary OCR (DISABLED - Using Google ML Kit only)
       onProgress?.call(0.8);
       processingSteps.add('Finalizing transaction data...');
 
-      // Skip Tesseract OCR entirely to prevent crashes
+      // Skip secondary OCR entirely to prevent crashes
       // Google ML Kit provides sufficient accuracy for PhonePe transactions
       final enhancedData = normalizedData;
 
@@ -150,7 +149,6 @@ class TransactionProcessingService {
       );
       
     } catch (e) {
-      debugPrint('Transaction processing error: $e');
       processingSteps.add('Error: ${e.toString()}');
 
       return ProcessingResult(
@@ -164,7 +162,7 @@ class TransactionProcessingService {
       try {
         await PrimaryOcrService.dispose();
       } catch (e) {
-        debugPrint('Cleanup warning: $e');
+        // Cleanup warning ignored
       }
     }
   }

@@ -71,9 +71,9 @@ class ExpenseProvider extends ChangeNotifier {
 
   /// Force refresh all calculations and notify listeners
   void _refreshCalculations() {
-    // This method forces recalculation of all computed properties
-    // by triggering a rebuild of all listeners
-    debugPrint('ExpenseProvider: Refreshing all calculations');
+    // Force recalculation of all computed properties by notifying listeners
+    // This ensures all UI components rebuild with fresh data
+    notifyListeners();
   }
 
   /// Force refresh all data from backend
@@ -96,10 +96,9 @@ class ExpenseProvider extends ChangeNotifier {
       _customCategories.clear();
       _customCategories.addAll(userSettings.customCategories);
       
-      debugPrint('ExpenseProvider: Force refreshed all data from backend');
       notifyListeners();
     } catch (e) {
-      debugPrint('ExpenseProvider: Failed to force refresh - $e');
+      // Failed to force refresh
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -165,9 +164,8 @@ class ExpenseProvider extends ChangeNotifier {
       _categoryBudgets.addAll(settings.categoryBudgets);
       _customCategories.clear();
       _customCategories.addAll(settings.customCategories);
-      debugPrint('ExpenseProvider: Loaded user settings - Budget: ₹$_monthlyBudget');
     } catch (e) {
-      debugPrint('ExpenseProvider: Failed to load user settings - $e');
+      // Failed to load user settings
     }
   }
 
@@ -177,9 +175,56 @@ class ExpenseProvider extends ChangeNotifier {
       final expenses = await ExpenseSupabaseService.getExpenses(userId: _userId);
       _expenses.clear();
       _expenses.addAll(expenses);
-      debugPrint('ExpenseProvider: Loaded ${expenses.length} expenses from Supabase');
     } catch (e) {
-      debugPrint('ExpenseProvider: Failed to load expenses - $e');
+      // Failed to load expenses
+    }
+  }
+
+  /// Reload expenses from backend to ensure data consistency
+  Future<void> reloadExpenses() async {
+    if (_userId == 0) return;
+    
+    try {
+      _isLoading = true;
+      notifyListeners();
+      
+      final expenses = await ExpenseSupabaseService.getExpenses(userId: _userId);
+      _expenses.clear();
+      _expenses.addAll(expenses);
+      
+      notifyListeners();
+    } catch (e) {
+      // Failed to reload expenses
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Check if expenses list is consistent with backend
+  Future<bool> verifyDataConsistency() async {
+    if (_userId == 0 || _expenses.isEmpty) return true;
+    
+    try {
+      final backendExpenses = await ExpenseSupabaseService.getExpenses(userId: _userId);
+      
+      // Check if local list matches backend count
+      if (_expenses.length != backendExpenses.length) {
+        return false;
+      }
+      
+      // Check if all local expenses exist in backend
+      for (final localExpense in _expenses) {
+        final existsInBackend = backendExpenses.any((backendExpense) => 
+          backendExpense.id == localExpense.id);
+        if (!existsInBackend) {
+          return false;
+        }
+      }
+      
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 
@@ -190,10 +235,8 @@ class ExpenseProvider extends ChangeNotifier {
       notifyListeners();
       await ExpenseSupabaseService.updateMonthlyBudget(budget, userId: _userId);
       _monthlyBudget = budget;
-      debugPrint('ExpenseProvider: Monthly budget updated to ₹$budget');
       notifyListeners();
     } catch (e) {
-      debugPrint('ExpenseProvider: Failed to update monthly budget - $e');
       throw Exception('Failed to update budget: $e');
     } finally {
       _isLoading = false;
@@ -215,23 +258,27 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
+      
+      // Add expense to backend first
       final expenseId = await ExpenseSupabaseService.addExpense(expense, _userId);
       final expenseWithId = expense.copyWith(id: expenseId);
+      
+      // Add to local list (insert at beginning for most recent first)
       _expenses.insert(0, expenseWithId);
-      // Force refresh all calculations
-      _refreshCalculations();
-      debugPrint('ExpenseProvider: Added expense - ${expense.description} (₹${expense.amount})');
       
       // Trigger notifications after adding expense
       await _triggerExpenseNotifications(expenseWithId);
       
+      // Single notifyListeners call to update UI
       notifyListeners();
     } catch (e) {
-      debugPrint('ExpenseProvider: Failed to add expense - $e');
       throw Exception('Failed to add expense: $e');
     } finally {
       _isLoading = false;
-      notifyListeners();
+      // Only notify if we're still mounted and haven't already notified
+      if (_isLoading == false) {
+        notifyListeners();
+      }
     }
   }
 
@@ -247,10 +294,8 @@ class ExpenseProvider extends ChangeNotifier {
         // Force refresh all calculations
         _refreshCalculations();
       }
-      debugPrint('ExpenseProvider: Updated expense - ${expense.description}');
       notifyListeners();
     } catch (e) {
-      debugPrint('ExpenseProvider: Failed to update expense - $e');
       throw Exception('Failed to update expense: $e');
     } finally {
       _isLoading = false;
@@ -267,10 +312,8 @@ class ExpenseProvider extends ChangeNotifier {
       _expenses.removeWhere((expense) => expense.id == expenseId);
       // Force refresh all calculations
       _refreshCalculations();
-      debugPrint('ExpenseProvider: Deleted expense - $expenseId');
       notifyListeners();
     } catch (e) {
-      debugPrint('ExpenseProvider: Failed to delete expense - $e');
       throw Exception('Failed to delete expense: $e');
     } finally {
       _isLoading = false;
@@ -319,10 +362,8 @@ class ExpenseProvider extends ChangeNotifier {
       // Update local state
       _categoryBudgets[categoryId] = budget;
 
-      debugPrint('✅ Updated category budget: $categoryName = ₹$budget');
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ Failed to update category budget: $e');
       throw Exception('Failed to update category budget: $e');
     }
   }
@@ -352,10 +393,8 @@ class ExpenseProvider extends ChangeNotifier {
       // Update local state
       _categoryBudgets[categoryId] = budget;
 
-      debugPrint('✅ Updated category budget: $categoryId = ₹$budget');
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ Failed to update category budget: $e');
       throw Exception('Failed to update category budget: $e');
     }
   }
@@ -365,11 +404,9 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       _customCategories.add(category);
       await ExpenseSupabaseService.saveCustomCategories(_customCategories, userId: _userId);
-      debugPrint('✅ Added custom category: ${category.name}');
       notifyListeners();
     } catch (e) {
       _customCategories.removeWhere((cat) => cat.id == category.id);
-      debugPrint('❌ Failed to add custom category: $e');
       throw Exception('Failed to add category: $e');
     }
   }
@@ -378,7 +415,6 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       _customCategories.removeWhere((cat) => cat.id == categoryId);
       await ExpenseSupabaseService.saveCustomCategories(_customCategories, userId: _userId);
-      debugPrint('✅ Removed custom category: $categoryId');
       notifyListeners();
     } catch (e) {
       // Revert local change if backend fails
@@ -390,7 +426,6 @@ class ExpenseProvider extends ChangeNotifier {
           color: Colors.grey,
         ));
       }
-      debugPrint('❌ Failed to remove custom category: $e');
       throw Exception('Failed to remove category: $e');
     }
   }
@@ -455,7 +490,7 @@ class ExpenseProvider extends ChangeNotifier {
       await NotificationService.checkBudgetCrisis(monthlySpent, _monthlyBudget);
 
     } catch (e) {
-      debugPrint('ExpenseProvider: Failed to trigger notifications - $e');
+      // Failed to trigger notifications
     }
   }
 
@@ -506,7 +541,7 @@ class ExpenseProvider extends ChangeNotifier {
       await _sendMonthlySummaryIfNeeded();
       
     } catch (e) {
-      debugPrint('ExpenseProvider: Failed to schedule periodic notifications - $e');
+      // Failed to schedule periodic notifications
     }
   }
 
@@ -568,7 +603,6 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       return await ExpenseSupabaseService.getExpensesForPeriod(startDate, endDate, userId: _userId);
     } catch (e) {
-      debugPrint('❌ Failed to get expenses for period: $e');
       return [];
     }
   }
@@ -577,7 +611,6 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       return await ExpenseSupabaseService.searchExpenses(query, userId: _userId);
     } catch (e) {
-      debugPrint('❌ Failed to search expenses: $e');
       return [];
     }
   }

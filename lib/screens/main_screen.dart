@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dashboard_screen.dart';
 import 'categories_screen.dart';
 import 'add_expense_screen.dart';
 import 'transaction_scanner_screen.dart';
 import '../services/sharing_intent_service.dart';
 import '../widgets/liquid_glass_nav_bar.dart';
+import '../providers/expense_provider.dart';
 
 
 class MainScreen extends StatefulWidget {
@@ -28,7 +30,23 @@ class _MainScreenState extends State<MainScreen> {
     // Set the context for sharing service after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SharingIntentService.setContext(context);
+      _checkDataConsistency();
     });
+  }
+
+  Future<void> _checkDataConsistency() async {
+    if (!mounted) return;
+    
+    // Import ExpenseProvider to check data consistency
+    final expenseProvider = context.read<ExpenseProvider>();
+    
+    // Check if data is consistent with backend
+    final isConsistent = await expenseProvider.verifyDataConsistency();
+    
+    if (!isConsistent && mounted) {
+      // Reload expenses from backend to fix inconsistency
+      await expenseProvider.reloadExpenses();
+    }
   }
 
   @override

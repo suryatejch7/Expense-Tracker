@@ -586,7 +586,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }).toList(); // Convert to list to ensure we have fresh data
     
     final total = expenses.fold(0.0, (sum, expense) => sum + expense.amount);
-    debugPrint('📊 Period data for $_selectedPeriod: ${expenses.length} expenses, total: ₹$total');
     return total;
   }
 
@@ -616,7 +615,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }).toList(); // Convert to list to ensure we have fresh data
     
     final total = expenses.fold(0.0, (sum, expense) => sum + expense.amount);
-    debugPrint('📊 Previous period data for $_selectedPeriod: ${expenses.length} expenses, total: ₹$total');
     return total;
   }
 

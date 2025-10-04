@@ -15,15 +15,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Note: Data is already loaded by UserProvider initialization
-    // Only refresh if data seems stale (optional optimization)
+    // Check data consistency and reload if needed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkDataConsistency();
+    });
+  }
+
+  Future<void> _checkDataConsistency() async {
+    if (!mounted) return;
+    
+    final expenseProvider = context.read<ExpenseProvider>();
+    
+    // Check if data is consistent with backend
+    final isConsistent = await expenseProvider.verifyDataConsistency();
+    
+    if (!isConsistent && mounted) {
+      // Reload expenses from backend to fix inconsistency
+      await expenseProvider.reloadExpenses();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        onRefresh: () async {
+          final expenseProvider = context.read<ExpenseProvider>();
+          await expenseProvider.reloadExpenses();
+        },
+        child: CustomScrollView(
+          slivers: [
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
@@ -136,6 +157,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: SizedBox(height: 100),
           ),
         ],
+        ),
       ),
     );
   }

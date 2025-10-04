@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:flutter/foundation.dart';
 import '../models/transaction_ocr_models.dart' as models;
 
 /// Primary OCR service using Google ML Kit
@@ -76,7 +75,6 @@ class PrimaryOcrService {
             );
           }
         } catch (blockError) {
-          debugPrint('Warning: Skipping block due to error: $blockError');
           continue; // Skip problematic blocks
         }
       }
@@ -87,8 +85,6 @@ class PrimaryOcrService {
         processingTime: DateTime.now(),
       );
     } catch (e) {
-      debugPrint('OCR Error Details: $e');
-
       // Return empty result instead of crashing
       return models.OcrResult(
         textBlocks: [],
@@ -114,8 +110,7 @@ class PrimaryOcrService {
         final result = await extractText(cropFile);
         results[regionName] = result;
       } catch (e) {
-        // Log error but continue with other regions
-        debugPrint('Failed to extract text from region $regionName: $e');
+        // Continue with other regions
       }
     }
 
@@ -136,7 +131,7 @@ class PrimaryOcrService {
       await _textRecognizer?.close();
       _textRecognizer = null;
     } catch (e) {
-      debugPrint('Warning: Error disposing OCR resources: $e');
+      // Error disposing OCR resources - ignore
     }
   }
 }

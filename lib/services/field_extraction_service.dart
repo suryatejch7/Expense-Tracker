@@ -67,7 +67,13 @@ class FieldExtractionService {
       final numberPattern = RegExp(r'\b(\d{1,5}(?:\.\d{1,2})?)\b');
       final numberMatch = numberPattern.firstMatch(text);
       if (numberMatch != null) {
-        final amount = numberMatch.group(1)!;
+        String amount = numberMatch.group(1)!;
+        
+        // Remove 7 from start if it's the first digit (rupee symbol misread)
+        if (amount.startsWith('7')) {
+          amount = amount.substring(1);
+        }
+        
         final numValue = double.tryParse(amount);
         if (numValue != null && numValue > 10 && numValue < 50000) {
           return '₹$amount';
@@ -132,7 +138,13 @@ class FieldExtractionService {
       final rupeePattern = RegExp(r'₹\s*(\d+(?:[,\.]\d+)*)');
       final rupeeMatch = rupeePattern.firstMatch(text);
       if (rupeeMatch != null) {
-        final amount = rupeeMatch.group(1)!.replaceAll(',', '');
+        String amount = rupeeMatch.group(1)!.replaceAll(',', '');
+        
+        // Remove 7 from start if it's the first digit (rupee symbol misread)
+        if (amount.startsWith('7')) {
+          amount = amount.substring(1);
+        }
+        
         final numValue = double.tryParse(amount);
         if (numValue != null && numValue > 0 && numValue < 100000) {
           return '₹$amount';
@@ -143,7 +155,13 @@ class FieldExtractionService {
       final rsPattern = RegExp(r'Rs\.?\s*(\d+(?:[,\.]\d+)*)');
       final rsMatch = rsPattern.firstMatch(text);
       if (rsMatch != null) {
-        final amount = rsMatch.group(1)!.replaceAll(',', '');
+        String amount = rsMatch.group(1)!.replaceAll(',', '');
+        
+        // Remove 7 from start if it's the first digit (rupee symbol misread)
+        if (amount.startsWith('7')) {
+          amount = amount.substring(1);
+        }
+        
         final numValue = double.tryParse(amount);
         if (numValue != null && numValue > 0 && numValue < 100000) {
           return '₹$amount';
@@ -164,7 +182,13 @@ class FieldExtractionService {
       for (final pattern in numberPatterns) {
         final match = pattern.firstMatch(text);
         if (match != null) {
-          final amount = match.group(1)!.replaceAll(',', '');
+          String amount = match.group(1)!.replaceAll(',', '');
+          
+          // Remove 7 from start if it's the first digit (rupee symbol misread)
+          if (amount.startsWith('7')) {
+            amount = amount.substring(1);
+          }
+          
           final numValue = double.tryParse(amount);
           if (numValue != null && numValue >= 1 && numValue < 100000) { // Lowered minimum from 10 to 1
             return '₹$amount';
@@ -180,7 +204,13 @@ class FieldExtractionService {
       // Extract any numbers from the text
       final allNumbers = RegExp(r'\d+(?:\.\d{1,2})?').allMatches(text);
       for (final match in allNumbers) {
-        final amount = match.group(0)!;
+        String amount = match.group(0)!;
+        
+        // Remove 7 from start if it's the first digit (rupee symbol misread)
+        if (amount.startsWith('7')) {
+          amount = amount.substring(1);
+        }
+        
         final numValue = double.tryParse(amount);
         if (numValue != null && numValue >= 1 && numValue < 100000) {
           return '₹$amount';
@@ -223,7 +253,13 @@ class FieldExtractionService {
       final numberPattern = RegExp(r'\b(\d{1,5}(?:\.\d{1,2})?)\b');
       final numberMatch = numberPattern.firstMatch(text);
       if (numberMatch != null) {
-        final amount = numberMatch.group(1)!;
+        String amount = numberMatch.group(1)!;
+        
+        // Remove 7 from start if it's the first digit (rupee symbol misread)
+        if (amount.startsWith('7')) {
+          amount = amount.substring(1);
+        }
+        
         final numValue = double.tryParse(amount);
         if (numValue != null && numValue > 10 && numValue < 50000) {
           return '₹$amount';
@@ -526,21 +562,6 @@ class FieldExtractionService {
     return null;
   }
 
-  /// Check if text contains amount information
-  static bool _isAmountText(String text) {
-    // Check for currency symbols
-    if (text.contains('₹') || text.contains('Rs') || text.contains('\$')) {
-      return true;
-    }
-
-    // Check for amount patterns (numbers with decimals/commas)
-    final amountPattern = RegExp(r'\d+[,\.]?\d*');
-    final matches = amountPattern.allMatches(text);
-
-    // Must have substantial numeric content
-    return matches.isNotEmpty &&
-           matches.map((m) => m.group(0)!.length).reduce((a, b) => a + b) > text.length * 0.5;
-  }
 
   /// Check if text is a valid payee name
   static bool _isValidPayeeName(String text) {
@@ -620,6 +641,10 @@ class FieldExtractionService {
 
   /// Extract amount from right crop using CURRENT enhanced logic with "7" fix
   static String? extractAmountFromRightCrop(List<TextBlock> textBlocks) {
+    if (textBlocks.isEmpty) {
+      return null;
+    }
+    
     // Sort by confidence first
     final sortedBlocks = List<TextBlock>.from(textBlocks);
     sortedBlocks.sort((a, b) => b.confidence.compareTo(a.confidence));
@@ -632,7 +657,13 @@ class FieldExtractionService {
       final rupeePattern = RegExp(r'₹\s*(\d+(?:[,\.]\d+)*)');
       final rupeeMatch = rupeePattern.firstMatch(text);
       if (rupeeMatch != null) {
-        final amount = rupeeMatch.group(1)!.replaceAll(',', '');
+        String amount = rupeeMatch.group(1)!.replaceAll(',', '');
+        
+        // Remove 7 from start if it's the first digit (rupee symbol misread)
+        if (amount.startsWith('7')) {
+          amount = amount.substring(1);
+        }
+        
         final numValue = double.tryParse(amount);
         if (numValue != null && numValue > 0 && numValue < 100000) {
           return '₹$amount';
@@ -643,7 +674,13 @@ class FieldExtractionService {
       final rsPattern = RegExp(r'Rs\.?\s*(\d+(?:[,\.]\d+)*)');
       final rsMatch = rsPattern.firstMatch(text);
       if (rsMatch != null) {
-        final amount = rsMatch.group(1)!.replaceAll(',', '');
+        String amount = rsMatch.group(1)!.replaceAll(',', '');
+        
+        // Remove 7 from start if it's the first digit (rupee symbol misread)
+        if (amount.startsWith('7')) {
+          amount = amount.substring(1);
+        }
+        
         final numValue = double.tryParse(amount);
         if (numValue != null && numValue > 0 && numValue < 100000) {
           return '₹$amount';
@@ -656,14 +693,22 @@ class FieldExtractionService {
       final text = block.text.trim();
 
       final numberPatterns = [
-        RegExp(r'\b(\d{1,6}(?:\.\d{1,2})?)\b'),
-        RegExp(r'(\d+[,\d]*(?:\.\d{1,2})?)')
+        RegExp(r'(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)'),  // Numbers with proper comma formatting (1,000, 2,000)
+        RegExp(r'(\d+[,\d]*(?:\.\d{1,2})?)'),  // Any numbers with commas
+        RegExp(r'\b(\d{1,6}(?:\.\d{1,2})?)\b')  // Standalone numbers
       ];
 
-      for (final pattern in numberPatterns) {
+      for (int i = 0; i < numberPatterns.length; i++) {
+        final pattern = numberPatterns[i];
         final match = pattern.firstMatch(text);
         if (match != null) {
-          final amount = match.group(1)!.replaceAll(',', '');
+          String amount = match.group(1)!.replaceAll(',', '');
+          
+          // Remove 7 from start if it's the first digit (rupee symbol misread)
+          if (amount.startsWith('7')) {
+            amount = amount.substring(1);
+          }
+          
           final numValue = double.tryParse(amount);
           if (numValue != null && numValue >= 1 && numValue < 100000) {
             return '₹$amount';
@@ -678,15 +723,11 @@ class FieldExtractionService {
       final allNumbers = RegExp(r'\d+(?:\.\d{1,2})?').allMatches(text);
 
       for (final match in allNumbers) {
-        var amount = match.group(0)!;
+        String amount = match.group(0)!;
 
-        // Apply "7" prefix fix: if starts with 7 and rest is plausible, remove 7
-        if (amount.startsWith('7') && amount.length > 1) {
-          final withoutSeven = amount.substring(1);
-          final numValue = double.tryParse(withoutSeven);
-          if (numValue != null && numValue > 0 && numValue < 100000) {
-            amount = withoutSeven; // Remove the "7" prefix
-          }
+        // Remove 7 from start if it's the first digit (rupee symbol misread)
+        if (amount.startsWith('7')) {
+          amount = amount.substring(1);
         }
 
         final numValue = double.tryParse(amount);

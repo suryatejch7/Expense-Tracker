@@ -20,9 +20,6 @@
 # Keep Google ML Kit Text Recognition classes
 -keep class com.google.mlkit.vision.text.** { *; }
 
-# Keep Tesseract (tess-two) classes
--keep class com.googlecode.tesseract.android.** { *; }
--dontwarn com.googlecode.tesseract.android.**
 
 # Keep OpenCV Dart plugin classes
 -keep class org.opencv.** { *; }

@@ -108,29 +108,19 @@ class _AuthWrapperState extends State<AuthWrapper> {
     return Selector<UserProvider, bool>(
       selector: (_, userProvider) => userProvider.isLoggedIn,
       builder: (context, isLoggedIn, child) {
-        debugPrint('🔄 AuthWrapper rebuild - isLoggedIn: $isLoggedIn');
-        debugPrint('📍 AuthWrapper route: ${ModalRoute.of(context)?.settings.name}');
-        debugPrint('🗂️ AuthWrapper navigation stack: ${Navigator.of(context).toString()}');
-        
         if (isLoggedIn) {
-          debugPrint('✅ AuthWrapper: Navigating to MainScreen');
           return const MainScreen();
         } else {
-          debugPrint('🚪 AuthWrapper: Showing RegisterUserScreen');
           return RegisterUserScreen(
             onRegistered: () async {
-              debugPrint('🎯 AuthWrapper: onRegistered callback triggered');
-              
               final userProvider = context.read<UserProvider>();
               
               // Initialize expense provider when user is registered
               if (userProvider.isLoggedIn) {
-                debugPrint('🔧 AuthWrapper: Initializing ExpenseProvider for user: ${userProvider.userId}');
                 await userProvider.initializeExpenseProvider(context.read<ExpenseProvider>());
               }
               
               // Let the Selector handle the rebuild automatically when isLoggedIn changes
-              debugPrint('🔄 AuthWrapper: Selector will handle rebuild when isLoggedIn changes');
             },
           );
         }

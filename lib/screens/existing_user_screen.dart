@@ -67,11 +67,9 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
                   setState(() {
                     _welcomeBackTapCount++;
                   });
-                  debugPrint('🔍 Welcome Back tapped: $_welcomeBackTapCount times');
                   
                   // If tapped 7 or more times, show existing users screen
                   if (_welcomeBackTapCount >= 7) {
-                    debugPrint('🎯 Welcome Back tapped 7+ times - showing existing users');
                     Navigator.push(
                       context,
                       MaterialPageRoute(
