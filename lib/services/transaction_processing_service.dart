@@ -6,7 +6,6 @@ import 'image_preprocessing_service.dart';
 import 'primary_ocr_service.dart';
 import 'field_extraction_service.dart';
 import 'text_normalization_service.dart';
-import 'tesseract_ocr_service.dart';
 
 /// Main service orchestrating the complete transaction processing pipeline
 class TransactionProcessingService {
@@ -33,7 +32,7 @@ class TransactionProcessingService {
     double cropBottom = 0.21,
   }) async {
     List<String> processingSteps = [];
-    const selectedApp = PaymentApp.phonePe; // Hardcoded since you only use PhonePe
+    // Hardcoded to PhonePe since you only use PhonePe
 
     try {
       onProgress?.call(0.1);
@@ -170,68 +169,7 @@ class TransactionProcessingService {
     }
   }
 
-  /// Enhance extracted data using existing Tesseract service methods
-  static ExtractedTransaction _enhanceWithExistingTesseractService(
-    ExtractedTransaction normalizedData,
-    Map<String, String> tesseractResults,
-  ) {
-    try {
-      // Use the existing Tesseract service enhancement methods
-      final enhancedAmount = TesseractOcrService.enhanceAmountExtraction(
-        normalizedData.amount,
-        tesseractResults
-      );
 
-      final enhancedPayee = TesseractOcrService.enhancePayeeExtraction(
-        normalizedData.payeeName,
-        tesseractResults
-      );
-
-      // Calculate improved confidence based on Tesseract results
-      final improvedConfidence = _calculateTesseractEnhancedConfidence(
-        enhancedAmount,
-        enhancedPayee,
-        normalizedData.confidence,
-        tesseractResults.isNotEmpty,
-      );
-
-      return ExtractedTransaction(
-        amount: enhancedAmount,
-        payeeName: enhancedPayee,
-        date: normalizedData.date,
-        transactionId: normalizedData.transactionId,
-        confidence: improvedConfidence,
-      );
-    } catch (e) {
-      debugPrint('Enhancement with Tesseract service failed: $e');
-      return normalizedData; // Return original if enhancement fails
-    }
-  }
-
-  /// Calculate enhanced confidence with Tesseract results
-  static double _calculateTesseractEnhancedConfidence(
-    String? amount,
-    String? payee,
-    double originalConfidence,
-    bool hasTesseractResults,
-  ) {
-    int successfulFields = 0;
-    int totalFields = 2;
-
-    if (amount != null && amount.isNotEmpty) successfulFields++;
-    if (payee != null && payee.isNotEmpty) successfulFields++;
-
-    final fieldSuccessRate = (successfulFields / totalFields) * 100;
-
-    // Boost confidence if Tesseract provided additional verification
-    if (hasTesseractResults && successfulFields == totalFields) {
-      return (originalConfidence * 0.2) + (fieldSuccessRate * 0.8); // Higher weight for Tesseract
-    } else if (hasTesseractResults) {
-      return (originalConfidence * 0.3) + (fieldSuccessRate * 0.7);
-    }
-
-    return (originalConfidence * 0.4) + (fieldSuccessRate * 0.6);
-  }
 
   /// Validate extracted transaction data
   static ValidationResult validateExtractedData(ExtractedTransaction transaction) {
@@ -272,25 +210,6 @@ class TransactionProcessingService {
   }
 
   /// Clean amount to fix OCR "7" prefix issue
-  static String? _cleanAmount(String? amount) {
-    if (amount == null || amount.isEmpty) return amount;
-
-    // Remove currency symbol for processing
-    String cleaned = amount.replaceAll('₹', '').trim();
-
-    // Fix OCR artifact: if starts with '7' and rest is a valid number, remove the '7'
-    if (cleaned.startsWith('7') && cleaned.length > 1) {
-      final possibleAmount = cleaned.substring(1);
-      final numValue = double.tryParse(possibleAmount);
-      // Only remove '7' if the remaining number is plausible (1-99999)
-      if (numValue != null && numValue > 0 && numValue < 100000) {
-        cleaned = possibleAmount;
-      }
-    }
-
-    // Return with currency symbol
-    return '₹$cleaned';
-  }
 
   /// Calculate combined confidence from multiple fields
   static double _calculateCombinedConfidence(List<String?> fields) {

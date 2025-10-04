@@ -134,13 +134,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ElevatedButton(
                                         onPressed: () async {
                                           await _saveUserName();
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: const Text('Name updated successfully!'),
-                                              backgroundColor: Theme.of(context).colorScheme.primary,
-                                              duration: const Duration(seconds: 1),
-                                            ),
-                                          );
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: const Text('Name updated successfully!'),
+                                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                                duration: const Duration(seconds: 1),
+                                              ),
+                                            );
+                                          }
                                         },
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Theme.of(context).colorScheme.primary,
@@ -242,13 +244,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onPressed: () {
                           final budget = double.tryParse(_budgetController.text) ?? 0;
                           expenseProvider.updateMonthlyBudget(budget);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Budget updated successfully!'),
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              duration: const Duration(seconds: 1),
-                            ),
-                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Budget updated successfully!'),
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).colorScheme.primary,
@@ -642,7 +646,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   await NotificationService.setNotificationsEnabled(value);
                   setState(() {});
                 },
-                activeColor: Theme.of(context).colorScheme.primary,
+                activeThumbColor: Theme.of(context).colorScheme.primary,
                 contentPadding: EdgeInsets.zero,
               );
             },
@@ -654,12 +658,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ElevatedButton.icon(
             onPressed: () async {
               await NotificationService.checkDailyBudgetAlert(800, 1000);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Test notification sent! Check your notification shade.'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Test notification sent! Check your notification shade.'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              }
             },
             icon: const Icon(Icons.notifications),
             label: const Text('Test Notification'),
@@ -871,13 +877,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     // No need for force refresh - addCustomCategory already handles local updates
                     Navigator.pop(context);
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Category "${_categoryNameController.text}" added successfully!'),
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Category "${_categoryNameController.text}" added successfully!'),
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
+                    }
                   } finally {
                     setState(() {
                       _isAddingCategory = false;
@@ -954,17 +962,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await provider.setCustomCategoryBudget(category.id, budget);
               // No need for force refresh - setCustomCategoryBudget already handles local updates
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    budget > 0
-                        ? 'Budget set to ₹${budget.toStringAsFixed(0)} for ${category.name}'
-                        : 'Budget removed for ${category.name}',
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      budget > 0
+                          ? 'Budget set to ₹${budget.toStringAsFixed(0)} for ${category.name}'
+                          : 'Budget removed for ${category.name}',
+                    ),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    duration: const Duration(seconds: 1),
                   ),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  duration: const Duration(seconds: 1),
-                ),
-              );
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.primary,
@@ -1000,13 +1010,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // No need for force refresh - removeCustomCategory already handles local updates
               Navigator.pop(context);
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Category "${category.name}" deleted successfully!'),
-                  backgroundColor: Colors.red,
-                  duration: const Duration(seconds: 1),
-                ),
-              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Category "${category.name}" deleted successfully!'),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,

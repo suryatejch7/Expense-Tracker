@@ -164,7 +164,7 @@ class UserProvider extends ChangeNotifier {
       await _saveUserToStorage(user);
       _currentUser = user;
       _userSettings = settings;
-      debugPrint('✅ loginWithUserId: User state updated - isLoggedIn: ${isLoggedIn}, userId: ${this.userId}');
+      debugPrint('✅ loginWithUserId: User state updated - isLoggedIn: $isLoggedIn, userId: $userId');
       
       // Notify listeners that the user state has changed
       debugPrint('📢 loginWithUserId: Calling notifyListeners()');
@@ -195,10 +195,14 @@ class UserProvider extends ChangeNotifier {
   }
 
   /// Update user name
-  Future<void> updateUserName(String userName) async {
-    if (_currentUser == null) return;
+  Future<bool> updateUserName(String userName) async {
+    if (_currentUser == null) {
+      _errorMessage = 'No user logged in';
+      return false;
+    }
     
     try {
+      
       await ExpenseSupabaseService.updateUserName(userName, userId: _currentUser!.id);
       _currentUser = models.User(
         id: _currentUser!.id,
@@ -207,15 +211,19 @@ class UserProvider extends ChangeNotifier {
         updatedAt: DateTime.now(),
       );
       notifyListeners();
+      return true;
     } catch (e) {
       _errorMessage = 'Failed to update username: $e';
-      throw Exception(_errorMessage);
+      return false;
     }
   }
 
   /// Update monthly budget
   Future<void> updateMonthlyBudget(double budget) async {
-    if (_currentUser == null) return;
+    if (_currentUser == null) {
+      _errorMessage = 'No user logged in';
+      return;
+    }
     
     try {
       await ExpenseSupabaseService.updateMonthlyBudget(budget, userId: _currentUser!.id);
@@ -241,7 +249,7 @@ class UserProvider extends ChangeNotifier {
     _userSettings = null;
     _errorMessage = null;
     _hasLoadedFromStorage = false; // Reset flag to allow loading from storage again
-    debugPrint('🔄 clearUser: Reset all user state - isLoggedIn: ${isLoggedIn}, userId: ${userId}');
+    debugPrint('🔄 clearUser: Reset all user state - isLoggedIn: $isLoggedIn, userId: $userId');
     debugPrint('📢 clearUser: Calling notifyListeners()');
     notifyListeners();
     debugPrint('✅ clearUser: Completed');

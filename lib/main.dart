@@ -68,11 +68,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Future<void> _initializeApp() async {
     // Load user from storage
     final userProvider = context.read<UserProvider>();
+    final expenseProvider = context.read<ExpenseProvider>();
     await userProvider.loadUserFromStorage();
     
     // Initialize expense provider if user is logged in
     if (userProvider.isLoggedIn) {
-      await userProvider.initializeExpenseProvider(context.read<ExpenseProvider>());
+      await userProvider.initializeExpenseProvider(expenseProvider);
     }
     
     if (mounted) {

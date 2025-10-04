@@ -233,20 +233,6 @@ class FieldExtractionService {
     return null;
   }
 
-  /// Extract amount from specific region
-  static String? _extractAmountFromRegion(List<TextBlock> textBlocks, CropRegion? region) {
-    if (region == null) return null;
-
-    // This would be implemented with region-specific logic
-    // For now, return the first amount-like text found
-    for (final block in textBlocks) {
-      if (_isAmountText(block.text)) {
-        return _cleanAmountText(block.text);
-      }
-    }
-
-    return null;
-  }
 
   /// Extract payee from specific region
   static String? _extractPayeeFromRegion(List<TextBlock> textBlocks, CropRegion? region) {
@@ -426,14 +412,6 @@ class FieldExtractionService {
     );
   }
 
-  /// Extract numeric value from text
-  static double? _extractNumericValue(String text) {
-    // Remove all non-numeric characters except decimal point
-    final numericText = text.replaceAll(RegExp(r'[^\d.]'), '');
-    if (numericText.isEmpty) return null;
-
-    return double.tryParse(numericText);
-  }
 
   /// Extract payee name using position and keyword heuristics
   static String? _extractPayee(

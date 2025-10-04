@@ -89,14 +89,24 @@ class _UserSelectorScreenState extends State<UserSelectorScreen> {
       // Initialize expense provider
       final expenseProvider = context.read<ExpenseProvider>();
       await userProvider.initializeExpenseProvider(expenseProvider);
-      debugPrint('✅ ExpenseProvider initialized, calling onUserSelected');
+      debugPrint('✅ ExpenseProvider initialized, handling navigation');
       // Add a small delay to ensure state is properly set
       await Future.delayed(const Duration(milliseconds: 100));
-      // Pop this screen first, then call the callback
+      
+      // Pop this screen first
       if (mounted && Navigator.of(context).canPop()) {
+        debugPrint('🔄 Popping UserSelectorScreen');
         Navigator.of(context).pop();
       }
-      widget.onUserSelected();
+      // Also pop the ExistingUserScreen if it's in the stack
+      if (mounted && Navigator.of(context).canPop()) {
+        debugPrint('🔄 Popping ExistingUserScreen');
+        Navigator.of(context).pop();
+      }
+      
+      debugPrint('✅ Navigation complete - AuthWrapper should rebuild to MainScreen');
+      // Don't call the callback since we're handling navigation directly
+      // The AuthWrapper will automatically rebuild when isLoggedIn changes
     } else {
       debugPrint('❌ Login failed or widget not mounted');
     }
