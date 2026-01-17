@@ -216,10 +216,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Widget _buildCategoryPieChart(ExpenseProvider provider) {
-    final categoryTotals = provider.categoryTotals;
+    final categoryTotals = _getCategoryTotalsForPeriod(provider);
     if (categoryTotals.isEmpty) {
       return _buildAnalyticsCard(
-        title: 'Category Breakdown',
+        title: 'Category Breakdown - $_selectedPeriod',
         child: const Center(
           child: Text(
             'No data available',
@@ -230,7 +230,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
 
     return _buildAnalyticsCard(
-      title: 'Category Breakdown',
+      title: 'Category Breakdown - $_selectedPeriod',
       child: SizedBox(
         height: 200,
         child: CustomPaint(
@@ -242,19 +242,33 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Widget _buildTopCategoriesCard(ExpenseProvider provider) {
-    final categoryTotals = provider.categoryTotals;
+    final categoryTotals = _getCategoryTotalsForPeriod(provider);
+    final periodTotal = _getPeriodData(provider);
     final categories = provider.categories;
     final sortedCategories = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
+    if (sortedCategories.isEmpty) {
+      return _buildAnalyticsCard(
+        title: 'Top Categories - $_selectedPeriod',
+        child: const Center(
+          child: Text(
+            'No data available',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
     return _buildAnalyticsCard(
-      title: 'Top Categories',
+      title: 'Top Categories - $_selectedPeriod',
       child: Column(
         children: sortedCategories.take(5).map((entry) {
           final categoryName = entry.key;
           final amount = entry.value;
-          final percentage = (amount / provider.totalExpense * 100);
-          final isOverBudget = provider.isCategoryOverBudget(categoryName);
+          final percentage = periodTotal > 0 ? (amount / periodTotal * 100) : 0.0;
+          // Only show over budget for monthly view
+          final isOverBudget = _selectedPeriod == 'Month' && provider.isCategoryOverBudget(categoryName);
 
           // Find the category object
           final category = categories.firstWhere(
@@ -271,7 +285,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF2A2A2A),
+              color: const Color(0xFF1A1A1A),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isOverBudget
@@ -336,6 +350,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Widget _buildBudgetTrackingCard(ExpenseProvider provider) {
+    // Only show budget tracking for Month view since budgets are monthly
+    if (_selectedPeriod != 'Month') {
+      return _buildAnalyticsCard(
+        title: 'Budget Tracking',
+        child: const Center(
+          child: Text(
+            'Budget tracking is available in Month view',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
     return _buildAnalyticsCard(
       title: 'Budget Tracking',
       child: Column(
@@ -375,7 +402,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
-                    value: (provider.totalExpense / provider.monthlyBudget).clamp(0.0, 1.0),
+                    value: (provider.currentMonthTotalExpense / provider.monthlyBudget).clamp(0.0, 1.0),
                     backgroundColor: Colors.grey.withValues(alpha: 0.3),
                     valueColor: AlwaysStoppedAnimation<Color>(
                       provider.isOverBudget ? Colors.red : Colors.green,
@@ -386,7 +413,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Spent: ₹${provider.totalExpense.toStringAsFixed(0)}',
+                        'Spent: ₹${provider.currentMonthTotalExpense.toStringAsFixed(0)}',
                         style: const TextStyle(color: Colors.white),
                       ),
                       Text(
@@ -420,7 +447,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF2A2A2A),
+                color: const Color(0xFF1A1A1A),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isOverBudget
@@ -493,9 +520,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF2A2A2A),
+              color: const Color(0xFF1A1A1A),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
             ),
             child: Row(
               children: [
@@ -520,12 +547,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Widget _buildMonthlyComparison(ExpenseProvider provider) {
+    String title;
+    switch (_selectedPeriod) {
+      case 'Day':
+        title = 'Last 7 Days';
+        break;
+      case 'Week':
+        title = 'Last 4 Weeks';
+        break;
+      case 'Month':
+        title = 'Last 6 Months';
+        break;
+      case 'Year':
+        title = 'Last 3 Years';
+        break;
+      default:
+        title = 'Monthly Comparison';
+    }
+
     return _buildAnalyticsCard(
-      title: 'Monthly Comparison',
+      title: title,
       child: SizedBox(
         height: 120,
         child: CustomPaint(
-          painter: MonthlyComparisonPainter(expenses: provider.expenses),
+          painter: ComparisonBarPainter(expenses: provider.expenses, period: _selectedPeriod),
           size: const Size.fromHeight(120),
         ),
       ),
@@ -615,7 +660,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   List<Map<String, dynamic>> _generateInsights(ExpenseProvider provider) {
     final insights = <Map<String, dynamic>>[];
-    final categoryTotals = provider.categoryTotals;
+    final categoryTotals = _getCategoryTotalsForPeriod(provider);
+    final periodTotal = _getPeriodData(provider);
     final categories = provider.categories;
 
     if (categoryTotals.isNotEmpty) {
@@ -634,35 +680,112 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       insights.add({
         'icon': Icons.trending_up,
         'color': Colors.blue,
-        'text': '${topCategoryObj.displayName} is your highest spending category (₹${topCategory.value.toStringAsFixed(0)})',
+        'text': '${topCategoryObj.displayName} is your highest spending category this $_selectedPeriod (₹${topCategory.value.toStringAsFixed(0)})',
       });
     }
 
-    if (provider.isOverBudget) {
-      insights.add({
-        'icon': Icons.warning,
-        'color': Colors.red,
-        'text': 'You\'ve exceeded your monthly budget by ₹${provider.budgetExcess.toStringAsFixed(0)}',
-      });
+    // Only show budget warnings for Month view
+    if (_selectedPeriod == 'Month') {
+      if (provider.isOverBudget) {
+        insights.add({
+          'icon': Icons.warning,
+          'color': Colors.red,
+          'text': 'You\'ve exceeded your monthly budget by ₹${provider.budgetExcess.toStringAsFixed(0)}',
+        });
+      }
+
+      final overBudgetCategories = categories.where((category) =>
+          provider.isCategoryOverBudget(category.name)).length;
+      if (overBudgetCategories > 0) {
+        insights.add({
+          'icon': Icons.category,
+          'color': Colors.orange,
+          'text': '$overBudgetCategories ${overBudgetCategories == 1 ? 'category is' : 'categories are'} over budget',
+        });
+      }
     }
 
-    final overBudgetCategories = categories.where((category) =>
-        provider.isCategoryOverBudget(category.name)).length;
-    if (overBudgetCategories > 0) {
-      insights.add({
-        'icon': Icons.category,
-        'color': Colors.orange,
-        'text': '$overBudgetCategories ${overBudgetCategories == 1 ? 'category is' : 'categories are'} over budget',
-      });
-    }
-
+    // Calculate average based on period
+    final averageSpending = _calculateAverageSpending(provider, periodTotal);
     insights.add({
       'icon': Icons.calendar_today,
       'color': Colors.green,
-      'text': 'Average daily spending: ₹${(provider.totalExpense / DateTime.now().day).toStringAsFixed(0)}',
+      'text': averageSpending,
     });
 
     return insights;
+  }
+
+  /// Calculate average spending based on selected period
+  String _calculateAverageSpending(ExpenseProvider provider, double periodTotal) {
+    final now = DateTime.now();
+    switch (_selectedPeriod) {
+      case 'Day':
+        return 'Total today: ₹${periodTotal.toStringAsFixed(0)}';
+      case 'Week':
+        final daysInWeek = now.weekday;
+        final avg = daysInWeek > 0 ? periodTotal / daysInWeek : 0;
+        return 'Average daily spending this week: ₹${avg.toStringAsFixed(0)}';
+      case 'Month':
+        final avg = now.day > 0 ? periodTotal / now.day : 0;
+        return 'Average daily spending this month: ₹${avg.toStringAsFixed(0)}';
+      case 'Year':
+        final dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays + 1;
+        final avg = dayOfYear > 0 ? periodTotal / dayOfYear : 0;
+        return 'Average daily spending this year: ₹${avg.toStringAsFixed(0)}';
+      default:
+        return 'Average daily spending: ₹${(periodTotal / now.day).toStringAsFixed(0)}';
+    }
+  }
+
+  /// Get category totals filtered by selected period
+  Map<String, double> _getCategoryTotalsForPeriod(ExpenseProvider provider) {
+    final now = DateTime.now();
+    final filteredExpenses = provider.expenses.where((expense) {
+      switch (_selectedPeriod) {
+        case 'Day':
+          return expense.date.year == now.year &&
+                 expense.date.month == now.month &&
+                 expense.date.day == now.day;
+        case 'Week':
+          final weekStart = now.subtract(Duration(days: now.weekday - 1));
+          return expense.date.isAfter(weekStart.subtract(const Duration(days: 1)));
+        case 'Month':
+          return expense.date.year == now.year && expense.date.month == now.month;
+        case 'Year':
+          return expense.date.year == now.year;
+        default:
+          return false;
+      }
+    }).toList();
+
+    Map<String, double> totals = {};
+    for (var expense in filteredExpenses) {
+      totals[expense.category] = (totals[expense.category] ?? 0) + expense.amount;
+    }
+    return totals;
+  }
+
+  /// Get filtered expenses for the selected period
+  List<Expense> _getExpensesForPeriod(ExpenseProvider provider) {
+    final now = DateTime.now();
+    return provider.expenses.where((expense) {
+      switch (_selectedPeriod) {
+        case 'Day':
+          return expense.date.year == now.year &&
+                 expense.date.month == now.month &&
+                 expense.date.day == now.day;
+        case 'Week':
+          final weekStart = now.subtract(Duration(days: now.weekday - 1));
+          return expense.date.isAfter(weekStart.subtract(const Duration(days: 1)));
+        case 'Month':
+          return expense.date.year == now.year && expense.date.month == now.month;
+        case 'Year':
+          return expense.date.year == now.year;
+        default:
+          return false;
+      }
+    }).toList();
   }
 }
 
@@ -705,14 +828,66 @@ class SpendingTrendPainter extends CustomPainter {
     final now = DateTime.now();
     final dataPoints = <double>[];
 
-    for (int i = 6; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
-      final dayExpenses = expenses.where((expense) {
-        return expense.date.year == date.year &&
-               expense.date.month == date.month &&
-               expense.date.day == date.day;
-      });
-      dataPoints.add(dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+    switch (period) {
+      case 'Day':
+        // Show hourly breakdown for today (last 24 hours in 6 segments)
+        for (int i = 5; i >= 0; i--) {
+          final hourStart = now.subtract(Duration(hours: i * 4));
+          final hourEnd = now.subtract(Duration(hours: (i - 1) * 4));
+          final hourExpenses = expenses.where((expense) {
+            return expense.date.year == now.year &&
+                   expense.date.month == now.month &&
+                   expense.date.day == now.day &&
+                   expense.date.hour >= hourStart.hour &&
+                   expense.date.hour < hourEnd.hour;
+          });
+          dataPoints.add(hourExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+        }
+        break;
+      case 'Week':
+        // Show last 7 days
+        for (int i = 6; i >= 0; i--) {
+          final date = now.subtract(Duration(days: i));
+          final dayExpenses = expenses.where((expense) {
+            return expense.date.year == date.year &&
+                   expense.date.month == date.month &&
+                   expense.date.day == date.day;
+          });
+          dataPoints.add(dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+        }
+        break;
+      case 'Month':
+        // Show last 4 weeks
+        for (int i = 3; i >= 0; i--) {
+          final weekStart = now.subtract(Duration(days: (i + 1) * 7));
+          final weekEnd = now.subtract(Duration(days: i * 7));
+          final weekExpenses = expenses.where((expense) {
+            return expense.date.isAfter(weekStart) && expense.date.isBefore(weekEnd.add(const Duration(days: 1)));
+          });
+          dataPoints.add(weekExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+        }
+        break;
+      case 'Year':
+        // Show last 6 months
+        for (int i = 5; i >= 0; i--) {
+          final month = DateTime(now.year, now.month - i);
+          final monthExpenses = expenses.where((expense) {
+            return expense.date.year == month.year && expense.date.month == month.month;
+          });
+          dataPoints.add(monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+        }
+        break;
+      default:
+        // Default to last 7 days
+        for (int i = 6; i >= 0; i--) {
+          final date = now.subtract(Duration(days: i));
+          final dayExpenses = expenses.where((expense) {
+            return expense.date.year == date.year &&
+                   expense.date.month == date.month &&
+                   expense.date.day == date.day;
+          });
+          dataPoints.add(dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+        }
     }
 
     if (dataPoints.isEmpty) return [];
@@ -785,10 +960,11 @@ class PieChartPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-class MonthlyComparisonPainter extends CustomPainter {
+class ComparisonBarPainter extends CustomPainter {
   final List<Expense> expenses;
+  final String period;
 
-  MonthlyComparisonPainter({required this.expenses});
+  ComparisonBarPainter({required this.expenses, required this.period});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -797,26 +973,73 @@ class MonthlyComparisonPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final now = DateTime.now();
-    final monthlyData = <double>[];
+    final data = <double>[];
 
-    for (int i = 5; i >= 0; i--) {
-      final month = DateTime(now.year, now.month - i);
-      final monthExpenses = expenses.where((expense) {
-        return expense.date.year == month.year && expense.date.month == month.month;
-      });
-      monthlyData.add(monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+    switch (period) {
+      case 'Day':
+        // Last 7 days
+        for (int i = 6; i >= 0; i--) {
+          final date = now.subtract(Duration(days: i));
+          final dayExpenses = expenses.where((expense) {
+            return expense.date.year == date.year &&
+                   expense.date.month == date.month &&
+                   expense.date.day == date.day;
+          });
+          data.add(dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+        }
+        break;
+      case 'Week':
+        // Last 4 weeks
+        for (int i = 3; i >= 0; i--) {
+          final weekStart = now.subtract(Duration(days: (i + 1) * 7));
+          final weekEnd = now.subtract(Duration(days: i * 7));
+          final weekExpenses = expenses.where((expense) {
+            return expense.date.isAfter(weekStart) && expense.date.isBefore(weekEnd.add(const Duration(days: 1)));
+          });
+          data.add(weekExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+        }
+        break;
+      case 'Month':
+        // Last 6 months
+        for (int i = 5; i >= 0; i--) {
+          final month = DateTime(now.year, now.month - i);
+          final monthExpenses = expenses.where((expense) {
+            return expense.date.year == month.year && expense.date.month == month.month;
+          });
+          data.add(monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+        }
+        break;
+      case 'Year':
+        // Last 3 years
+        for (int i = 2; i >= 0; i--) {
+          final year = now.year - i;
+          final yearExpenses = expenses.where((expense) {
+            return expense.date.year == year;
+          });
+          data.add(yearExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+        }
+        break;
+      default:
+        // Default to last 6 months
+        for (int i = 5; i >= 0; i--) {
+          final month = DateTime(now.year, now.month - i);
+          final monthExpenses = expenses.where((expense) {
+            return expense.date.year == month.year && expense.date.month == month.month;
+          });
+          data.add(monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+        }
     }
 
-    if (monthlyData.isEmpty) return;
+    if (data.isEmpty) return;
 
-    final maxValue = monthlyData.reduce(math.max);
+    final maxValue = data.reduce(math.max);
     if (maxValue == 0) return;
 
-    final barWidth = size.width / monthlyData.length * 0.8;
-    final spacing = size.width / monthlyData.length * 0.2;
+    final barWidth = size.width / data.length * 0.8;
+    final spacing = size.width / data.length * 0.2;
 
-    for (int i = 0; i < monthlyData.length; i++) {
-      final barHeight = (monthlyData[i] / maxValue) * size.height;
+    for (int i = 0; i < data.length; i++) {
+      final barHeight = (data[i] / maxValue) * size.height;
       final x = i * (barWidth + spacing) + spacing / 2;
       final rect = Rect.fromLTWH(x, size.height - barHeight, barWidth, barHeight);
       canvas.drawRect(rect, paint);

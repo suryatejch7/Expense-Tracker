@@ -281,6 +281,46 @@ class ExpenseSupabaseService {
     }
   }
 
+  /// Get expenses with pagination for lazy loading
+  /// Returns expenses sorted by date (newest first)
+  /// [limit] - number of expenses per page
+  /// [offset] - number of expenses to skip
+  static Future<List<Expense>> getExpensesPaginated({
+    required int userId,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('expenses')
+          .select()
+          .eq('user_id', userId)
+          .order('date', ascending: false)
+          .range(offset, offset + limit - 1);
+      
+      return (response as List)
+          .map((item) => Expense.fromSupabase(item))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch paginated expenses: $e');
+    }
+  }
+
+  /// Get total count of expenses for a user (for pagination info)
+  static Future<int> getExpensesCount({required int userId}) async {
+    try {
+      final response = await _supabase
+          .from('expenses')
+          .select()
+          .eq('user_id', userId)
+          .count(CountOption.exact);
+      
+      return response.count;
+    } catch (e) {
+      throw Exception('Failed to get expenses count: $e');
+    }
+  }
+
   /// Get expenses for analytics
   static Future<List<Expense>> getExpensesForPeriod(DateTime startDate, DateTime endDate, {required int userId}) async {
     try {

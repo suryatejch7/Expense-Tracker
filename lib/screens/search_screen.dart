@@ -62,7 +62,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: const Color(0xFF2A2A2A),
+                fillColor: const Color(0xFF1A1A1A),
               ),
             ),
           ),

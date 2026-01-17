@@ -3,6 +3,7 @@ import '../models/expense_models.dart';
 import '../models/user_settings.dart';
 import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
+import '../services/cache_service.dart';
 
 /// Filter period options for expenses
 enum FilterPeriod {
@@ -28,6 +29,12 @@ class ExpenseProvider extends ChangeNotifier {
 
   bool _isLoading = false;
   bool _isInitialized = false;
+  
+  // Pagination state
+  static const int _pageSize = 20;
+  int _currentPage = 0;
+  bool _hasMoreExpenses = true;
+  bool _isLoadingMore = false;
 
   // Getters
   List<Expense> get expenses => _expenses;
@@ -40,6 +47,8 @@ class ExpenseProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
   bool get isInitialized => _isInitialized;
+  bool get hasMoreExpenses => _hasMoreExpenses;
+  bool get isLoadingMore => _isLoadingMore;
 
   /// Get the default account (first one marked as default, or first account, or null)
   BankAccount? get defaultAccount {
@@ -56,6 +65,7 @@ class ExpenseProvider extends ChangeNotifier {
   }
 
   /// Initialize expense provider with user data
+  /// Uses cache-first strategy for faster startup
   Future<void> initializeWithUser(int userId, String userName, UserSettings userSettings) async {
     _userId = userId;
     _userName = userName;
@@ -68,13 +78,61 @@ class ExpenseProvider extends ChangeNotifier {
     _accounts.clear();
     _accounts.addAll(userSettings.accounts);
     
-    await _loadExpenses();
-    _isInitialized = true;
+    // Reset pagination state
+    _currentPage = 0;
+    _hasMoreExpenses = true;
+    
+    // Try to load from cache first for instant UI
+    final cachedExpenses = await CacheService.getCachedExpenses(userId);
+    if (cachedExpenses != null && cachedExpenses.isNotEmpty) {
+      _expenses.clear();
+      _expenses.addAll(cachedExpenses);
+      _isInitialized = true;
+      notifyListeners(); // Show cached data immediately
+      
+      // Then sync with server in background
+      _syncWithServer();
+    } else {
+      // No cache, load from server with pagination
+      await _loadExpensesPaginated();
+      _isInitialized = true;
+      notifyListeners();
+    }
+    
+    // Cache settings for offline access
+    await CacheService.cacheSettings(userSettings);
+    await CacheService.saveCurrentUserId(userId);
     
     // Schedule periodic notifications
     await _schedulePeriodicNotifications();
+  }
+  
+  /// Sync local data with server (background operation)
+  Future<void> _syncWithServer() async {
+    try {
+      final serverExpenses = await ExpenseSupabaseService.getExpenses(userId: _userId);
+      
+      // Only update if server has different data
+      if (_expensesAreDifferent(serverExpenses)) {
+        _expenses.clear();
+        _expenses.addAll(serverExpenses);
+        await CacheService.cacheExpenses(serverExpenses, _userId);
+        notifyListeners();
+      }
+    } catch (e) {
+      // Server sync failed, continue with cached data
+    }
+  }
+  
+  /// Check if server expenses are different from local
+  bool _expensesAreDifferent(List<Expense> serverExpenses) {
+    if (_expenses.length != serverExpenses.length) return true;
     
-    notifyListeners();
+    // Quick check: compare first few IDs
+    for (int i = 0; i < _expenses.length && i < 5; i++) {
+      if (_expenses[i].id != serverExpenses[i].id) return true;
+    }
+    return false;
   }
 
   /// Clear user data when logging out
@@ -89,6 +147,10 @@ class ExpenseProvider extends ChangeNotifier {
     _expenses.clear();
     _searchQuery = '';
     _isInitialized = false;
+    // Reset pagination
+    _currentPage = 0;
+    _hasMoreExpenses = true;
+    _isLoadingMore = false;
     notifyListeners();
   }
 
@@ -105,6 +167,9 @@ class ExpenseProvider extends ChangeNotifier {
     
     try {
       _isLoading = true;
+      // Reset pagination state
+      _currentPage = 0;
+      _hasMoreExpenses = true;
       notifyListeners();
       
       // Reload expenses from backend
@@ -120,6 +185,9 @@ class ExpenseProvider extends ChangeNotifier {
       _customCategories.addAll(userSettings.customCategories);
       _accounts.clear();
       _accounts.addAll(userSettings.accounts);
+      
+      // Update settings cache
+      await CacheService.cacheSettings(userSettings);
       
       notifyListeners();
     } catch (e) {
@@ -295,8 +363,78 @@ class ExpenseProvider extends ChangeNotifier {
       final expenses = await ExpenseSupabaseService.getExpenses(userId: _userId);
       _expenses.clear();
       _expenses.addAll(expenses);
+      // Update cache
+      await CacheService.cacheExpenses(expenses, _userId);
     } catch (e) {
-      // Failed to load expenses
+      // Failed to load expenses, try cache
+      final cached = await CacheService.getCachedExpenses(_userId);
+      if (cached != null) {
+        _expenses.clear();
+        _expenses.addAll(cached);
+      }
+    }
+  }
+
+  /// Load expenses with pagination (for initial load)
+  Future<void> _loadExpensesPaginated() async {
+    try {
+      _currentPage = 0;
+      final expenses = await ExpenseSupabaseService.getExpensesPaginated(
+        userId: _userId,
+        limit: _pageSize,
+        offset: 0,
+      );
+      _expenses.clear();
+      _expenses.addAll(expenses);
+      _hasMoreExpenses = expenses.length >= _pageSize;
+      
+      // Cache the first page
+      await CacheService.cacheExpenses(expenses, _userId);
+    } catch (e) {
+      // Failed to load, try cache
+      final cached = await CacheService.getCachedExpenses(_userId);
+      if (cached != null) {
+        _expenses.clear();
+        _expenses.addAll(cached);
+        _hasMoreExpenses = false;
+      }
+    }
+  }
+
+  /// Load more expenses (infinite scroll)
+  Future<void> loadMoreExpenses() async {
+    if (!_hasMoreExpenses || _isLoadingMore || _userId == 0) return;
+    
+    try {
+      _isLoadingMore = true;
+      notifyListeners();
+      
+      _currentPage++;
+      final newExpenses = await ExpenseSupabaseService.getExpensesPaginated(
+        userId: _userId,
+        limit: _pageSize,
+        offset: _currentPage * _pageSize,
+      );
+      
+      if (newExpenses.isEmpty) {
+        _hasMoreExpenses = false;
+      } else {
+        // Add new expenses, avoiding duplicates
+        for (final expense in newExpenses) {
+          if (!_expenses.any((e) => e.id == expense.id)) {
+            _expenses.add(expense);
+          }
+        }
+        _hasMoreExpenses = newExpenses.length >= _pageSize;
+        
+        // Update cache with all loaded expenses
+        await CacheService.cacheExpenses(_expenses, _userId);
+      }
+    } catch (e) {
+      // Failed to load more
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
     }
   }
 
@@ -306,11 +444,17 @@ class ExpenseProvider extends ChangeNotifier {
     
     try {
       _isLoading = true;
+      // Reset pagination state on full reload
+      _currentPage = 0;
+      _hasMoreExpenses = true;
       notifyListeners();
       
       final expenses = await ExpenseSupabaseService.getExpenses(userId: _userId);
       _expenses.clear();
       _expenses.addAll(expenses);
+      
+      // Update cache after reload
+      await CacheService.cacheExpenses(expenses, _userId);
       
       notifyListeners();
     } catch (e) {
@@ -373,7 +517,7 @@ class ExpenseProvider extends ChangeNotifier {
     }
   }
 
-  /// ADD EXPENSE - WITH BACKEND SYNC
+  /// ADD EXPENSE - WITH BACKEND SYNC AND CACHE
   Future<void> addExpense(Expense expense) async {
     try {
       _isLoading = true;
@@ -385,6 +529,9 @@ class ExpenseProvider extends ChangeNotifier {
       
       // Add to local list (insert at beginning for most recent first)
       _expenses.insert(0, expenseWithId);
+      
+      // Update cache
+      await CacheService.addExpenseToCache(expenseWithId, _userId);
       
       // Trigger notifications after adding expense
       await _triggerExpenseNotifications(expenseWithId);
@@ -402,7 +549,7 @@ class ExpenseProvider extends ChangeNotifier {
     }
   }
 
-  /// UPDATE EXPENSE - WITH BACKEND SYNC
+  /// UPDATE EXPENSE - WITH BACKEND SYNC AND CACHE
   Future<void> updateExpense(Expense expense) async {
     try {
       _isLoading = true;
@@ -411,6 +558,8 @@ class ExpenseProvider extends ChangeNotifier {
       final index = _expenses.indexWhere((e) => e.id == expense.id);
       if (index != -1) {
         _expenses[index] = expense;
+        // Update cache
+        await CacheService.updateExpenseInCache(expense, _userId);
         // Force refresh all calculations
         _refreshCalculations();
       }
@@ -423,13 +572,15 @@ class ExpenseProvider extends ChangeNotifier {
     }
   }
 
-  /// DELETE EXPENSE - WITH BACKEND SYNC
+  /// DELETE EXPENSE - WITH BACKEND SYNC AND CACHE
   Future<void> deleteExpense(String expenseId) async {
     try {
       _isLoading = true;
       notifyListeners();
       await ExpenseSupabaseService.deleteExpense(expenseId, _userId);
       _expenses.removeWhere((expense) => expense.id == expenseId);
+      // Update cache
+      await CacheService.removeExpenseFromCache(expenseId, _userId);
       // Force refresh all calculations
       _refreshCalculations();
       notifyListeners();

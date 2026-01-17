@@ -4,17 +4,12 @@ import '../models/expense_models.dart';
 import '../providers/expense_provider.dart';
 import '../screens/add_expense_screen.dart';
 
-class ExpenseCard extends StatefulWidget {
+class ExpenseCard extends StatelessWidget {
   final Expense expense;
   final int index; // For staggered animation
 
   const ExpenseCard({super.key, required this.expense, this.index = 0});
 
-  @override
-  State<ExpenseCard> createState() => _ExpenseCardState();
-}
-
-class _ExpenseCardState extends State<ExpenseCard> {
   // Category color mapping for the new string-based category system
   Color _getCategoryColor(String category) {
     switch (category.toLowerCase()) {
@@ -84,8 +79,8 @@ class _ExpenseCardState extends State<ExpenseCard> {
 
   @override
   Widget build(BuildContext context) {
-    final categoryColor = _getCategoryColor(widget.expense.category);
-    final categoryIcon = _getCategoryIcon(widget.expense.category);
+    final categoryColor = _getCategoryColor(expense.category);
+    final categoryIcon = _getCategoryIcon(expense.category);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -95,7 +90,7 @@ class _ExpenseCardState extends State<ExpenseCard> {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => AddExpenseScreen(expense: widget.expense),
+              builder: (context) => AddExpenseScreen(expense: expense),
             ),
           );
         },
@@ -122,7 +117,7 @@ class _ExpenseCardState extends State<ExpenseCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.expense.description,
+                      expense.description,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -131,17 +126,17 @@ class _ExpenseCardState extends State<ExpenseCard> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      widget.expense.category,
+                      expense.category,
                       style: TextStyle(
                         fontSize: 14,
                         color: categoryColor,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    if (widget.expense.payee != null) ...[
+                    if (expense.payee != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'Payee: ${widget.expense.payee}',
+                        'Payee: ${expense.payee}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.grey,
@@ -155,7 +150,7 @@ class _ExpenseCardState extends State<ExpenseCard> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '₹${widget.expense.amount.toStringAsFixed(2)}',
+                    '₹${expense.amount.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -164,7 +159,7 @@ class _ExpenseCardState extends State<ExpenseCard> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _formatDate(widget.expense.date),
+                    _formatDate(expense.date),
                     style: const TextStyle(
                       fontSize: 12,
                       color: Colors.grey,
@@ -223,7 +218,7 @@ class _ExpenseCardState extends State<ExpenseCard> {
           backgroundColor: const Color(0xFF2A2A2A),
           title: const Text('Delete Expense', style: TextStyle(color: Colors.white)),
           content: Text(
-            'Are you sure you want to delete "${widget.expense.description}"?',
+            'Are you sure you want to delete "${expense.description}"?',
             style: const TextStyle(color: Colors.white),
           ),
           actions: [
@@ -233,11 +228,11 @@ class _ExpenseCardState extends State<ExpenseCard> {
             ),
             TextButton(
               onPressed: () {
-                context.read<ExpenseProvider>().deleteExpense(widget.expense.id!);
+                context.read<ExpenseProvider>().deleteExpense(expense.id!);
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('${widget.expense.description} deleted'),
+                    content: Text('${expense.description} deleted'),
                     backgroundColor: Colors.red,
                     duration: const Duration(seconds: 1),
                   ),

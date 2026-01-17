@@ -112,7 +112,9 @@ class _GlassNavBarState extends State<GlassNavBar>
     _pressController.reverse();
 
     Future.delayed(const Duration(milliseconds: 100), () {
-      _highlightController.reverse();
+      if (mounted) {
+        _highlightController.reverse();
+      }
     });
 
     widget.onTap(index);

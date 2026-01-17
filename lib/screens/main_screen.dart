@@ -73,18 +73,12 @@ class _MainScreenState extends State<MainScreen> {
               }
             },
           ),
-        ],
-      ),
-      // Only show FAB on dashboard (index 0) with fade animation
-      floatingActionButton: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
-        child: _currentIndex == 0
-            ? GestureDetector(
-                key: const ValueKey('fab_visible'),
+          // FAB positioned manually in Stack to avoid Scaffold's FAB animation
+          if (_currentIndex == 0)
+            Positioned(
+              right: 16,
+              bottom: 120, // Position above the nav bar
+              child: GestureDetector(
                 onTap: () {
                   Navigator.push(
                     context,
@@ -112,10 +106,10 @@ class _MainScreenState extends State<MainScreen> {
                   onPressed: null, // Disable default onPressed
                   child: const Icon(Icons.add, color: Colors.black),
                 ),
-              )
-            : const SizedBox.shrink(key: ValueKey('fab_hidden')),
-      ),
-      floatingActionButtonLocation: _CustomFABLocation(),
+              ),
+            ),
+        ],
+      )
     );
   }
 
@@ -206,22 +200,4 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
-}
-
-class _CustomFABLocation extends FloatingActionButtonLocation {
-  @override
-  Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
-    // Increased right padding: 32px from right edge, 16px from bottom
-    // But we need to account for the custom navigation bar (70px height + 30px bottom margin = 100px)
-    final double right = 32.0; // Increased from 16px to 32px
-    final double bottom = 16.0 + 100.0; // 16px standard + 100px for custom nav bar
-    
-    return Offset(
-      scaffoldGeometry.scaffoldSize.width - right - scaffoldGeometry.floatingActionButtonSize.width,
-      scaffoldGeometry.scaffoldSize.height - bottom - scaffoldGeometry.floatingActionButtonSize.height,
-    );
-  }
-
-  @override
-  String toString() => 'FloatingActionButtonLocation.endFloat';
 }

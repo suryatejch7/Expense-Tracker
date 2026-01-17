@@ -419,7 +419,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
             colorScheme: Theme.of(context).colorScheme.copyWith(
               primary: Theme.of(context).colorScheme.primary,
               onPrimary: Colors.black,
-              surface: const Color(0xFF1E1E1E),
+              surface: Colors.black,
               onSurface: Colors.white,
             ),
           ),
