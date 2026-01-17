@@ -1,5 +1,8 @@
 import '../models/expense_models.dart';
 
+// Import BankAccount from expense_models.dart
+export '../models/expense_models.dart' show BankAccount;
+
 /// Model for user data
 class User {
   final int id;
@@ -40,6 +43,7 @@ class UserSettings {
   final String currency;
   final Map<String, double> categoryBudgets;
   final List<ExpenseCategory> customCategories;
+  final List<BankAccount> accounts;
   final double cropTop;
   final double cropBottom;
   final bool isCropCalibrated;
@@ -52,6 +56,7 @@ class UserSettings {
     required this.currency,
     required this.categoryBudgets,
     required this.customCategories,
+    this.accounts = const [],
     this.cropTop = 0.17,
     this.cropBottom = 0.21,
     this.isCropCalibrated = false,
@@ -74,12 +79,19 @@ class UserSettings {
         .map((item) => ExpenseCategory.fromSupabase(item as Map<String, dynamic>))
         .toList();
 
+    // Parse accounts from JSONB
+    final accountsJson = data['accounts'] as List<dynamic>? ?? [];
+    final accounts = accountsJson
+        .map((item) => BankAccount.fromSupabase(item as Map<String, dynamic>))
+        .toList();
+
     return UserSettings(
       userId: data['user_id'] as int,
       monthlyBudget: (data['monthly_budget'] as num?)?.toDouble() ?? 25000.0,
       currency: data['currency'] ?? '₹',
       categoryBudgets: categoryBudgets,
       customCategories: customCategories,
+      accounts: accounts,
       cropTop: (data['crop_top'] as num?)?.toDouble() ?? 0.17,
       cropBottom: (data['crop_bottom'] as num?)?.toDouble() ?? 0.21,
       isCropCalibrated: data['is_crop_calibrated'] as bool? ?? false,
@@ -96,6 +108,7 @@ class UserSettings {
       'currency': currency,
       'category_budgets': categoryBudgets,
       'custom_categories': customCategories.map((cat) => cat.toSupabase()).toList(),
+      'accounts': accounts.map((acc) => acc.toSupabase()).toList(),
       'crop_top': cropTop,
       'crop_bottom': cropBottom,
       'is_crop_calibrated': isCropCalibrated,
@@ -111,6 +124,7 @@ class UserSettings {
     String? currency,
     Map<String, double>? categoryBudgets,
     List<ExpenseCategory>? customCategories,
+    List<BankAccount>? accounts,
     double? cropTop,
     double? cropBottom,
     bool? isCropCalibrated,
@@ -123,6 +137,7 @@ class UserSettings {
       currency: currency ?? this.currency,
       categoryBudgets: categoryBudgets ?? Map.from(this.categoryBudgets),
       customCategories: customCategories ?? List.from(this.customCategories),
+      accounts: accounts ?? List.from(this.accounts),
       cropTop: cropTop ?? this.cropTop,
       cropBottom: cropBottom ?? this.cropBottom,
       isCropCalibrated: isCropCalibrated ?? this.isCropCalibrated,

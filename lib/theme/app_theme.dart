@@ -5,17 +5,17 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.dark,
       primarySwatch: Colors.blue,
-      scaffoldBackgroundColor: const Color(0xFF0A0A0A),
+      scaffoldBackgroundColor: Colors.black,
       colorScheme: const ColorScheme.dark(
         primary: Color(0xFF00D4FF),
         secondary: Color(0xFF1E88E5),
-        surface: Color(0xFF1A1A1A),
+        surface: Color(0xFF0D0D0D),
         onPrimary: Colors.black,
         onSecondary: Colors.white,
         onSurface: Colors.white,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1A1A1A),
+        backgroundColor: Colors.black,
         elevation: 0,
         titleTextStyle: TextStyle(
           color: Colors.white,
@@ -25,7 +25,7 @@ class AppTheme {
         iconTheme: IconThemeData(color: Colors.white),
       ),
       cardTheme: const CardThemeData(
-        color: Color(0xFF1A1A1A),
+        color: Color(0xFF0D0D0D),
         elevation: 8,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(16)),
@@ -50,14 +50,14 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF2A2A2A),
+        fillColor: const Color(0xFF1A1A1A),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3A3A3A)),
+          borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -84,7 +84,7 @@ class AppTheme {
         labelSmall: TextStyle(color: Color(0xFFB0B0B0)),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Color(0xFF1A1A1A),
+        backgroundColor: Colors.black,
         selectedItemColor: Color(0xFF00D4FF),
         unselectedItemColor: Color(0xFF707070),
         type: BottomNavigationBarType.fixed,

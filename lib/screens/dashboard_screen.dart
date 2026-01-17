@@ -234,7 +234,8 @@ class _TotalExpenseWidgetState extends State<TotalExpenseWidget>
         final isOverBudget = expenseProvider.isOverBudget;
         final budgetExcess = expenseProvider.budgetExcess;
         final monthlyBudget = expenseProvider.monthlyBudget;
-        final totalExpense = expenseProvider.totalExpense;
+        // Use current month total instead of all-time
+        final totalExpense = expenseProvider.currentMonthTotalExpense;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,

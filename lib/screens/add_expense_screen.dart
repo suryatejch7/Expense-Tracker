@@ -35,10 +35,21 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   String _selectedCategory = 'Food';
   DateTime _selectedDate = DateTime.now();
+  String? _selectedAccountId;
 
   @override
   void initState() {
     super.initState();
+    
+    // Initialize default account
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<ExpenseProvider>();
+      if (_selectedAccountId == null && provider.defaultAccount != null) {
+        setState(() {
+          _selectedAccountId = provider.defaultAccount!.id;
+        });
+      }
+    });
     
     if (widget.expense != null) {
       // Editing existing expense
@@ -48,6 +59,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _noteController.text = widget.expense!.notes ?? '';
       _selectedCategory = widget.expense!.category;
       _selectedDate = widget.expense!.date;
+      _selectedAccountId = widget.expense!.accountId;
     } else {
       // Handle OCR pre-filled data
       if (widget.prefilledAmount != null) {
@@ -76,10 +88,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Add Expense'),
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
       body: Form(
@@ -132,10 +144,32 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               _buildCategorySelector(),
               const SizedBox(height: 20),
 
-              // Date Selector
-              _buildSectionTitle('Date'),
-              const SizedBox(height: 8),
-              _buildDateSelector(),
+              // Date and Account Row
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionTitle('Date'),
+                        const SizedBox(height: 8),
+                        _buildDateSelector(),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionTitle('Account'),
+                        const SizedBox(height: 8),
+                        _buildAccountSelector(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 20),
 
               // Payee Field
@@ -155,9 +189,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 controller: _noteController,
                 labelText: 'Notes',
                 hintText: 'Additional details...',
-                maxLines: 2,
+                maxLines: 1,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
               // Save Button
               SizedBox(
@@ -219,7 +253,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         hintStyle: const TextStyle(color: Colors.grey),
         prefixStyle: const TextStyle(color: Colors.white),
         filled: true,
-        fillColor: const Color(0xFF2A2A2A),
+        fillColor: const Color(0xFF1A1A1A),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -349,6 +383,108 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
+  Widget _buildAccountSelector() {
+    return Consumer<ExpenseProvider>(
+      builder: (context, provider, child) {
+        final accounts = provider.accounts;
+        
+        if (accounts.isEmpty) {
+          return GestureDetector(
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Add accounts in Settings first'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.account_balance,
+                    color: Colors.grey.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'No accounts',
+                    style: TextStyle(
+                      color: Colors.grey.withValues(alpha: 0.5),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2A2A2A),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.grey.withValues(alpha: 0.3),
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedAccountId,
+              hint: const Text(
+                'Select account',
+                style: TextStyle(color: Colors.grey),
+              ),
+              dropdownColor: const Color(0xFF2A2A2A),
+              icon: Icon(
+                Icons.arrow_drop_down,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              isExpanded: true,
+              items: accounts.map((account) {
+                return DropdownMenuItem<String>(
+                  value: account.id,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.account_balance,
+                        color: account.isDefault
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.grey,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          account.name,
+                          style: const TextStyle(color: Colors.white),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedAccountId = value;
+                });
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _saveExpense() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -370,6 +506,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         paymentApp: widget.prefilledPaymentApp ?? 'PhonePe',
         transactionId: widget.prefilledTransactionId,
         notes: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+        accountId: _selectedAccountId,
         createdAt: widget.expense?.createdAt ?? now,
         updatedAt: now,
       );

@@ -4,9 +4,19 @@ import '../models/user_settings.dart';
 import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
 
+/// Filter period options for expenses
+enum FilterPeriod {
+  weekly,
+  monthly,
+  yearly,
+  allTime,
+  custom,
+}
+
 class ExpenseProvider extends ChangeNotifier {
   final List<Expense> _expenses = [];
   final List<ExpenseCategory> _customCategories = [];
+  final List<BankAccount> _accounts = [];
   final Map<String, double> _categoryBudgets = {};
   String _searchQuery = '';
 
@@ -22,6 +32,7 @@ class ExpenseProvider extends ChangeNotifier {
   // Getters
   List<Expense> get expenses => _expenses;
   List<ExpenseCategory> get customCategories => _customCategories;
+  List<BankAccount> get accounts => _accounts;
   int get userId => _userId;
   String get userName => _userName;
   double get monthlyBudget => _monthlyBudget;
@@ -29,6 +40,15 @@ class ExpenseProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
   bool get isInitialized => _isInitialized;
+
+  /// Get the default account (first one marked as default, or first account, or null)
+  BankAccount? get defaultAccount {
+    if (_accounts.isEmpty) return null;
+    return _accounts.firstWhere(
+      (acc) => acc.isDefault,
+      orElse: () => _accounts.first,
+    );
+  }
 
   // Only custom categories (no default categories)
   List<ExpenseCategory> get categories {
@@ -45,6 +65,8 @@ class ExpenseProvider extends ChangeNotifier {
     _categoryBudgets.addAll(userSettings.categoryBudgets);
     _customCategories.clear();
     _customCategories.addAll(userSettings.customCategories);
+    _accounts.clear();
+    _accounts.addAll(userSettings.accounts);
     
     await _loadExpenses();
     _isInitialized = true;
@@ -63,6 +85,7 @@ class ExpenseProvider extends ChangeNotifier {
     _currency = '₹';
     _categoryBudgets.clear();
     _customCategories.clear();
+    _accounts.clear();
     _expenses.clear();
     _searchQuery = '';
     _isInitialized = false;
@@ -95,6 +118,8 @@ class ExpenseProvider extends ChangeNotifier {
       _categoryBudgets.addAll(userSettings.categoryBudgets);
       _customCategories.clear();
       _customCategories.addAll(userSettings.customCategories);
+      _accounts.clear();
+      _accounts.addAll(userSettings.accounts);
       
       notifyListeners();
     } catch (e) {
@@ -145,11 +170,106 @@ class ExpenseProvider extends ChangeNotifier {
   }
 
   // Budget-related getters
-  bool get isOverBudget => totalExpense > _monthlyBudget;
-  double get budgetExcess => totalExpense - _monthlyBudget;
-  double get budgetUsed => totalExpense;
-  double get budgetRemaining => _monthlyBudget - totalExpense;
-  double get budgetUsagePercentage => _monthlyBudget > 0 ? (totalExpense / _monthlyBudget) * 100 : 0;
+  bool get isOverBudget => currentMonthTotalExpense > _monthlyBudget;
+  double get budgetExcess => currentMonthTotalExpense - _monthlyBudget;
+  double get budgetUsed => currentMonthTotalExpense;
+  double get budgetRemaining => _monthlyBudget - currentMonthTotalExpense;
+  double get budgetUsagePercentage => _monthlyBudget > 0 ? (currentMonthTotalExpense / _monthlyBudget) * 100 : 0;
+
+  // ==================== CURRENT MONTH GETTERS ====================
+  
+  /// Get current month's expenses only
+  List<Expense> get currentMonthExpenses {
+    final now = DateTime.now();
+    return _expenses.where((expense) {
+      return expense.date.year == now.year && expense.date.month == now.month;
+    }).toList();
+  }
+
+  /// Total expense for current month only
+  double get currentMonthTotalExpense {
+    return currentMonthExpenses.fold(0, (sum, expense) => sum + expense.amount);
+  }
+
+  /// Category totals for current month only
+  Map<String, double> get currentMonthCategoryTotals {
+    Map<String, double> totals = {};
+    for (var expense in currentMonthExpenses) {
+      totals[expense.category] = (totals[expense.category] ?? 0) + expense.amount;
+    }
+    return totals;
+  }
+
+  /// Get expenses for current month by category
+  List<Expense> getCurrentMonthExpensesByCategory(String category) {
+    return currentMonthExpenses.where((expense) => expense.category == category).toList();
+  }
+
+  /// Get category expenses total for current month
+  double getCurrentMonthCategoryExpenses(String category) {
+    return currentMonthExpenses
+        .where((expense) => expense.category == category)
+        .fold(0.0, (sum, expense) => sum + expense.amount);
+  }
+
+  // ==================== FILTERED EXPENSES BY PERIOD ====================
+
+  /// Get expenses for a specific period
+  List<Expense> getExpensesByPeriodType(FilterPeriod period, {DateTime? customStart, DateTime? customEnd}) {
+    final now = DateTime.now();
+    
+    switch (period) {
+      case FilterPeriod.weekly:
+        final weekStart = now.subtract(Duration(days: now.weekday - 1));
+        return _expenses.where((expense) {
+          return expense.date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
+                 expense.date.isBefore(now.add(const Duration(days: 1)));
+        }).toList();
+        
+      case FilterPeriod.monthly:
+        return _expenses.where((expense) {
+          return expense.date.year == now.year && expense.date.month == now.month;
+        }).toList();
+        
+      case FilterPeriod.yearly:
+        return _expenses.where((expense) {
+          return expense.date.year == now.year;
+        }).toList();
+        
+      case FilterPeriod.allTime:
+        return List.from(_expenses);
+        
+      case FilterPeriod.custom:
+        if (customStart == null || customEnd == null) return List.from(_expenses);
+        return _expenses.where((expense) {
+          return expense.date.isAfter(customStart.subtract(const Duration(days: 1))) &&
+                 expense.date.isBefore(customEnd.add(const Duration(days: 1)));
+        }).toList();
+    }
+  }
+
+  /// Get total for a specific period
+  double getTotalByPeriod(FilterPeriod period, {DateTime? customStart, DateTime? customEnd}) {
+    return getExpensesByPeriodType(period, customStart: customStart, customEnd: customEnd)
+        .fold(0, (sum, expense) => sum + expense.amount);
+  }
+
+  /// Get category totals for a specific period
+  Map<String, double> getCategoryTotalsByPeriod(FilterPeriod period, {DateTime? customStart, DateTime? customEnd}) {
+    final expenses = getExpensesByPeriodType(period, customStart: customStart, customEnd: customEnd);
+    Map<String, double> totals = {};
+    for (var expense in expenses) {
+      totals[expense.category] = (totals[expense.category] ?? 0) + expense.amount;
+    }
+    return totals;
+  }
+
+  /// Get expenses by category for a specific period
+  List<Expense> getExpensesByCategoryAndPeriod(String category, FilterPeriod period, {DateTime? customStart, DateTime? customEnd}) {
+    return getExpensesByPeriodType(period, customStart: customStart, customEnd: customEnd)
+        .where((expense) => expense.category == category)
+        .toList();
+  }
 
   // Note: initialize() method removed - use initializeWithUser() instead
 
@@ -430,6 +550,82 @@ class ExpenseProvider extends ChangeNotifier {
     }
   }
 
+  // ==================== ACCOUNT METHODS ====================
+
+  /// Get account by ID
+  BankAccount? getAccountById(String accountId) {
+    return _accounts.firstWhere(
+      (acc) => acc.id == accountId,
+      orElse: () => BankAccount(id: '', name: ''),
+    ).id.isEmpty ? null : _accounts.firstWhere((acc) => acc.id == accountId);
+  }
+
+  /// Get account name by ID
+  String getAccountName(String? accountId) {
+    if (accountId == null || accountId.isEmpty) return '';
+    final account = getAccountById(accountId);
+    return account?.name ?? '';
+  }
+
+  /// Add a new bank account
+  Future<void> addAccount(BankAccount account) async {
+    try {
+      // If this is the first account, make it default
+      final isFirst = _accounts.isEmpty;
+      final newAccount = isFirst ? account.copyWith(isDefault: true) : account;
+      
+      _accounts.add(newAccount);
+      await _saveAccountsToBackend();
+      notifyListeners();
+    } catch (e) {
+      _accounts.removeWhere((acc) => acc.id == account.id);
+      throw Exception('Failed to add account: $e');
+    }
+  }
+
+  /// Remove a bank account
+  Future<void> removeAccount(String accountId) async {
+    try {
+      final removedAccount = _accounts.firstWhere((acc) => acc.id == accountId);
+      final wasDefault = removedAccount.isDefault;
+      _accounts.removeWhere((acc) => acc.id == accountId);
+      
+      // If removed account was default, set first remaining account as default
+      if (wasDefault && _accounts.isNotEmpty) {
+        _accounts[0] = _accounts[0].copyWith(isDefault: true);
+      }
+      
+      await _saveAccountsToBackend();
+      notifyListeners();
+    } catch (e) {
+      throw Exception('Failed to remove account: $e');
+    }
+  }
+
+  /// Set an account as the default
+  Future<void> setDefaultAccount(String accountId) async {
+    try {
+      for (int i = 0; i < _accounts.length; i++) {
+        _accounts[i] = _accounts[i].copyWith(
+          isDefault: _accounts[i].id == accountId,
+        );
+      }
+      await _saveAccountsToBackend();
+      notifyListeners();
+    } catch (e) {
+      throw Exception('Failed to set default account: $e');
+    }
+  }
+
+  /// Save accounts to backend
+  Future<void> _saveAccountsToBackend() async {
+    try {
+      await ExpenseSupabaseService.saveAccounts(_accounts, userId: _userId);
+    } catch (e) {
+      throw Exception('Failed to save accounts: $e');
+    }
+  }
+
   /// SEARCH AND FILTER
   void setSearchQuery(String query) {
     _searchQuery = query;
@@ -447,7 +643,7 @@ class ExpenseProvider extends ChangeNotifier {
   }
 
   double getCategoryExpenses(String category) {
-    return _expenses
+    return currentMonthExpenses
         .where((expense) => expense.category == category)
         .fold(0.0, (sum, expense) => sum + expense.amount);
   }
@@ -582,13 +778,15 @@ class ExpenseProvider extends ChangeNotifier {
 
   bool isCategoryOverBudget(String category) {
     final budget = getCategoryBudget(category);
-    final expenses = getCategoryExpenses(category);
+    // Use current month expenses since budgets are monthly
+    final expenses = getCurrentMonthCategoryExpenses(category);
     return expenses > budget && budget > 0;
   }
 
   double getCategoryBudgetExcess(String category) {
     final budget = getCategoryBudget(category);
-    final expenses = getCategoryExpenses(category);
+    // Use current month expenses since budgets are monthly
+    final expenses = getCurrentMonthCategoryExpenses(category);
     return expenses - budget;
   }
 

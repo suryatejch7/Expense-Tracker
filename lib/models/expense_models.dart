@@ -11,6 +11,7 @@ class Expense {
   final String? paymentApp;
   final String? transactionId;
   final String? notes;
+  final String? accountId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -24,6 +25,7 @@ class Expense {
     this.paymentApp,
     this.transactionId,
     this.notes,
+    this.accountId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -40,6 +42,7 @@ class Expense {
       paymentApp: data['payment_app'],
       transactionId: data['transaction_id'],
       notes: data['notes'],
+      accountId: data['account_id'],
       createdAt: DateTime.parse(data['created_at']),
       updatedAt: DateTime.parse(data['updated_at']),
     );
@@ -57,6 +60,7 @@ class Expense {
       'payment_app': paymentApp,
       'transaction_id': transactionId,
       'notes': notes,
+      'account_id': accountId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -73,6 +77,7 @@ class Expense {
     String? paymentApp,
     String? transactionId,
     String? notes,
+    String? accountId,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -86,6 +91,7 @@ class Expense {
       paymentApp: paymentApp ?? this.paymentApp,
       transactionId: transactionId ?? this.transactionId,
       notes: notes ?? this.notes,
+      accountId: accountId ?? this.accountId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -203,5 +209,49 @@ class ExpenseCategory {
         isDefault: true,
       ),
     ];
+  }
+}
+
+/// Model for bank accounts
+class BankAccount {
+  final String id;
+  final String name;
+  final bool isDefault;
+
+  BankAccount({
+    required this.id,
+    required this.name,
+    this.isDefault = false,
+  });
+
+  /// Create BankAccount from Supabase data
+  factory BankAccount.fromSupabase(Map<String, dynamic> data) {
+    return BankAccount(
+      id: data['id'] as String,
+      name: data['name'] as String,
+      isDefault: data['is_default'] as bool? ?? false,
+    );
+  }
+
+  /// Convert BankAccount to Supabase format
+  Map<String, dynamic> toSupabase() {
+    return {
+      'id': id,
+      'name': name,
+      'is_default': isDefault,
+    };
+  }
+
+  /// Create a copy with updated fields
+  BankAccount copyWith({
+    String? id,
+    String? name,
+    bool? isDefault,
+  }) {
+    return BankAccount(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      isDefault: isDefault ?? this.isDefault,
+    );
   }
 }

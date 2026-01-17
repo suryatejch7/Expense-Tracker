@@ -51,10 +51,10 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Sign In'),
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: Colors.black,
       ),
       body: Center(
         child: Padding(

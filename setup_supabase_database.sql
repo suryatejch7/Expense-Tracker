@@ -89,6 +89,12 @@ CREATE TRIGGER update_user_settings_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+-- Add accounts column to user_settings (run this if upgrading existing database)
+ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS accounts JSONB DEFAULT '[]';
+
+-- Add account_id column to expenses table (run this if upgrading existing database)
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS account_id TEXT;
+
 -- Insert default user for testing (optional)
 INSERT INTO public.users (user_name) 
 VALUES ('Default User')

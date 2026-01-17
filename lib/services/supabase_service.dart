@@ -193,6 +193,20 @@ class ExpenseSupabaseService {
     }
   }
 
+  /// Save bank accounts
+  static Future<void> saveAccounts(List<BankAccount> accounts, {required int userId}) async {
+    try {
+      final settings = await getUserSettings(userId: userId);
+      final updatedSettings = settings.copyWith(
+        accounts: accounts,
+        updatedAt: DateTime.now(),
+      );
+      await saveUserSettings(updatedSettings);
+    } catch (e) {
+      throw Exception('Failed to save accounts: $e');
+    }
+  }
+
   // ==================== EXPENSE MANAGEMENT ====================
 
   /// Add a new expense to Supabase

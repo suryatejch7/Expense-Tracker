@@ -55,18 +55,9 @@ class _MainScreenState extends State<MainScreen> {
       extendBody: true,
       body: Stack(
         children: [
-          // Background gradient
+          // Background - pitch black
           Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF121212),
-                  Color(0xFF1E1E1E),
-                ],
-              ),
-            ),
+            color: Colors.black,
           ),
           // Main content without bottom padding
           _screens[_currentIndex],
@@ -74,46 +65,55 @@ class _MainScreenState extends State<MainScreen> {
           GlassNavBar(
             currentIndex: _currentIndex,
             onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
+              // Only update if tapping a different tab
+              if (index != _currentIndex) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              }
             },
           ),
         ],
       ),
+      // Only show FAB on dashboard (index 0) with fade animation
       floatingActionButton: AnimatedSwitcher(
-        duration: Duration.zero, // No animation
-        child: GestureDetector(
-          key: const ValueKey('fab_gesture'),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AddExpenseScreen(),
-              ),
-            );
-          },
-          onLongPress: () {
-            _showAddExpenseOptions();
-          },
-          onVerticalDragEnd: (details) {
-            if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
-              // Swipe up detected - navigate to TransactionScannerScreen
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const TransactionScannerScreen(),
-                ),
-              );
-            }
-          },
-          child: FloatingActionButton(
-            key: const ValueKey('main_fab'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            onPressed: null, // Disable default onPressed
-            child: const Icon(Icons.add, color: Colors.black),
-          ),
+        duration: const Duration(milliseconds: 200),
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: child,
         ),
+        child: _currentIndex == 0
+            ? GestureDetector(
+                key: const ValueKey('fab_visible'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddExpenseScreen(),
+                    ),
+                  );
+                },
+                onLongPress: () {
+                  _showAddExpenseOptions();
+                },
+                onVerticalDragEnd: (details) {
+                  if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
+                    // Swipe up detected - navigate to TransactionScannerScreen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TransactionScannerScreen(),
+                      ),
+                    );
+                  }
+                },
+                child: FloatingActionButton(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  onPressed: null, // Disable default onPressed
+                  child: const Icon(Icons.add, color: Colors.black),
+                ),
+              )
+            : const SizedBox.shrink(key: ValueKey('fab_hidden')),
       ),
       floatingActionButtonLocation: _CustomFABLocation(),
     );

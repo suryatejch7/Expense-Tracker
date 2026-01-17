@@ -16,8 +16,10 @@ class _CategorySummaryState extends State<CategorySummary> {
   Widget build(BuildContext context) {
     return Consumer<ExpenseProvider>(
       builder: (context, expenseProvider, child) {
-        final categoryTotals = expenseProvider.categoryTotals;
+        // Use current month data instead of all-time
+        final categoryTotals = expenseProvider.currentMonthCategoryTotals;
         final categories = expenseProvider.categories;
+        final currentMonthTotal = expenseProvider.currentMonthTotalExpense;
 
         if (categoryTotals.isEmpty) {
           return const SizedBox.shrink();
@@ -27,7 +29,7 @@ class _CategorySummaryState extends State<CategorySummary> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Spending by Category',
+              'This Month by Category',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -43,7 +45,7 @@ class _CategorySummaryState extends State<CategorySummary> {
                 itemBuilder: (context, index) {
                   final categoryName = categoryTotals.keys.elementAt(index);
                   final amount = categoryTotals[categoryName]!;
-                  final percentage = (amount / expenseProvider.totalExpense * 100);
+                  final percentage = currentMonthTotal > 0 ? (amount / currentMonthTotal * 100) : 0.0;
                   final isOverBudget = expenseProvider.isCategoryOverBudget(categoryName);
                   final budget = expenseProvider.getCategoryBudget(categoryName);
 

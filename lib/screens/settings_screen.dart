@@ -261,18 +261,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1A1A1A),
+                    color: const Color(0xFF0D0D0D),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.grey.withValues(alpha: 0.2),
+                      color: Colors.grey.withValues(alpha: 0.15),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -483,6 +476,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 const SizedBox(height: 20),
 
+                // Bank Accounts Section
+                _buildAccountsSection(expenseProvider),
+
+                const SizedBox(height: 20),
+
                 // Notification Settings Section
                 _buildNotificationSettingsSection(),
 
@@ -535,18 +533,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: const Color(0xFF0D0D0D),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.grey.withValues(alpha: 0.2),
+          color: Colors.grey.withValues(alpha: 0.15),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1011,6 +1002,311 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 scaffoldMessenger.showSnackBar(
                   SnackBar(
                     content: Text('Category "${category.name}" deleted successfully!'),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==================== ACCOUNTS SECTION ====================
+
+  Widget _buildAccountsSection(ExpenseProvider expenseProvider) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0D0D),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.grey.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with title and add button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Bank Accounts',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _showAddAccountDialog,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Show empty state if no accounts
+          if (expenseProvider.accounts.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.account_balance_outlined,
+                    size: 48,
+                    color: Colors.grey.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No accounts yet',
+                    style: TextStyle(
+                      color: Colors.grey.withValues(alpha: 0.8),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Add your bank accounts to track which account you spend from',
+                    style: TextStyle(
+                      color: Colors.grey.withValues(alpha: 0.6),
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            )
+          else
+            // Accounts List
+            ...expenseProvider.accounts.map((account) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: account.isDefault
+                        ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
+                        : Colors.grey.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.account_balance,
+                          color: account.isDefault
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          account.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 16,
+                          ),
+                        ),
+                        if (account.isDefault) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Default',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        if (!account.isDefault)
+                          IconButton(
+                            onPressed: () => _setDefaultAccount(account.id),
+                            icon: const Icon(
+                              Icons.star_border,
+                              color: Colors.grey,
+                              size: 20,
+                            ),
+                            tooltip: 'Set as default',
+                          ),
+                        IconButton(
+                          onPressed: () => _showDeleteAccountDialog(account),
+                          icon: const Icon(
+                            Icons.delete,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  void _showAddAccountDialog() {
+    final accountNameController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        title: const Text(
+          'Add Bank Account',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: TextField(
+          controller: accountNameController,
+          style: const TextStyle(color: Colors.white),
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'e.g., SBI, HDFC, Axis',
+            hintStyle: const TextStyle(color: Colors.grey),
+            filled: true,
+            fillColor: const Color(0xFF1A1A1A),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            prefixIcon: const Icon(Icons.account_balance, color: Colors.grey),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = accountNameController.text.trim();
+              if (name.isEmpty) return;
+
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final provider = context.read<ExpenseProvider>();
+
+              final newAccount = BankAccount(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                name: name,
+                isDefault: provider.accounts.isEmpty,
+              );
+
+              await provider.addAccount(newAccount);
+              navigator.pop();
+
+              if (mounted) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Account "$name" added successfully!'),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+            ),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _setDefaultAccount(String accountId) async {
+    final provider = context.read<ExpenseProvider>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    await provider.setDefaultAccount(accountId);
+
+    if (mounted) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: const Text('Default account updated!'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  void _showDeleteAccountDialog(BankAccount account) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        title: const Text(
+          'Delete Account',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${account.name}"?',
+          style: const TextStyle(color: Colors.white),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final provider = context.read<ExpenseProvider>();
+
+              await provider.removeAccount(account.id);
+              navigator.pop();
+
+              if (mounted) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Account "${account.name}" deleted!'),
                     backgroundColor: Colors.red,
                     duration: const Duration(seconds: 1),
                   ),

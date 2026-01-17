@@ -53,21 +53,32 @@ class _GlassBottomSheetState extends State<GlassBottomSheet>
     final maxHeight = screenHeight * 0.5; // Increased from 0.4 to 0.5
     final finalHeight = contentHeight.clamp(200.0, maxHeight); // Increased min from 180
 
-    return SlideTransition(
-      position: _slideAnimation,
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          margin: const EdgeInsets.all(20),
-          width: screenWidth - 40,
-          height: finalHeight,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(25),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+    return GestureDetector(
+      // Tap anywhere outside the bottom sheet to dismiss
+      onTap: () => Navigator.of(context).pop(),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        color: Colors.transparent,
+        width: double.infinity,
+        height: double.infinity,
+        child: GestureDetector(
+          // Prevent tap on the sheet itself from dismissing
+          onTap: () {},
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: Align(
+              alignment: Alignment.bottomCenter,
               child: Container(
-                decoration: BoxDecoration(
+                margin: const EdgeInsets.all(20),
+                width: screenWidth - 40,
+                height: finalHeight,
+                child: ClipRRect(
                   borderRadius: BorderRadius.circular(25),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(25),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -132,6 +143,9 @@ class _GlassBottomSheetState extends State<GlassBottomSheet>
                 ),
               ),
             ),
+          ),
+        ),
+      ),
           ),
         ),
       ),
