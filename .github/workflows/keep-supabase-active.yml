@@ -17,14 +17,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          # Make a simple query to keep database active
-          curl -X POST \
-            "${SUPABASE_URL}/rest/v1/rpc/ping" \
-            -H "apikey: ${SUPABASE_ANON_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-            -H "Content-Type: application/json" \
-            -d '{}' || \
-          # Fallback: query users table with limit 1
+          # Query users table to keep database active
           curl -X GET \
             "${SUPABASE_URL}/rest/v1/users?limit=1" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
