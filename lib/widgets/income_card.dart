@@ -2,85 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/expense_models.dart';
 import '../providers/expense_provider.dart';
-import '../screens/add_expense_screen.dart';
+import '../screens/add_income_screen.dart';
 
-class ExpenseCard extends StatelessWidget {
-  final Expense expense;
+class IncomeCard extends StatelessWidget {
+  final Income income;
   final int index; // For staggered animation
 
-  const ExpenseCard({super.key, required this.expense, this.index = 0});
-
-  // Category color mapping for the new string-based category system
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Colors.orange;
-      case 'transportation':
-        return Colors.blue;
-      case 'entertainment':
-        return Colors.purple;
-      case 'shopping':
-        return Colors.pink;
-      case 'healthcare':
-        return Colors.red;
-      case 'education':
-        return Colors.green;
-      case 'utilities':
-        return Colors.yellow;
-      case 'travel':
-        return Colors.teal;
-      case 'groceries':
-        return Colors.lightGreen;
-      case 'dining':
-        return Colors.amber;
-      case 'fuel':
-        return Colors.deepOrange;
-      case 'subscriptions':
-        return Colors.indigo;
-      case 'other':
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Icons.restaurant;
-      case 'transportation':
-        return Icons.directions_car;
-      case 'entertainment':
-        return Icons.movie;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'healthcare':
-        return Icons.local_hospital;
-      case 'education':
-        return Icons.school;
-      case 'utilities':
-        return Icons.electrical_services;
-      case 'travel':
-        return Icons.flight;
-      case 'groceries':
-        return Icons.shopping_cart;
-      case 'dining':
-        return Icons.restaurant_menu;
-      case 'fuel':
-        return Icons.local_gas_station;
-      case 'subscriptions':
-        return Icons.subscriptions;
-      case 'other':
-        return Icons.category;
-      default:
-        return Icons.category;
-    }
-  }
+  const IncomeCard({super.key, required this.income, this.index = 0});
 
   @override
   Widget build(BuildContext context) {
-    final categoryColor = _getCategoryColor(expense.category);
-    final categoryIcon = _getCategoryIcon(expense.category);
     final currency = context.watch<ExpenseProvider>().currency;
 
     return Card(
@@ -91,7 +22,7 @@ class ExpenseCard extends StatelessWidget {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => AddExpenseScreen(expense: expense),
+              builder: (context) => AddIncomeScreen(income: income),
             ),
           );
         },
@@ -99,26 +30,28 @@ class ExpenseCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
+              // Income icon - green themed (same size as expense card)
               Container(
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: categoryColor.withValues(alpha: 0.2),
+                  color: Colors.green.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  categoryIcon,
-                  color: categoryColor,
+                child: const Icon(
+                  Icons.arrow_downward_rounded,
+                  color: Colors.green,
                   size: 24,
                 ),
               ),
               const SizedBox(width: 16),
+              // Income details (same structure as expense card)
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      expense.description,
+                      income.title,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -127,17 +60,17 @@ class ExpenseCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      expense.category,
+                      'Income',
                       style: TextStyle(
                         fontSize: 14,
-                        color: categoryColor,
+                        color: Colors.green[400],
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    if (expense.payee != null) ...[
+                    if (income.source.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'Payee: ${expense.payee}',
+                        'Source: ${income.source}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.grey,
@@ -147,20 +80,21 @@ class ExpenseCard extends StatelessWidget {
                   ],
                 ),
               ),
+              // Amount and date column (same structure as expense card)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '$currency${expense.amount.toStringAsFixed(2)}',
+                    '+$currency${income.amount.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Colors.green,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _formatDate(expense.date),
+                    _formatDate(income.date),
                     style: const TextStyle(
                       fontSize: 12,
                       color: Colors.grey,
@@ -169,6 +103,7 @@ class ExpenseCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(width: 8),
+              // Delete menu - same as expense card
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.grey),
                 onSelected: (value) {
@@ -217,9 +152,9 @@ class ExpenseCard extends StatelessWidget {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF2A2A2A),
-          title: const Text('Delete Expense', style: TextStyle(color: Colors.white)),
+          title: const Text('Delete Income', style: TextStyle(color: Colors.white)),
           content: Text(
-            'Are you sure you want to delete "${expense.description}"?',
+            'Are you sure you want to delete "${income.title}"?',
             style: const TextStyle(color: Colors.white),
           ),
           actions: [
@@ -229,11 +164,13 @@ class ExpenseCard extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {
-                context.read<ExpenseProvider>().deleteExpense(expense.id!);
+                if (income.id != null) {
+                  context.read<ExpenseProvider>().deleteIncome(income.id!);
+                }
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('${expense.description} deleted'),
+                    content: Text('${income.title} deleted'),
                     backgroundColor: Colors.red,
                     duration: const Duration(seconds: 1),
                   ),

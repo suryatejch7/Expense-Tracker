@@ -14,12 +14,21 @@ class AnalyticsScreen extends StatefulWidget {
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   String _selectedPeriod = 'Month';
   final List<String> _periods = ['Day', 'Week', 'Month', 'Year'];
+  String? _selectedAccountId; // null means all accounts
 
   @override
   void initState() {
     super.initState();
     // Note: Data is already loaded by UserProvider initialization
     // Manual refresh is available via the refresh button if needed
+  }
+
+  // Get filtered expenses based on selected account
+  List<Expense> _getFilteredExpenses(ExpenseProvider provider) {
+    if (_selectedAccountId == null) {
+      return provider.expenses;
+    }
+    return provider.expenses.where((e) => e.accountId == _selectedAccountId).toList();
   }
 
   @override
@@ -59,6 +68,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               children: [
                 // Period Selector
                 _buildPeriodSelector(),
+                const SizedBox(height: 12),
+
+                // Account Selector
+                _buildAccountSelector(provider),
                 const SizedBox(height: 20),
 
                 // Total Spending Overview
@@ -137,6 +150,61 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  Widget _buildAccountSelector(ExpenseProvider provider) {
+    final accounts = provider.accounts;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0D0D),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: _selectedAccountId,
+          isExpanded: true,
+          dropdownColor: const Color(0xFF1A1A1A),
+          icon: Icon(Icons.keyboard_arrow_down, color: Theme.of(context).colorScheme.primary),
+          hint: Row(
+            children: [
+              Icon(Icons.account_balance_wallet, color: Theme.of(context).colorScheme.primary, size: 20),
+              const SizedBox(width: 8),
+              const Text('All Accounts', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          items: [
+            DropdownMenuItem<String?>(
+              value: null,
+              child: Row(
+                children: [
+                  Icon(Icons.account_balance_wallet, color: Theme.of(context).colorScheme.primary, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('All Accounts', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+            ...accounts.map((account) => DropdownMenuItem<String?>(
+              value: account.id,
+              child: Row(
+                children: [
+                  Icon(Icons.account_balance, color: Theme.of(context).colorScheme.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Text(account.name, style: const TextStyle(color: Colors.white)),
+                ],
+              ),
+            )),
+          ],
+          onChanged: (value) {
+            setState(() {
+              _selectedAccountId = value;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildTotalSpendingCard(ExpenseProvider provider) {
     final periodData = _getPeriodData(provider);
     final previousPeriodData = _getPreviousPeriodData(provider);
@@ -206,7 +274,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         height: 150,
         child: CustomPaint(
           painter: SpendingTrendPainter(
-            expenses: provider.expenses,
+            expenses: _getFilteredExpenses(provider),
             period: _selectedPeriod,
           ),
           size: const Size.fromHeight(150),
@@ -570,7 +638,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       child: SizedBox(
         height: 120,
         child: CustomPaint(
-          painter: ComparisonBarPainter(expenses: provider.expenses, period: _selectedPeriod),
+          painter: ComparisonBarPainter(expenses: _getFilteredExpenses(provider), period: _selectedPeriod),
           size: const Size.fromHeight(120),
         ),
       ),
@@ -606,8 +674,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   double _getPeriodData(ExpenseProvider provider) {
     final now = DateTime.now();
-    // Ensure we're using the most up-to-date expenses
-    final expenses = provider.expenses.where((expense) {
+    // Ensure we're using the most up-to-date expenses, filtered by account
+    final baseExpenses = _getFilteredExpenses(provider);
+    final expenses = baseExpenses.where((expense) {
       switch (_selectedPeriod) {
         case 'Day':
           return expense.date.year == now.year &&
@@ -631,8 +700,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   double _getPreviousPeriodData(ExpenseProvider provider) {
     final now = DateTime.now();
-    // Ensure we're using the most up-to-date expenses
-    final expenses = provider.expenses.where((expense) {
+    // Ensure we're using the most up-to-date expenses, filtered by account
+    final baseExpenses = _getFilteredExpenses(provider);
+    final expenses = baseExpenses.where((expense) {
       switch (_selectedPeriod) {
         case 'Day':
           final yesterday = now.subtract(const Duration(days: 1));
@@ -738,10 +808,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
   }
 
-  /// Get category totals filtered by selected period
+  /// Get category totals filtered by selected period and account
   Map<String, double> _getCategoryTotalsForPeriod(ExpenseProvider provider) {
     final now = DateTime.now();
-    final filteredExpenses = provider.expenses.where((expense) {
+    final baseExpenses = _getFilteredExpenses(provider);
+    final filteredExpenses = baseExpenses.where((expense) {
       switch (_selectedPeriod) {
         case 'Day':
           return expense.date.year == now.year &&
@@ -766,10 +837,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return totals;
   }
 
-  /// Get filtered expenses for the selected period
+  /// Get filtered expenses for the selected period and account
   List<Expense> _getExpensesForPeriod(ExpenseProvider provider) {
     final now = DateTime.now();
-    return provider.expenses.where((expense) {
+    final baseExpenses = _getFilteredExpenses(provider);
+    return baseExpenses.where((expense) {
       switch (_selectedPeriod) {
         case 'Day':
           return expense.date.year == now.year &&

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
+import '../models/expense_models.dart';
 import '../widgets/expense_card.dart';
+import '../widgets/income_card.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -29,7 +31,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Search Expenses'),
+        title: const Text('Search'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
@@ -45,7 +47,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 context.read<ExpenseProvider>().setSearchQuery(value);
               },
               decoration: InputDecoration(
-                hintText: 'Search by title, payee, amount, notes...',
+                hintText: 'Search expenses and income...',
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 suffixIcon: _controller.text.isNotEmpty
                     ? IconButton(
@@ -70,7 +72,14 @@ class _SearchScreenState extends State<SearchScreen> {
             child: Consumer<ExpenseProvider>(
               builder: (context, expenseProvider, child) {
                 final expenses = expenseProvider.filteredExpenses;
-                return _buildResultsContent(expenses);
+                final incomes = expenseProvider.filteredIncomes;
+                // Combine and sort by date (most recent first)
+                final List<dynamic> combinedResults = [
+                  ...expenses.map((e) => {'type': 'expense', 'data': e, 'date': e.date}),
+                  ...incomes.map((i) => {'type': 'income', 'data': i, 'date': i.date}),
+                ];
+                combinedResults.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+                return _buildResultsContent(combinedResults);
               },
             ),
           ),
@@ -79,7 +88,7 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildResultsContent(List<dynamic> expenses) {
+  Widget _buildResultsContent(List<dynamic> results) {
     if (_controller.text.isEmpty) {
                   return const Center(
                     child: Column(
@@ -92,7 +101,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                         SizedBox(height: 16),
                         Text(
-                          'Start typing to search expenses',
+                          'Start typing to search',
                           style: TextStyle(
                             fontSize: 18,
                             color: Colors.grey,
@@ -100,7 +109,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Search by: Title, Payee, Amount, Notes, Category',
+                          'Search expenses and income',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
@@ -111,7 +120,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   );
                 }
 
-                if (expenses.isEmpty) {
+                if (results.isEmpty) {
                   return const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -123,7 +132,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                         SizedBox(height: 16),
                         Text(
-                          'No expenses found',
+                          'No results found',
                           style: TextStyle(
                             fontSize: 18,
                             color: Colors.grey,
@@ -137,14 +146,6 @@ class _SearchScreenState extends State<SearchScreen> {
                             color: Colors.grey,
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Search in: Title, Payee, Amount, Notes, Category',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
                       ],
                     ),
                   );
@@ -152,11 +153,15 @@ class _SearchScreenState extends State<SearchScreen> {
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: expenses.length,
+                  itemCount: results.length,
                   itemBuilder: (context, index) {
+                    final item = results[index];
+                    final isExpense = item['type'] == 'expense';
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: ExpenseCard(expense: expenses[index], index: index),
+                      child: isExpense
+                          ? ExpenseCard(expense: item['data'] as Expense, index: index)
+                          : IncomeCard(income: item['data'] as Income, index: index),
                     );
                   },
                 );

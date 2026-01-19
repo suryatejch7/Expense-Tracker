@@ -21,6 +21,7 @@ class _CategorySummaryState extends State<CategorySummary> {
         final categoryTotals = expenseProvider.currentMonthCategoryTotals;
         final categories = expenseProvider.categories;
         final currentMonthTotal = expenseProvider.currentMonthTotalExpense;
+        final currency = expenseProvider.currency;
 
         if (categoryTotals.isEmpty) {
           return const SizedBox.shrink();
@@ -110,7 +111,7 @@ class _CategorySummaryState extends State<CategorySummary> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '₹${amount.toStringAsFixed(0)}',
+                            '$currency${amount.toStringAsFixed(0)}',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,

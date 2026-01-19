@@ -4,6 +4,32 @@ import '../providers/expense_provider.dart';
 import '../models/expense_models.dart';
 import '../models/transaction_ocr_models.dart';
 
+/// Performance logging helper for AddExpenseScreen
+class _ExpensePerfLog {
+  static final Stopwatch _stopwatch = Stopwatch();
+  static DateTime? _lastTimestamp;
+  
+  static void log(String message) {
+    final now = DateTime.now();
+    final elapsed = _lastTimestamp != null 
+        ? now.difference(_lastTimestamp!).inMilliseconds 
+        : 0;
+    _lastTimestamp = now;
+    debugPrint('[ADD_EXPENSE ${now.toString().substring(11, 23)}] (+${elapsed}ms) $message');
+  }
+  
+  static void startTimer(String label) {
+    _stopwatch.reset();
+    _stopwatch.start();
+    log('⏱️ START: $label');
+  }
+  
+  static void endTimer(String label) {
+    _stopwatch.stop();
+    log('⏱️ END: $label - took ${_stopwatch.elapsedMilliseconds}ms');
+  }
+}
+
 class AddExpenseScreen extends StatefulWidget {
   final Expense? expense;
   final double? prefilledAmount;
@@ -36,20 +62,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String _selectedCategory = 'Food';
   DateTime _selectedDate = DateTime.now();
   String? _selectedAccountId;
+  int _buildCount = 0;
+  bool _isInitialized = false;
 
   @override
   void initState() {
+    _ExpensePerfLog.log('🚀 initState() called');
+    _ExpensePerfLog.log('   - Editing existing: ${widget.expense != null}');
+    _ExpensePerfLog.log('   - Prefilled amount: ${widget.prefilledAmount}');
+    _ExpensePerfLog.log('   - Prefilled payee: ${widget.prefilledPayee}');
     super.initState();
-    
-    // Initialize default account
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<ExpenseProvider>();
-      if (_selectedAccountId == null && provider.defaultAccount != null) {
-        setState(() {
-          _selectedAccountId = provider.defaultAccount!.id;
-        });
-      }
-    });
     
     if (widget.expense != null) {
       // Editing existing expense
@@ -60,6 +82,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _selectedCategory = widget.expense!.category;
       _selectedDate = widget.expense!.date;
       _selectedAccountId = widget.expense!.accountId;
+      _ExpensePerfLog.log('✅ Loaded existing expense data');
     } else {
       // Handle OCR pre-filled data
       if (widget.prefilledAmount != null) {
@@ -73,11 +96,28 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           _titleController.text = 'Payment to ${widget.prefilledPayee}';
         }
       }
+      _ExpensePerfLog.log('✅ Initialized for new expense');
+    }
+    _ExpensePerfLog.log('✅ initState() complete');
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Initialize default account only once, synchronously during first build
+    if (!_isInitialized) {
+      _isInitialized = true;
+      final provider = context.read<ExpenseProvider>();
+      if (_selectedAccountId == null && provider.defaultAccount != null) {
+        _selectedAccountId = provider.defaultAccount!.id;
+        _ExpensePerfLog.log('📋 Default account set: ${provider.defaultAccount?.name}');
+      }
     }
   }
 
   @override
   void dispose() {
+    _ExpensePerfLog.log('🗑️ dispose() called - total builds: $_buildCount');
     _titleController.dispose();
     _amountController.dispose();
     _payeeController.dispose();
@@ -87,6 +127,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _buildCount++;
+    _ExpensePerfLog.log('🔨 build() #$_buildCount called');
+    final currency = context.watch<ExpenseProvider>().currency;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -125,7 +168,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 labelText: 'Amount',
                 hintText: '0.00',
                 keyboardType: TextInputType.number,
-                prefixText: '₹ ',
+                prefixText: '$currency ',
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter an amount';
@@ -486,15 +529,28 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Future<void> _saveExpense() async {
+    _ExpensePerfLog.startTimer('Save expense');
+    _ExpensePerfLog.log('💾 _saveExpense() called');
+    
     if (!_formKey.currentState!.validate()) {
+      _ExpensePerfLog.log('❌ Form validation failed');
+      _ExpensePerfLog.endTimer('Save expense');
       return;
     }
+    _ExpensePerfLog.log('✅ Form validation passed');
 
     try {
       final title = _titleController.text.trim();
       final amount = double.parse(_amountController.text.trim());
       final payee = _payeeController.text.trim().isEmpty ? null : _payeeController.text.trim();
       final now = DateTime.now();
+
+      _ExpensePerfLog.log('📝 Creating expense object...');
+      _ExpensePerfLog.log('   - Title: $title');
+      _ExpensePerfLog.log('   - Amount: $amount');
+      _ExpensePerfLog.log('   - Category: $_selectedCategory');
+      _ExpensePerfLog.log('   - Date: $_selectedDate');
+      _ExpensePerfLog.log('   - Account: $_selectedAccountId');
 
       final expense = Expense(
         id: widget.expense?.id,
@@ -510,11 +566,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         createdAt: widget.expense?.createdAt ?? now,
         updatedAt: now,
       );
+      _ExpensePerfLog.log('✅ Expense object created');
 
       final provider = context.read<ExpenseProvider>();
+      _ExpensePerfLog.log('📤 Getting provider...');
 
       if (widget.expense != null) {
+        _ExpensePerfLog.log('🔄 Updating existing expense...');
         await provider.updateExpense(expense);
+        _ExpensePerfLog.log('✅ Expense updated in provider');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -525,7 +585,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           );
         }
       } else {
+        _ExpensePerfLog.log('➕ Adding new expense...');
         await provider.addExpense(expense);
+        _ExpensePerfLog.log('✅ Expense added to provider');
+        _ExpensePerfLog.log('   - Total expenses now: ${provider.expenses.length}');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -537,10 +600,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         }
       }
 
+      _ExpensePerfLog.endTimer('Save expense');
+      
       if (mounted) {
+        _ExpensePerfLog.log('👈 Navigating back...');
         Navigator.pop(context, true); // Return true to indicate success
       }
     } catch (e) {
+      _ExpensePerfLog.log('❌ ERROR saving expense: $e');
+      _ExpensePerfLog.endTimer('Save expense');
       if (mounted) {
         String errorMessage = 'Failed to save expense';
         if (e.toString().contains('network')) {

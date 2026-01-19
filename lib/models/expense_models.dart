@@ -98,6 +98,86 @@ class Expense {
   }
 }
 
+/// Model for income/credit transactions stored in Supabase
+class Income {
+  final String? id;
+  final double amount;
+  final String title;
+  final String source; // Who paid / where it came from
+  final DateTime date;
+  final String? notes;
+  final String? accountId; // Which account received the money
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  Income({
+    this.id,
+    required this.amount,
+    required this.title,
+    required this.source,
+    required this.date,
+    this.notes,
+    this.accountId,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  /// Create Income from Supabase row
+  factory Income.fromSupabase(Map<String, dynamic> data) {
+    return Income(
+      id: data['id']?.toString(),
+      amount: (data['amount'] as num).toDouble(),
+      title: data['title'] ?? '',
+      source: data['source'] ?? '',
+      date: DateTime.parse(data['date']),
+      notes: data['notes'],
+      accountId: data['account_id'],
+      createdAt: DateTime.parse(data['created_at']),
+      updatedAt: DateTime.parse(data['updated_at']),
+    );
+  }
+
+  /// Convert Income to Supabase format
+  Map<String, dynamic> toSupabase() {
+    return {
+      if (id != null) 'id': id,
+      'amount': amount,
+      'title': title,
+      'source': source,
+      'date': date.toIso8601String(),
+      'notes': notes,
+      'account_id': accountId,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+
+  /// Create a copy with updated fields
+  Income copyWith({
+    String? id,
+    double? amount,
+    String? title,
+    String? source,
+    DateTime? date,
+    String? notes,
+    String? accountId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Income(
+      id: id ?? this.id,
+      amount: amount ?? this.amount,
+      title: title ?? this.title,
+      source: source ?? this.source,
+      date: date ?? this.date,
+      notes: notes ?? this.notes,
+      accountId: accountId ?? this.accountId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+}
+
 /// Model for expense categories
 class ExpenseCategory {
   final String id;

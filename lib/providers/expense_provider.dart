@@ -16,6 +16,7 @@ enum FilterPeriod {
 
 class ExpenseProvider extends ChangeNotifier {
   final List<Expense> _expenses = [];
+  final List<Income> _incomes = [];
   final List<ExpenseCategory> _customCategories = [];
   final List<BankAccount> _accounts = [];
   final Map<String, double> _categoryBudgets = {};
@@ -38,6 +39,7 @@ class ExpenseProvider extends ChangeNotifier {
 
   // Getters
   List<Expense> get expenses => _expenses;
+  List<Income> get incomes => _incomes;
   List<ExpenseCategory> get customCategories => _customCategories;
   List<BankAccount> get accounts => _accounts;
   int get userId => _userId;
@@ -103,6 +105,9 @@ class ExpenseProvider extends ChangeNotifier {
     await CacheService.cacheSettings(userSettings);
     await CacheService.saveCurrentUserId(userId);
     
+    // Load incomes from server
+    await loadIncomes();
+    
     // Schedule periodic notifications
     await _schedulePeriodicNotifications();
   }
@@ -112,27 +117,35 @@ class ExpenseProvider extends ChangeNotifier {
     try {
       final serverExpenses = await ExpenseSupabaseService.getExpenses(userId: _userId);
       
-      // Only update if server has different data
-      if (_expensesAreDifferent(serverExpenses)) {
-        _expenses.clear();
-        _expenses.addAll(serverExpenses);
-        await CacheService.cacheExpenses(serverExpenses, _userId);
-        notifyListeners();
+      // Merge server data with local data, preserving local additions
+      // This prevents race conditions when adding expenses
+      final serverIds = serverExpenses.map((e) => e.id).toSet();
+      
+      // Find expenses that are only in local (newly added)
+      final newLocalExpenses = _expenses.where((e) => !serverIds.contains(e.id)).toList();
+      
+      // Build merged list FIRST (atomic operation - no clearing)
+      final List<Expense> mergedExpenses = [];
+      mergedExpenses.addAll(newLocalExpenses); // Keep local additions first
+      for (var serverExpense in serverExpenses) {
+        // Only add if not already added from local
+        if (!newLocalExpenses.any((e) => e.id == serverExpense.id)) {
+          mergedExpenses.add(serverExpense);
+        }
       }
+      
+      // Sort by createdAt (most recently added first)
+      mergedExpenses.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      // ATOMIC SWAP: Replace all at once instead of clear + addAll
+      _expenses.clear();
+      _expenses.addAll(mergedExpenses);
+      
+      await CacheService.cacheExpenses(_expenses, _userId);
+      notifyListeners();
     } catch (e) {
       // Server sync failed, continue with cached data
     }
-  }
-  
-  /// Check if server expenses are different from local
-  bool _expensesAreDifferent(List<Expense> serverExpenses) {
-    if (_expenses.length != serverExpenses.length) return true;
-    
-    // Quick check: compare first few IDs
-    for (int i = 0; i < _expenses.length && i < 5; i++) {
-      if (_expenses[i].id != serverExpenses[i].id) return true;
-    }
-    return false;
   }
 
   /// Clear user data when logging out
@@ -145,6 +158,7 @@ class ExpenseProvider extends ChangeNotifier {
     _customCategories.clear();
     _accounts.clear();
     _expenses.clear();
+    _incomes.clear();
     _searchQuery = '';
     _isInitialized = false;
     // Reset pagination
@@ -174,6 +188,9 @@ class ExpenseProvider extends ChangeNotifier {
       
       // Reload expenses from backend
       await _loadExpenses();
+      
+      // Reload incomes from backend
+      await loadIncomes();
       
       // Reload user settings from backend
       final userSettings = await ExpenseSupabaseService.getUserSettings(userId: _userId);
@@ -225,8 +242,44 @@ class ExpenseProvider extends ChangeNotifier {
     }).toList();
   }
 
+  /// Filter incomes based on search query
+  List<Income> get filteredIncomes {
+    if (_searchQuery.isEmpty) {
+      return _incomes;
+    }
+    return _incomes.where((income) {
+      final query = _searchQuery.toLowerCase();
+      
+      // Search in Title
+      final titleMatch = income.title.toLowerCase().contains(query);
+      
+      // Search in Source
+      final sourceMatch = income.source.toLowerCase().contains(query);
+      
+      // Search in Amount
+      final amountMatch = income.amount.toString().contains(query) ||
+                         income.amount.toStringAsFixed(0).contains(query);
+      
+      // Search in Notes
+      final notesMatch = income.notes?.toLowerCase().contains(query) ?? false;
+      
+      return titleMatch || sourceMatch || amountMatch || notesMatch;
+    }).toList();
+  }
+
   double get totalExpense {
     return _expenses.fold(0, (sum, expense) => sum + expense.amount);
+  }
+
+  /// Total income (sum of all income amounts)
+  double get totalIncome {
+    return _incomes.fold(0.0, (sum, income) => sum + income.amount);
+  }
+
+  /// Net balance (total income - total expenses)
+  /// Positive = surplus, Negative = deficit
+  double get netBalance {
+    return totalIncome - totalExpense;
   }
 
   Map<String, double> get categoryTotals {
@@ -282,49 +335,54 @@ class ExpenseProvider extends ChangeNotifier {
 
   // ==================== FILTERED EXPENSES BY PERIOD ====================
 
-  /// Get expenses for a specific period
-  List<Expense> getExpensesByPeriodType(FilterPeriod period, {DateTime? customStart, DateTime? customEnd}) {
+  /// Get expenses for a specific period, optionally filtered by account
+  List<Expense> getExpensesByPeriodType(FilterPeriod period, {DateTime? customStart, DateTime? customEnd, String? accountId}) {
     final now = DateTime.now();
+    
+    // First filter by account if specified
+    List<Expense> baseExpenses = accountId != null
+        ? _expenses.where((expense) => expense.accountId == accountId).toList()
+        : _expenses;
     
     switch (period) {
       case FilterPeriod.weekly:
         final weekStart = now.subtract(Duration(days: now.weekday - 1));
-        return _expenses.where((expense) {
+        return baseExpenses.where((expense) {
           return expense.date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
                  expense.date.isBefore(now.add(const Duration(days: 1)));
         }).toList();
         
       case FilterPeriod.monthly:
-        return _expenses.where((expense) {
+        return baseExpenses.where((expense) {
           return expense.date.year == now.year && expense.date.month == now.month;
         }).toList();
         
       case FilterPeriod.yearly:
-        return _expenses.where((expense) {
+        return baseExpenses.where((expense) {
           return expense.date.year == now.year;
         }).toList();
         
       case FilterPeriod.allTime:
-        return List.from(_expenses);
+        return List.from(baseExpenses);
         
       case FilterPeriod.custom:
-        if (customStart == null || customEnd == null) return List.from(_expenses);
-        return _expenses.where((expense) {
+        if (customStart == null || customEnd == null) return List.from(baseExpenses);
+        return baseExpenses.where((expense) {
           return expense.date.isAfter(customStart.subtract(const Duration(days: 1))) &&
                  expense.date.isBefore(customEnd.add(const Duration(days: 1)));
         }).toList();
     }
   }
 
-  /// Get total for a specific period
-  double getTotalByPeriod(FilterPeriod period, {DateTime? customStart, DateTime? customEnd}) {
-    return getExpensesByPeriodType(period, customStart: customStart, customEnd: customEnd)
+  /// Get total for a specific period, optionally filtered by account
+  double getTotalByPeriod(FilterPeriod period, {DateTime? customStart, DateTime? customEnd, String? accountId}) {
+    return getExpensesByPeriodType(period, customStart: customStart, customEnd: customEnd, accountId: accountId)
         .fold(0, (sum, expense) => sum + expense.amount);
   }
 
-  /// Get category totals for a specific period
-  Map<String, double> getCategoryTotalsByPeriod(FilterPeriod period, {DateTime? customStart, DateTime? customEnd}) {
-    final expenses = getExpensesByPeriodType(period, customStart: customStart, customEnd: customEnd);
+  /// Get category totals for a specific period, optionally filtered by account
+  Map<String, double> getCategoryTotalsByPeriod(FilterPeriod period, {DateTime? customStart, DateTime? customEnd, String? accountId}) {
+    final expenses = getExpensesByPeriodType(period, customStart: customStart, customEnd: customEnd, accountId: accountId);
     Map<String, double> totals = {};
     for (var expense in expenses) {
       totals[expense.category] = (totals[expense.category] ?? 0) + expense.amount;
@@ -332,9 +390,9 @@ class ExpenseProvider extends ChangeNotifier {
     return totals;
   }
 
-  /// Get expenses by category for a specific period
-  List<Expense> getExpensesByCategoryAndPeriod(String category, FilterPeriod period, {DateTime? customStart, DateTime? customEnd}) {
-    return getExpensesByPeriodType(period, customStart: customStart, customEnd: customEnd)
+  /// Get expenses by category for a specific period, optionally filtered by account
+  List<Expense> getExpensesByCategoryAndPeriod(String category, FilterPeriod period, {DateTime? customStart, DateTime? customEnd, String? accountId}) {
+    return getExpensesByPeriodType(period, customStart: customStart, customEnd: customEnd, accountId: accountId)
         .where((expense) => expense.category == category)
         .toList();
   }
@@ -361,16 +419,21 @@ class ExpenseProvider extends ChangeNotifier {
   Future<void> _loadExpenses() async {
     try {
       final expenses = await ExpenseSupabaseService.getExpenses(userId: _userId);
-      _expenses.clear();
-      _expenses.addAll(expenses);
+      // Only update if we got data - atomic swap
+      if (expenses.isNotEmpty || _expenses.isEmpty) {
+        _expenses.clear();
+        _expenses.addAll(expenses);
+      }
       // Update cache
       await CacheService.cacheExpenses(expenses, _userId);
     } catch (e) {
-      // Failed to load expenses, try cache
-      final cached = await CacheService.getCachedExpenses(_userId);
-      if (cached != null) {
-        _expenses.clear();
-        _expenses.addAll(cached);
+      // Failed to load expenses, try cache only if list is empty
+      if (_expenses.isEmpty) {
+        final cached = await CacheService.getCachedExpenses(_userId);
+        if (cached != null && cached.isNotEmpty) {
+          _expenses.clear();
+          _expenses.addAll(cached);
+        }
       }
     }
   }
@@ -384,19 +447,24 @@ class ExpenseProvider extends ChangeNotifier {
         limit: _pageSize,
         offset: 0,
       );
-      _expenses.clear();
-      _expenses.addAll(expenses);
+      // Only update if we got data or list is empty - atomic swap
+      if (expenses.isNotEmpty || _expenses.isEmpty) {
+        _expenses.clear();
+        _expenses.addAll(expenses);
+      }
       _hasMoreExpenses = expenses.length >= _pageSize;
       
       // Cache the first page
       await CacheService.cacheExpenses(expenses, _userId);
     } catch (e) {
-      // Failed to load, try cache
-      final cached = await CacheService.getCachedExpenses(_userId);
-      if (cached != null) {
-        _expenses.clear();
-        _expenses.addAll(cached);
-        _hasMoreExpenses = false;
+      // Failed to load, try cache only if list is empty
+      if (_expenses.isEmpty) {
+        final cached = await CacheService.getCachedExpenses(_userId);
+        if (cached != null && cached.isNotEmpty) {
+          _expenses.clear();
+          _expenses.addAll(cached);
+          _hasMoreExpenses = false;
+        }
       }
     }
   }
@@ -449,16 +517,29 @@ class ExpenseProvider extends ChangeNotifier {
       _hasMoreExpenses = true;
       notifyListeners();
       
+      // Reload expenses - fetch first, then swap atomically
       final expenses = await ExpenseSupabaseService.getExpenses(userId: _userId);
-      _expenses.clear();
-      _expenses.addAll(expenses);
+      
+      // Sort by createdAt BEFORE swapping
+      final sortedExpenses = List<Expense>.from(expenses);
+      sortedExpenses.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      // ATOMIC SWAP: Only replace if we got data or current is empty
+      if (sortedExpenses.isNotEmpty || _expenses.isEmpty) {
+        _expenses.clear();
+        _expenses.addAll(sortedExpenses);
+      }
+      
+      // Also reload incomes
+      await loadIncomes();
       
       // Update cache after reload
-      await CacheService.cacheExpenses(expenses, _userId);
+      await CacheService.cacheExpenses(sortedExpenses, _userId);
       
       notifyListeners();
     } catch (e) {
-      // Failed to reload expenses
+      // Failed to reload expenses - keep existing data
+      debugPrint('[PROVIDER] ❌ reloadExpenses() failed: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -519,33 +600,54 @@ class ExpenseProvider extends ChangeNotifier {
 
   /// ADD EXPENSE - WITH BACKEND SYNC AND CACHE
   Future<void> addExpense(Expense expense) async {
+    final stopwatch = Stopwatch()..start();
+    debugPrint('[PROVIDER] 💾 addExpense() called');
+    debugPrint('[PROVIDER]    - Description: ${expense.description}');
+    debugPrint('[PROVIDER]    - Amount: ${expense.amount}');
+    debugPrint('[PROVIDER]    - Category: ${expense.category}');
+    debugPrint('[PROVIDER]    - Current expenses count: ${_expenses.length}');
+    
     try {
-      _isLoading = true;
-      notifyListeners();
-      
-      // Add expense to backend first
+      // Add expense to backend first (no loading state to avoid jitter)
+      debugPrint('[PROVIDER] 📤 Sending to Supabase...');
+      final supabaseStart = stopwatch.elapsedMilliseconds;
       final expenseId = await ExpenseSupabaseService.addExpense(expense, _userId);
+      debugPrint('[PROVIDER] ✅ Supabase returned ID: $expenseId (took ${stopwatch.elapsedMilliseconds - supabaseStart}ms)');
+      
       final expenseWithId = expense.copyWith(id: expenseId);
       
-      // Add to local list (insert at beginning for most recent first)
-      _expenses.insert(0, expenseWithId);
+      // Check if expense already exists (prevent duplicates)
+      final existingIndex = _expenses.indexWhere((e) => e.id == expenseId);
+      debugPrint('[PROVIDER] 🔍 Checking for duplicates: existingIndex=$existingIndex');
+      
+      if (existingIndex == -1) {
+        // Add to local list (insert at beginning for most recent first)
+        _expenses.insert(0, expenseWithId);
+        debugPrint('[PROVIDER] ➕ Inserted at index 0, new count: ${_expenses.length}');
+      } else {
+        debugPrint('[PROVIDER] ⚠️ DUPLICATE detected! Not inserting.');
+      }
       
       // Update cache
+      debugPrint('[PROVIDER] 💾 Updating cache...');
+      final cacheStart = stopwatch.elapsedMilliseconds;
       await CacheService.addExpenseToCache(expenseWithId, _userId);
+      debugPrint('[PROVIDER] ✅ Cache updated (took ${stopwatch.elapsedMilliseconds - cacheStart}ms)');
       
       // Trigger notifications after adding expense
+      debugPrint('[PROVIDER] 🔔 Triggering notifications...');
       await _triggerExpenseNotifications(expenseWithId);
       
       // Single notifyListeners call to update UI
+      debugPrint('[PROVIDER] 📢 Calling notifyListeners()...');
       notifyListeners();
+      
+      stopwatch.stop();
+      debugPrint('[PROVIDER] ✅ addExpense() complete - total time: ${stopwatch.elapsedMilliseconds}ms');
     } catch (e) {
+      stopwatch.stop();
+      debugPrint('[PROVIDER] ❌ addExpense() FAILED after ${stopwatch.elapsedMilliseconds}ms: $e');
       throw Exception('Failed to add expense: $e');
-    } finally {
-      _isLoading = false;
-      // Only notify if we're still mounted and haven't already notified
-      if (_isLoading == false) {
-        notifyListeners();
-      }
     }
   }
 
@@ -589,6 +691,153 @@ class ExpenseProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // ============= INCOME METHODS =============
+
+  /// ADD INCOME - WITH BACKEND SYNC
+  Future<void> addIncome(Income income) async {
+    final stopwatch = Stopwatch()..start();
+    debugPrint('[PROVIDER] 💰 addIncome() called');
+    debugPrint('[PROVIDER]    - Title: ${income.title}');
+    debugPrint('[PROVIDER]    - Amount: ${income.amount}');
+    debugPrint('[PROVIDER]    - Source: ${income.source}');
+    debugPrint('[PROVIDER]    - Current incomes count: ${_incomes.length}');
+    
+    try {
+      // Add income to backend first (no loading state to avoid jitter)
+      debugPrint('[PROVIDER] 📤 Sending to Supabase...');
+      final supabaseStart = stopwatch.elapsedMilliseconds;
+      final incomeId = await ExpenseSupabaseService.addIncome(income, _userId);
+      debugPrint('[PROVIDER] ✅ Supabase returned ID: $incomeId (took ${stopwatch.elapsedMilliseconds - supabaseStart}ms)');
+      
+      final incomeWithId = income.copyWith(id: incomeId);
+      
+      // Check if income already exists (prevent duplicates)
+      final existingIndex = _incomes.indexWhere((i) => i.id == incomeId);
+      debugPrint('[PROVIDER] 🔍 Checking for duplicates: existingIndex=$existingIndex');
+      
+      if (existingIndex == -1) {
+        // Add to local list (insert at beginning for most recent first)
+        _incomes.insert(0, incomeWithId);
+        debugPrint('[PROVIDER] ➕ Inserted at index 0, new count: ${_incomes.length}');
+      } else {
+        debugPrint('[PROVIDER] ⚠️ DUPLICATE detected! Not inserting.');
+      }
+      
+      // Single notifyListeners call to update UI
+      debugPrint('[PROVIDER] 📢 Calling notifyListeners()...');
+      notifyListeners();
+      
+      stopwatch.stop();
+      debugPrint('[PROVIDER] ✅ addIncome() complete - total time: ${stopwatch.elapsedMilliseconds}ms');
+    } catch (e) {
+      stopwatch.stop();
+      debugPrint('[PROVIDER] ❌ addIncome() FAILED after ${stopwatch.elapsedMilliseconds}ms: $e');
+      throw Exception('Failed to add income: $e');
+    }
+  }
+
+  /// UPDATE INCOME - WITH BACKEND SYNC
+  Future<void> updateIncome(Income income) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+      await ExpenseSupabaseService.updateIncome(income, _userId);
+      final index = _incomes.indexWhere((i) => i.id == income.id);
+      if (index != -1) {
+        _incomes[index] = income;
+        _refreshCalculations();
+      }
+      notifyListeners();
+    } catch (e) {
+      throw Exception('Failed to update income: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// DELETE INCOME - WITH BACKEND SYNC
+  Future<void> deleteIncome(String incomeId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+      await ExpenseSupabaseService.deleteIncome(incomeId, _userId);
+      _incomes.removeWhere((income) => income.id == incomeId);
+      _refreshCalculations();
+      notifyListeners();
+    } catch (e) {
+      throw Exception('Failed to delete income: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Get total income for current month
+  double get totalIncomeThisMonth {
+    final now = DateTime.now();
+    return _incomes
+        .where((i) => i.date.year == now.year && i.date.month == now.month)
+        .fold(0.0, (sum, i) => sum + i.amount);
+  }
+
+  /// Get total income for a specific account
+  double getTotalIncomeForAccount(String accountId) {
+    return _incomes
+        .where((i) => i.accountId == accountId)
+        .fold(0.0, (sum, i) => sum + i.amount);
+  }
+
+  /// Get incomes for a specific period
+  List<Income> getIncomesByPeriod(FilterPeriod period, {DateTime? customStart, DateTime? customEnd, String? accountId}) {
+    final now = DateTime.now();
+    List<Income> filtered = accountId != null 
+        ? _incomes.where((i) => i.accountId == accountId).toList()
+        : _incomes;
+    
+    switch (period) {
+      case FilterPeriod.weekly:
+        final weekStart = now.subtract(Duration(days: now.weekday - 1));
+        return filtered.where((i) => i.date.isAfter(weekStart.subtract(const Duration(days: 1)))).toList();
+      case FilterPeriod.monthly:
+        return filtered.where((i) => i.date.year == now.year && i.date.month == now.month).toList();
+      case FilterPeriod.yearly:
+        return filtered.where((i) => i.date.year == now.year).toList();
+      case FilterPeriod.allTime:
+        return filtered;
+      case FilterPeriod.custom:
+        if (customStart != null && customEnd != null) {
+          return filtered.where((i) => 
+            i.date.isAfter(customStart.subtract(const Duration(days: 1))) && 
+            i.date.isBefore(customEnd.add(const Duration(days: 1)))
+          ).toList();
+        }
+        return filtered;
+    }
+  }
+
+  /// Load incomes from backend
+  Future<void> loadIncomes() async {
+    try {
+      final incomes = await ExpenseSupabaseService.getIncomes(userId: _userId);
+      
+      // Sort BEFORE swapping
+      final sortedIncomes = List<Income>.from(incomes);
+      sortedIncomes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      // ATOMIC SWAP: Only replace if we got data or current is empty
+      if (sortedIncomes.isNotEmpty || _incomes.isEmpty) {
+        _incomes.clear();
+        _incomes.addAll(sortedIncomes);
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      // Handle error silently - keep existing data
+      debugPrint('[PROVIDER] ❌ loadIncomes() failed: $e');
     }
   }
 

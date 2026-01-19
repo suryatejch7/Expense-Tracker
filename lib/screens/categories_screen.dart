@@ -16,6 +16,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   FilterPeriod _selectedPeriod = FilterPeriod.monthly;
   DateTime? _customStartDate;
   DateTime? _customEndDate;
+  String? _selectedAccountId; // null means all accounts
 
   String _getPeriodLabel() {
     switch (_selectedPeriod) {
@@ -36,19 +37,33 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     }
   }
 
+  String _getFilterSummary(ExpenseProvider provider) {
+    String periodLabel = _getPeriodLabel();
+    if (_selectedAccountId != null) {
+      final account = provider.getAccountById(_selectedAccountId!);
+      if (account != null) {
+        return '$periodLabel • ${account.name}';
+      }
+    }
+    return periodLabel;
+  }
+
   void _showFilterSheet() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => _FilterBottomSheet(
         currentPeriod: _selectedPeriod,
         customStartDate: _customStartDate,
         customEndDate: _customEndDate,
-        onFilterSelected: (period, startDate, endDate) {
+        currentAccountId: _selectedAccountId,
+        onFilterSelected: (period, startDate, endDate, accountId) {
           setState(() {
             _selectedPeriod = period;
             _customStartDate = startDate;
             _customEndDate = endDate;
+            _selectedAccountId = accountId;
           });
           Navigator.pop(context);
         },
@@ -63,18 +78,25 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         title: const Text('Categories'),
         actions: [
           // Filter chip showing current selection
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ActionChip(
-              avatar: const Icon(Icons.filter_list, size: 18),
-              label: Text(_getPeriodLabel()),
-              onPressed: _showFilterSheet,
-              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-              labelStyle: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+          Consumer<ExpenseProvider>(
+            builder: (context, provider, child) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ActionChip(
+                  avatar: const Icon(Icons.filter_list, size: 18),
+                  label: Text(
+                    _getFilterSummary(provider),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: _showFilterSheet,
+                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                  labelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -84,11 +106,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             _selectedPeriod,
             customStart: _customStartDate,
             customEnd: _customEndDate,
+            accountId: _selectedAccountId,
           );
           final totalForPeriod = expenseProvider.getTotalByPeriod(
             _selectedPeriod,
             customStart: _customStartDate,
             customEnd: _customEndDate,
+            accountId: _selectedAccountId,
           );
 
           if (categoryTotals.isEmpty) {
@@ -146,7 +170,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _getPeriodLabel(),
+                          _getFilterSummary(expenseProvider),
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
@@ -175,7 +199,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${expenseProvider.getExpensesByPeriodType(_selectedPeriod, customStart: _customStartDate, customEnd: _customEndDate).length} expenses',
+                          '${expenseProvider.getExpensesByPeriodType(_selectedPeriod, customStart: _customStartDate, customEnd: _customEndDate, accountId: _selectedAccountId).length} expenses',
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
@@ -229,6 +253,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                 filterPeriod: _selectedPeriod,
                                 customStartDate: _customStartDate,
                                 customEndDate: _customEndDate,
+                                accountId: _selectedAccountId,
                               ),
                             ),
                           );
@@ -376,12 +401,14 @@ class _FilterBottomSheet extends StatefulWidget {
   final FilterPeriod currentPeriod;
   final DateTime? customStartDate;
   final DateTime? customEndDate;
-  final Function(FilterPeriod, DateTime?, DateTime?) onFilterSelected;
+  final String? currentAccountId;
+  final Function(FilterPeriod, DateTime?, DateTime?, String?) onFilterSelected;
 
   const _FilterBottomSheet({
     required this.currentPeriod,
     required this.customStartDate,
     required this.customEndDate,
+    required this.currentAccountId,
     required this.onFilterSelected,
   });
 
@@ -393,6 +420,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
   late FilterPeriod _selectedPeriod;
   DateTime? _startDate;
   DateTime? _endDate;
+  String? _selectedAccountId;
 
   @override
   void initState() {
@@ -400,6 +428,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
     _selectedPeriod = widget.currentPeriod;
     _startDate = widget.customStartDate;
     _endDate = widget.customEndDate;
+    _selectedAccountId = widget.currentAccountId;
   }
 
   Future<void> _selectDateRange() async {
@@ -508,12 +537,38 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                 : null,
             onTap: _selectDateRange,
           ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
+            const Text(
+              'Filter by Account',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Consumer<ExpenseProvider>(
+              builder: (context, provider, _) {
+                final accounts = provider.accounts;
+                return Column(
+                  children: [
+                    _buildAccountOption(null, 'All Accounts', Icons.account_balance_wallet),
+                    ...accounts.map((account) => _buildAccountOption(
+                      account.id,
+                      account.name,
+                      Icons.account_balance,
+                    )),
+                  ],
+                );
+              },
+            ),
+            const Divider(color: Colors.grey),
+            const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                widget.onFilterSelected(_selectedPeriod, _startDate, _endDate);
+                widget.onFilterSelected(_selectedPeriod, _startDate, _endDate, _selectedAccountId);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
@@ -536,6 +591,34 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAccountOption(String? accountId, String title, IconData icon) {
+    final isSelected = _selectedAccountId == accountId;
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
+              : Colors.grey.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
+        ),
+      ),
+      title: Text(title),
+      trailing: isSelected
+          ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary)
+          : null,
+      onTap: () {
+        setState(() {
+          _selectedAccountId = accountId;
+        });
+      },
     );
   }
 
@@ -573,6 +656,7 @@ class CategoryDetailScreen extends StatelessWidget {
   final FilterPeriod filterPeriod;
   final DateTime? customStartDate;
   final DateTime? customEndDate;
+  final String? accountId;
 
   const CategoryDetailScreen({
     super.key,
@@ -580,6 +664,7 @@ class CategoryDetailScreen extends StatelessWidget {
     this.filterPeriod = FilterPeriod.monthly,
     this.customStartDate,
     this.customEndDate,
+    this.accountId,
   });
 
   String _getPeriodLabel() {
@@ -621,8 +706,16 @@ class CategoryDetailScreen extends StatelessWidget {
           filterPeriod,
           customStart: customStartDate,
           customEnd: customEndDate,
+          accountId: accountId,
         );
         final totalAmount = expenses.fold(0.0, (sum, expense) => sum + expense.amount);
+
+        // Get account name for display if filtered
+        String? accountName;
+        if (accountId != null) {
+          final account = expenseProvider.getAccountById(accountId!);
+          accountName = account?.name;
+        }
 
         return Scaffold(
           appBar: AppBar(
@@ -651,7 +744,7 @@ class CategoryDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'for ${_getPeriodLabel().toLowerCase()}',
+                        'for ${_getPeriodLabel().toLowerCase()}${accountName != null ? ' ($accountName)' : ''}',
                         style: const TextStyle(
                           fontSize: 14,
                           color: Colors.grey,
@@ -694,7 +787,7 @@ class CategoryDetailScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${expenses.length} expense${expenses.length == 1 ? '' : 's'} • ${_getPeriodLabel()}',
+                            '${expenses.length} expense${expenses.length == 1 ? '' : 's'} • ${_getPeriodLabel()}${accountName != null ? ' • $accountName' : ''}',
                             style: const TextStyle(
                               fontSize: 16,
                               color: Colors.grey,

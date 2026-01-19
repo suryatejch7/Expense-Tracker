@@ -357,4 +357,71 @@ class ExpenseSupabaseService {
       throw Exception('Failed to search expenses: $e');
     }
   }
+
+  // ============= INCOME METHODS =============
+
+  /// Add a new income
+  static Future<String> addIncome(Income income, int userId) async {
+    try {
+      final data = income.toSupabase();
+      data['user_id'] = userId;
+      
+      final response = await _supabase
+          .from('incomes')
+          .insert(data)
+          .select('id')
+          .single();
+      
+      return response['id'].toString();
+    } catch (e) {
+      throw Exception('Failed to add income: $e');
+    }
+  }
+
+  /// Update an existing income
+  static Future<void> updateIncome(Income income, int userId) async {
+    try {
+      final data = income.toSupabase();
+      data['user_id'] = userId;
+      
+      await _supabase
+          .from('incomes')
+          .update(data)
+          .eq('id', income.id!)
+          .eq('user_id', userId);
+    } catch (e) {
+      throw Exception('Failed to update income: $e');
+    }
+  }
+
+  /// Delete an income
+  static Future<void> deleteIncome(String incomeId, int userId) async {
+    try {
+      await _supabase
+          .from('incomes')
+          .delete()
+          .eq('id', incomeId)
+          .eq('user_id', userId);
+    } catch (e) {
+      throw Exception('Failed to delete income: $e');
+    }
+  }
+
+  /// Get all incomes for a user
+  static Future<List<Income>> getIncomes({required int userId}) async {
+    try {
+      final response = await _supabase
+          .from('incomes')
+          .select()
+          .eq('user_id', userId)
+          .order('date', ascending: false);
+
+      return (response as List)
+          .map((item) => Income.fromSupabase(item))
+          .toList();
+    } catch (e) {
+      // If table doesn't exist yet, return empty list
+      return [];
+    }
+  }
 }
