@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
@@ -9,28 +8,28 @@ import '../models/expense_models.dart';
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
-  
+
   static bool _isInitialized = false;
   static SharedPreferences? _prefs;
 
   /// Initialize the notification service
   static Future<void> initialize() async {
     if (_isInitialized) return;
-    
+
     _prefs = await SharedPreferences.getInstance();
     tz.initializeTimeZones();
-    
+
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    
+
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
-    
+
     await _notificationsPlugin.initialize(initializationSettings);
-    
+
     // Request permissions
     await _requestPermissions();
-    
+
     _isInitialized = true;
   }
 
@@ -38,7 +37,8 @@ class NotificationService {
   static Future<void> _requestPermissions() async {
     await _notificationsPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.requestNotificationsPermission();
   }
 
@@ -68,7 +68,7 @@ class NotificationService {
     if (dailyBudget <= 0) return;
 
     final percentage = (dailySpent / dailyBudget * 100).round();
-    
+
     if (percentage >= 80 && percentage < 100) {
       await _showNotification(
         'Daily Budget Alert',
@@ -94,7 +94,7 @@ class NotificationService {
     if (monthlyBudget <= 0) return;
 
     final percentage = (monthlySpent / monthlyBudget * 100).round();
-    
+
     if (percentage >= 90 && percentage < 100) {
       await _showNotification(
         'Monthly Budget Warning',
@@ -121,7 +121,7 @@ class NotificationService {
     if (categoryBudget <= 0) return;
 
     final percentage = (categorySpent / categoryBudget * 100).round();
-    
+
     if (percentage >= 90) {
       await _showNotification(
         'Category Budget Alert',
@@ -134,7 +134,7 @@ class NotificationService {
   /// Send weekly spending summary
   static Future<void> sendWeeklySpendingSummary(double weeklySpent) async {
     if (!await areNotificationsEnabled()) return;
-    
+
     await _showNotification(
       'Weekly Spending Summary',
       'This week you spent ₹${weeklySpent.toInt()}',
@@ -149,7 +149,7 @@ class NotificationService {
   /// Schedule weekly expense review
   static Future<void> scheduleWeeklyExpenseReview() async {
     if (!await areNotificationsEnabled()) return;
-    
+
     // Schedule for Sunday 9 PM
     await _scheduleWeeklyNotification(
       'Weekly Expense Review',
@@ -167,7 +167,7 @@ class NotificationService {
   /// Send first expense welcome notification
   static Future<void> sendFirstExpenseNotification() async {
     if (!await areNotificationsEnabled()) return;
-    
+
     await _showNotification(
       'Welcome!',
       'You\'ve logged your first expense. Great start!',
@@ -188,7 +188,7 @@ class NotificationService {
     if (weeklyFoodBudget <= 0) return;
 
     final percentage = (weeklyFoodSpent / weeklyFoodBudget * 100).round();
-    
+
     if (percentage >= 80) {
       await _showNotification(
         'Food Spending Alert',
@@ -203,9 +203,7 @@ class NotificationService {
   // ============================================================================
 
   /// Analyze spending patterns
-  static Future<void> analyzeSpendingPatterns(
-    List<Expense> expenses,
-  ) async {
+  static Future<void> analyzeSpendingPatterns(List<Expense> expenses) async {
     if (!await areNotificationsEnabled()) return;
     if (expenses.length < 7) return;
 
@@ -220,11 +218,16 @@ class NotificationService {
     }).toList();
 
     if (weekendExpenses.isNotEmpty && weekdayExpenses.isNotEmpty) {
-      final weekendAvg = weekendExpenses.fold(0.0, (sum, e) => sum + e.amount) / weekendExpenses.length;
-      final weekdayAvg = weekdayExpenses.fold(0.0, (sum, e) => sum + e.amount) / weekdayExpenses.length;
-      
+      final weekendAvg =
+          weekendExpenses.fold(0.0, (sum, e) => sum + e.amount) /
+          weekendExpenses.length;
+      final weekdayAvg =
+          weekdayExpenses.fold(0.0, (sum, e) => sum + e.amount) /
+          weekdayExpenses.length;
+
       if (weekendAvg > weekdayAvg * 1.4) {
-        final percentage = ((weekendAvg - weekdayAvg) / weekdayAvg * 100).round();
+        final percentage = ((weekendAvg - weekdayAvg) / weekdayAvg * 100)
+            .round();
         await _showNotification(
           'Spending Pattern Detected',
           'You spend $percentage% more on weekends',
@@ -234,7 +237,6 @@ class NotificationService {
     }
   }
 
-
   /// Analyze spending trends
   static Future<void> analyzeSpendingTrends(
     List<Expense> currentMonthExpenses,
@@ -243,11 +245,18 @@ class NotificationService {
     if (!await areNotificationsEnabled()) return;
     if (currentMonthExpenses.isEmpty || previousMonthExpenses.isEmpty) return;
 
-    final currentTotal = currentMonthExpenses.fold(0.0, (sum, e) => sum + e.amount);
-    final previousTotal = previousMonthExpenses.fold(0.0, (sum, e) => sum + e.amount);
-    
-    final changePercentage = ((currentTotal - previousTotal) / previousTotal * 100).round();
-    
+    final currentTotal = currentMonthExpenses.fold(
+      0.0,
+      (sum, e) => sum + e.amount,
+    );
+    final previousTotal = previousMonthExpenses.fold(
+      0.0,
+      (sum, e) => sum + e.amount,
+    );
+
+    final changePercentage =
+        ((currentTotal - previousTotal) / previousTotal * 100).round();
+
     if (changePercentage.abs() >= 15) {
       final direction = changePercentage > 0 ? 'increased' : 'decreased';
       await _showNotification(
@@ -268,13 +277,14 @@ class NotificationService {
     Map<String, double> categoryBreakdown,
   ) async {
     if (!await areNotificationsEnabled()) return;
-    
-    final topCategory = categoryBreakdown.entries
-        .reduce((a, b) => a.value > b.value ? a : b);
-    
+
+    final topCategory = categoryBreakdown.entries.reduce(
+      (a, b) => a.value > b.value ? a : b,
+    );
+
     await _showNotification(
       'Weekly Spending Report',
-      'Total: ₹${weeklyTotal.toInt()}. Top category: ${topCategory.key} (${(topCategory.value/weeklyTotal*100).round()}%)',
+      'Total: ₹${weeklyTotal.toInt()}. Top category: ${topCategory.key} (${(topCategory.value / weeklyTotal * 100).round()}%)',
       importance: Importance.defaultImportance,
     );
   }
@@ -285,7 +295,7 @@ class NotificationService {
     Map<String, double> categoryBreakdown,
   ) async {
     if (!await areNotificationsEnabled()) return;
-    
+
     await _showNotification(
       'Monthly Summary Available',
       'You spent ₹${monthlyTotal.toInt()} this month. View detailed breakdown in the app.',
@@ -303,12 +313,12 @@ class NotificationService {
 
     final sortedCategories = categoryBreakdown.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    
+
     final top3 = sortedCategories.take(3).toList();
-    final breakdown = top3.map((e) => 
-      '${e.key}: ${(e.value/totalSpent*100).round()}%'
-    ).join(', ');
-    
+    final breakdown = top3
+        .map((e) => '${e.key}: ${(e.value / totalSpent * 100).round()}%')
+        .join(', ');
+
     await _showNotification(
       'Category Breakdown',
       breakdown,
@@ -329,7 +339,7 @@ class NotificationService {
     if (monthlyBudget <= 0) return;
 
     final percentage = (monthlySpent / monthlyBudget * 100).round();
-    
+
     if (percentage >= 150) {
       await _showNotification(
         'Budget Crisis Alert!',
@@ -343,14 +353,16 @@ class NotificationService {
   // HELPER METHODS
   // ============================================================================
 
-  /// Show a notification
+  /// Show a notification with a deterministic ID based on title
   static Future<void> _showNotification(
     String title,
     String body, {
     Importance importance = Importance.defaultImportance,
   }) async {
+    // Use title hashCode for deterministic IDs — same alert type replaces previous
+    final id = title.hashCode.abs() % 100000;
     await _notificationsPlugin.show(
-      Random().nextInt(10000),
+      id,
       title,
       body,
       NotificationDetails(
@@ -365,7 +377,6 @@ class NotificationService {
     );
   }
 
-
   /// Schedule weekly notification
   static Future<void> _scheduleWeeklyNotification(
     String title,
@@ -374,8 +385,10 @@ class NotificationService {
     required int hour,
     required int minute,
   }) async {
+    // Deterministic ID based on title so rescheduling replaces existing
+    final id = title.hashCode.abs() % 100000;
     await _notificationsPlugin.zonedSchedule(
-      Random().nextInt(10000),
+      id,
       title,
       body,
       _nextInstanceOfWeekday(weekday, hour, minute),
@@ -388,21 +401,32 @@ class NotificationService {
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
   }
 
-
   /// Get next instance of weekday
-  static tz.TZDateTime _nextInstanceOfWeekday(int weekday, int hour, int minute) {
+  static tz.TZDateTime _nextInstanceOfWeekday(
+    int weekday,
+    int hour,
+    int minute,
+  ) {
     final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    
+    var scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+
     while (scheduledDate.weekday != weekday || scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
-    
+
     return scheduledDate;
   }
 

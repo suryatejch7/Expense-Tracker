@@ -27,7 +27,9 @@ class MonthlyComparisonPainter extends CustomPainter {
     }
 
     final values = monthlyTotals.values.toList();
-    final maxValue = values.isEmpty ? 1.0 : values.reduce((a, b) => a > b ? a : b);
+    final maxValue = values.isEmpty
+        ? 1.0
+        : values.reduce((a, b) => a > b ? a : b);
 
     if (maxValue == 0) return;
 
@@ -84,5 +86,7 @@ class MonthlyComparisonPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant MonthlyComparisonPainter oldDelegate) {
+    return oldDelegate.expenses != expenses;
+  }
 }

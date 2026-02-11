@@ -28,7 +28,11 @@ class CustomCategory {
       'id': id,
       'name': name,
       'icon': icon,
-      'color': color.r.toInt() << 24 | color.g.toInt() << 16 | color.b.toInt() << 8 | color.a.toInt(),
+      'color':
+          color.r.toInt() << 24 |
+          color.g.toInt() << 16 |
+          color.b.toInt() << 8 |
+          color.a.toInt(),
       'budget': budget,
       'isActive': isActive,
       'createdAt': createdAt.toIso8601String(),
@@ -175,7 +179,6 @@ class CategoryIcons {
 
 // Default categories that come with the app
 class DefaultCategories {
-  static List<ExpenseCategory> get defaultCategories => [
-    // Empty list - user can set up their own categories
-  ];
+  static List<ExpenseCategory> get defaultCategories =>
+      ExpenseCategory.getDefaultCategories();
 }

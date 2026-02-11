@@ -6,10 +6,7 @@ class PieChartPainter extends CustomPainter {
   final Map<ExpenseCategory, double> categoryData;
   final List<Color> colors;
 
-  PieChartPainter({
-    required this.categoryData,
-    required this.colors,
-  });
+  PieChartPainter({required this.categoryData, required this.colors});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -43,7 +40,10 @@ class PieChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant PieChartPainter oldDelegate) {
+    return oldDelegate.categoryData != categoryData ||
+        oldDelegate.colors != colors;
+  }
 }
 
 /// Custom painter for monthly comparison bar chart

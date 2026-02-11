@@ -7,16 +7,17 @@ import 'screens/register_user_screen.dart';
 import 'services/supabase_init_service.dart';
 import 'services/notification_service.dart';
 import 'services/cache_service.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Supabase
   await SupabaseInitService.initialize();
-  
+
   // Initialize Cache Service
   await CacheService.init();
-  
+
   // Initialize Notifications
   await NotificationService.initialize();
 
@@ -35,16 +36,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'Expense Tracker',
-        theme: ThemeData(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF00D4FF),
-            surface: Colors.black,
-            surfaceContainer: Color(0xFF0D0D0D),
-          ),
-          scaffoldBackgroundColor: Colors.black,
-          cardColor: const Color(0xFF0D0D0D),
-          useMaterial3: true,
-        ),
+        theme: AppTheme.darkTheme,
         home: const AuthWrapper(),
         debugShowCheckedModeBanner: false,
       ),
@@ -74,12 +66,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
     final userProvider = context.read<UserProvider>();
     final expenseProvider = context.read<ExpenseProvider>();
     await userProvider.loadUserFromStorage();
-    
+
     // Initialize expense provider if user is logged in
     if (userProvider.isLoggedIn) {
       await userProvider.initializeExpenseProvider(expenseProvider);
     }
-    
+
     if (mounted) {
       setState(() {
         _initialized = true;
@@ -118,12 +110,14 @@ class _AuthWrapperState extends State<AuthWrapper> {
           return RegisterUserScreen(
             onRegistered: () async {
               final userProvider = context.read<UserProvider>();
-              
+
               // Initialize expense provider when user is registered
               if (userProvider.isLoggedIn) {
-                await userProvider.initializeExpenseProvider(context.read<ExpenseProvider>());
+                await userProvider.initializeExpenseProvider(
+                  context.read<ExpenseProvider>(),
+                );
               }
-              
+
               // Let the Selector handle the rebuild automatically when isLoggedIn changes
             },
           );

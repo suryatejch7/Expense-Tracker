@@ -4,39 +4,10 @@ import 'package:intl/intl.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense_models.dart';
 
-/// Performance logging helper for AddIncomeScreen
-class _IncomePerfLog {
-  static final Stopwatch _stopwatch = Stopwatch();
-  static DateTime? _lastTimestamp;
-  
-  static void log(String message) {
-    final now = DateTime.now();
-    final elapsed = _lastTimestamp != null 
-        ? now.difference(_lastTimestamp!).inMilliseconds 
-        : 0;
-    _lastTimestamp = now;
-    debugPrint('[ADD_INCOME ${now.toString().substring(11, 23)}] (+${elapsed}ms) $message');
-  }
-  
-  static void startTimer(String label) {
-    _stopwatch.reset();
-    _stopwatch.start();
-    log('⏱️ START: $label');
-  }
-  
-  static void endTimer(String label) {
-    _stopwatch.stop();
-    log('⏱️ END: $label - took ${_stopwatch.elapsedMilliseconds}ms');
-  }
-}
-
 class AddIncomeScreen extends StatefulWidget {
   final Income? income; // For editing existing income
 
-  const AddIncomeScreen({
-    super.key,
-    this.income,
-  });
+  const AddIncomeScreen({super.key, this.income});
 
   @override
   State<AddIncomeScreen> createState() => _AddIncomeScreenState();
@@ -51,13 +22,10 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
 
   DateTime _selectedDate = DateTime.now();
   String? _selectedAccountId;
-  int _buildCount = 0;
   bool _isInitialized = false;
 
   @override
   void initState() {
-    _IncomePerfLog.log('🚀 initState() called');
-    _IncomePerfLog.log('   - Editing existing: ${widget.income != null}');
     super.initState();
 
     if (widget.income != null) {
@@ -68,11 +36,9 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
       _noteController.text = widget.income!.notes ?? '';
       _selectedDate = widget.income!.date;
       _selectedAccountId = widget.income!.accountId;
-      _IncomePerfLog.log('✅ Loaded existing income data');
     }
-    _IncomePerfLog.log('✅ initState() complete');
   }
-  
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -82,14 +48,12 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
       final provider = context.read<ExpenseProvider>();
       if (_selectedAccountId == null && provider.defaultAccount != null) {
         _selectedAccountId = provider.defaultAccount!.id;
-        _IncomePerfLog.log('📋 Default account set: ${provider.defaultAccount?.name}');
       }
     }
   }
 
   @override
   void dispose() {
-    _IncomePerfLog.log('🗑️ dispose() called - total builds: $_buildCount');
     _titleController.dispose();
     _amountController.dispose();
     _sourceController.dispose();
@@ -99,8 +63,6 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    _buildCount++;
-    _IncomePerfLog.log('🔨 build() #$_buildCount called');
     final currency = context.watch<ExpenseProvider>().currency;
     return Scaffold(
       backgroundColor: Colors.black,
@@ -119,11 +81,16 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
               // Income indicator banner
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 16,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.green.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: Colors.green.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -255,7 +222,10 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                   ),
                   child: Text(
                     widget.income == null ? 'Add Income' : 'Update Income',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -307,23 +277,15 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Colors.grey.withValues(alpha: 0.3),
-          ),
+          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Colors.green,
-            width: 2,
-          ),
+          borderSide: const BorderSide(color: Colors.green, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Colors.red,
-            width: 1,
-          ),
+          borderSide: const BorderSide(color: Colors.red, width: 1),
         ),
       ),
     );
@@ -424,15 +386,8 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
   }
 
   void _saveIncome() async {
-    _IncomePerfLog.startTimer('Save income');
-    _IncomePerfLog.log('💾 _saveIncome() called');
-    
     if (_formKey.currentState!.validate()) {
-      _IncomePerfLog.log('✅ Form validation passed');
-      
       if (_selectedAccountId == null) {
-        _IncomePerfLog.log('❌ No account selected');
-        _IncomePerfLog.endTimer('Save income');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Please select an account'),
@@ -443,68 +398,50 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
       }
 
       final now = DateTime.now();
-      _IncomePerfLog.log('📝 Creating income object...');
-      _IncomePerfLog.log('   - Title: ${_titleController.text.trim()}');
-      _IncomePerfLog.log('   - Amount: ${_amountController.text}');
-      _IncomePerfLog.log('   - Source: ${_sourceController.text.trim()}');
-      _IncomePerfLog.log('   - Date: $_selectedDate');
-      _IncomePerfLog.log('   - Account: $_selectedAccountId');
-      
+
       final income = Income(
         id: widget.income?.id,
         amount: double.parse(_amountController.text),
         title: _titleController.text.trim(),
         source: _sourceController.text.trim(),
         date: _selectedDate,
-        notes: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+        notes: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
         accountId: _selectedAccountId,
         createdAt: widget.income?.createdAt ?? now,
         updatedAt: now,
       );
-      _IncomePerfLog.log('✅ Income object created');
 
       final provider = context.read<ExpenseProvider>();
-      _IncomePerfLog.log('📤 Getting provider...');
-      
+
       try {
         if (widget.income == null) {
-          _IncomePerfLog.log('➕ Adding new income...');
           await provider.addIncome(income);
-          _IncomePerfLog.log('✅ Income added to provider');
-          _IncomePerfLog.log('   - Total incomes now: ${provider.incomes.length}');
         } else {
-          _IncomePerfLog.log('🔄 Updating existing income...');
           await provider.updateIncome(income);
-          _IncomePerfLog.log('✅ Income updated in provider');
         }
 
-        _IncomePerfLog.endTimer('Save income');
-        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(widget.income == null ? 'Income added successfully!' : 'Income updated successfully!'),
+              content: Text(
+                widget.income == null
+                    ? 'Income added successfully!'
+                    : 'Income updated successfully!',
+              ),
               backgroundColor: Colors.green,
             ),
           );
-          _IncomePerfLog.log('👈 Navigating back...');
           Navigator.pop(context);
         }
       } catch (e) {
-        _IncomePerfLog.log('❌ ERROR saving income: $e');
-        _IncomePerfLog.endTimer('Save income');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $e'),
-              backgroundColor: Colors.red,
-            ),
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
           );
         }
       }
-    } else {
-      _IncomePerfLog.log('❌ Form validation failed');
-      _IncomePerfLog.endTimer('Save income');
     }
   }
 }

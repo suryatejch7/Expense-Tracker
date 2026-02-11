@@ -28,7 +28,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     if (_selectedAccountId == null) {
       return provider.expenses;
     }
-    return provider.expenses.where((e) => e.accountId == _selectedAccountId).toList();
+    return provider.expenses
+        .where((e) => e.accountId == _selectedAccountId)
+        .toList();
   }
 
   @override
@@ -139,7 +141,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: isSelected ? Colors.white : Colors.grey,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
               ),
@@ -152,7 +156,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Widget _buildAccountSelector(ExpenseProvider provider) {
     final accounts = provider.accounts;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
@@ -165,10 +169,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           value: _selectedAccountId,
           isExpanded: true,
           dropdownColor: const Color(0xFF1A1A1A),
-          icon: Icon(Icons.keyboard_arrow_down, color: Theme.of(context).colorScheme.primary),
+          icon: Icon(
+            Icons.keyboard_arrow_down,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           hint: Row(
             children: [
-              Icon(Icons.account_balance_wallet, color: Theme.of(context).colorScheme.primary, size: 20),
+              Icon(
+                Icons.account_balance_wallet,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               const Text('All Accounts', style: TextStyle(color: Colors.white)),
             ],
@@ -178,22 +189,38 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               value: null,
               child: Row(
                 children: [
-                  Icon(Icons.account_balance_wallet, color: Theme.of(context).colorScheme.primary, size: 20),
+                  Icon(
+                    Icons.account_balance_wallet,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
-                  const Text('All Accounts', style: TextStyle(color: Colors.white)),
+                  const Text(
+                    'All Accounts',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ],
               ),
             ),
-            ...accounts.map((account) => DropdownMenuItem<String?>(
-              value: account.id,
-              child: Row(
-                children: [
-                  Icon(Icons.account_balance, color: Theme.of(context).colorScheme.primary, size: 20),
-                  const SizedBox(width: 8),
-                  Text(account.name, style: const TextStyle(color: Colors.white)),
-                ],
+            ...accounts.map(
+              (account) => DropdownMenuItem<String?>(
+                value: account.id,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.account_balance,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      account.name,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
-            )),
+            ),
           ],
           onChanged: (value) {
             setState(() {
@@ -229,7 +256,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
               if (changePercent != 0) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: changePercent > 0 ? Colors.red : Colors.green,
                     borderRadius: BorderRadius.circular(8),
@@ -238,7 +268,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        changePercent > 0 ? Icons.arrow_upward : Icons.arrow_downward,
+                        changePercent > 0
+                            ? Icons.arrow_upward
+                            : Icons.arrow_downward,
                         size: 16,
                         color: Colors.white,
                       ),
@@ -334,9 +366,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         children: sortedCategories.take(5).map((entry) {
           final categoryName = entry.key;
           final amount = entry.value;
-          final percentage = periodTotal > 0 ? (amount / periodTotal * 100) : 0.0;
+          final percentage = periodTotal > 0
+              ? (amount / periodTotal * 100)
+              : 0.0;
           // Only show over budget for monthly view
-          final isOverBudget = _selectedPeriod == 'Month' && provider.isCategoryOverBudget(categoryName);
+          final isOverBudget =
+              _selectedPeriod == 'Month' &&
+              provider.isCategoryOverBudget(categoryName);
 
           // Find the category object
           final category = categories.firstWhere(
@@ -396,7 +432,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       ),
                       Text(
                         '${percentage.toStringAsFixed(1)}% of total',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -457,12 +496,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     children: [
                       const Text(
                         'Monthly Budget',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Text(
                         provider.isOverBudget ? 'Over Budget' : 'On Track',
                         style: TextStyle(
-                          color: provider.isOverBudget ? Colors.red : Colors.green,
+                          color: provider.isOverBudget
+                              ? Colors.red
+                              : Colors.green,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -470,7 +514,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
-                    value: (provider.currentMonthTotalExpense / provider.monthlyBudget).clamp(0.0, 1.0),
+                    value:
+                        (provider.currentMonthTotalExpense /
+                                provider.monthlyBudget)
+                            .clamp(0.0, 1.0),
                     backgroundColor: Colors.grey.withValues(alpha: 0.3),
                     valueColor: AlwaysStoppedAnimation<Color>(
                       provider.isOverBudget ? Colors.red : Colors.green,
@@ -494,7 +541,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Over by: ₹${provider.budgetExcess.toStringAsFixed(0)}',
-                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ],
@@ -503,75 +553,80 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ],
 
           // Category Budgets
-          ...provider.categories.where((category) {
-            return provider.getCategoryBudget(category.name) > 0;
-          }).map((category) {
-            final budget = provider.getCategoryBudget(category.name);
-            final spent = provider.getCategoryExpenses(category.name);
-            final isOverBudget = spent > budget;
-            final percentage = (spent / budget).clamp(0.0, 1.0);
+          ...provider.categories
+              .where((category) {
+                return provider.getCategoryBudget(category.name) > 0;
+              })
+              .map((category) {
+                final budget = provider.getCategoryBudget(category.name);
+                final spent = provider.getCategoryExpenses(category.name);
+                final isOverBudget = spent > budget;
+                final percentage = (spent / budget).clamp(0.0, 1.0);
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isOverBudget
-                      ? Colors.red.withValues(alpha: 0.5)
-                      : Colors.grey.withValues(alpha: 0.2),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A1A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isOverBudget
+                          ? Colors.red.withValues(alpha: 0.5)
+                          : Colors.grey.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        category.icon,
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: isOverBudget ? Colors.red : category.color,
+                      Row(
+                        children: [
+                          Text(
+                            category.icon,
+                            style: TextStyle(
+                              fontSize: 20,
+                              color: isOverBudget ? Colors.red : category.color,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            category.displayName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '₹${spent.toStringAsFixed(0)} / ₹${budget.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              color: isOverBudget ? Colors.red : Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: percentage,
+                        backgroundColor: Colors.grey.withValues(alpha: 0.3),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          isOverBudget ? Colors.red : category.color,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        category.displayName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                      if (isOverBudget) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Over by: ₹${(spent - budget).toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        '₹${spent.toStringAsFixed(0)} / ₹${budget.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          color: isOverBudget ? Colors.red : Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: percentage,
-                    backgroundColor: Colors.grey.withValues(alpha: 0.3),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isOverBudget ? Colors.red : category.color,
-                    ),
-                  ),
-                  if (isOverBudget) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Over by: ₹${(spent - budget).toStringAsFixed(0)}',
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          }),
+                );
+              }),
         ],
       ),
     );
@@ -594,11 +649,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             ),
             child: Row(
               children: [
-                Icon(
-                  insight['icon'],
-                  color: insight['color'],
-                  size: 24,
-                ),
+                Icon(insight['icon'], color: insight['color'], size: 24),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Text(
@@ -638,7 +689,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       child: SizedBox(
         height: 120,
         child: CustomPaint(
-          painter: ComparisonBarPainter(expenses: _getFilteredExpenses(provider), period: _selectedPeriod),
+          painter: ComparisonBarPainter(
+            expenses: _getFilteredExpenses(provider),
+            period: _selectedPeriod,
+          ),
           size: const Size.fromHeight(120),
         ),
       ),
@@ -680,20 +734,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       switch (_selectedPeriod) {
         case 'Day':
           return expense.date.year == now.year &&
-                 expense.date.month == now.month &&
-                 expense.date.day == now.day;
+              expense.date.month == now.month &&
+              expense.date.day == now.day;
         case 'Week':
           final weekStart = now.subtract(Duration(days: now.weekday - 1));
-          return expense.date.isAfter(weekStart.subtract(const Duration(days: 1)));
+          return expense.date.isAfter(
+            weekStart.subtract(const Duration(days: 1)),
+          );
         case 'Month':
-          return expense.date.year == now.year && expense.date.month == now.month;
+          return expense.date.year == now.year &&
+              expense.date.month == now.month;
         case 'Year':
           return expense.date.year == now.year;
         default:
           return false;
       }
     }).toList(); // Convert to list to ensure we have fresh data
-    
+
     final total = expenses.fold(0.0, (sum, expense) => sum + expense.amount);
     return total;
   }
@@ -707,23 +764,26 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         case 'Day':
           final yesterday = now.subtract(const Duration(days: 1));
           return expense.date.year == yesterday.year &&
-                 expense.date.month == yesterday.month &&
-                 expense.date.day == yesterday.day;
+              expense.date.month == yesterday.month &&
+              expense.date.day == yesterday.day;
         case 'Week':
           final lastWeekStart = now.subtract(Duration(days: now.weekday + 6));
           final lastWeekEnd = now.subtract(Duration(days: now.weekday));
-          return expense.date.isAfter(lastWeekStart.subtract(const Duration(days: 1))) &&
-                 expense.date.isBefore(lastWeekEnd);
+          return expense.date.isAfter(
+                lastWeekStart.subtract(const Duration(days: 1)),
+              ) &&
+              expense.date.isBefore(lastWeekEnd);
         case 'Month':
           final lastMonth = DateTime(now.year, now.month - 1);
-          return expense.date.year == lastMonth.year && expense.date.month == lastMonth.month;
+          return expense.date.year == lastMonth.year &&
+              expense.date.month == lastMonth.month;
         case 'Year':
           return expense.date.year == now.year - 1;
         default:
           return false;
       }
     }).toList(); // Convert to list to ensure we have fresh data
-    
+
     final total = expenses.fold(0.0, (sum, expense) => sum + expense.amount);
     return total;
   }
@@ -735,7 +795,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final categories = provider.categories;
 
     if (categoryTotals.isNotEmpty) {
-      final topCategory = categoryTotals.entries.reduce((a, b) => a.value > b.value ? a : b);
+      final topCategory = categoryTotals.entries.reduce(
+        (a, b) => a.value > b.value ? a : b,
+      );
       // Find the category object for display name
       final topCategoryObj = categories.firstWhere(
         (cat) => cat.name == topCategory.key,
@@ -750,7 +812,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       insights.add({
         'icon': Icons.trending_up,
         'color': Colors.blue,
-        'text': '${topCategoryObj.displayName} is your highest spending category this $_selectedPeriod (₹${topCategory.value.toStringAsFixed(0)})',
+        'text':
+            '${topCategoryObj.displayName} is your highest spending category this $_selectedPeriod (₹${topCategory.value.toStringAsFixed(0)})',
       });
     }
 
@@ -760,17 +823,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         insights.add({
           'icon': Icons.warning,
           'color': Colors.red,
-          'text': 'You\'ve exceeded your monthly budget by ₹${provider.budgetExcess.toStringAsFixed(0)}',
+          'text':
+              'You\'ve exceeded your monthly budget by ₹${provider.budgetExcess.toStringAsFixed(0)}',
         });
       }
 
-      final overBudgetCategories = categories.where((category) =>
-          provider.isCategoryOverBudget(category.name)).length;
+      final overBudgetCategories = categories
+          .where((category) => provider.isCategoryOverBudget(category.name))
+          .length;
       if (overBudgetCategories > 0) {
         insights.add({
           'icon': Icons.category,
           'color': Colors.orange,
-          'text': '$overBudgetCategories ${overBudgetCategories == 1 ? 'category is' : 'categories are'} over budget',
+          'text':
+              '$overBudgetCategories ${overBudgetCategories == 1 ? 'category is' : 'categories are'} over budget',
         });
       }
     }
@@ -787,7 +853,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   /// Calculate average spending based on selected period
-  String _calculateAverageSpending(ExpenseProvider provider, double periodTotal) {
+  String _calculateAverageSpending(
+    ExpenseProvider provider,
+    double periodTotal,
+  ) {
     final now = DateTime.now();
     switch (_selectedPeriod) {
       case 'Day':
@@ -816,13 +885,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       switch (_selectedPeriod) {
         case 'Day':
           return expense.date.year == now.year &&
-                 expense.date.month == now.month &&
-                 expense.date.day == now.day;
+              expense.date.month == now.month &&
+              expense.date.day == now.day;
         case 'Week':
           final weekStart = now.subtract(Duration(days: now.weekday - 1));
-          return expense.date.isAfter(weekStart.subtract(const Duration(days: 1)));
+          return expense.date.isAfter(
+            weekStart.subtract(const Duration(days: 1)),
+          );
         case 'Month':
-          return expense.date.year == now.year && expense.date.month == now.month;
+          return expense.date.year == now.year &&
+              expense.date.month == now.month;
         case 'Year':
           return expense.date.year == now.year;
         default:
@@ -832,7 +904,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     Map<String, double> totals = {};
     for (var expense in filteredExpenses) {
-      totals[expense.category] = (totals[expense.category] ?? 0) + expense.amount;
+      totals[expense.category] =
+          (totals[expense.category] ?? 0) + expense.amount;
     }
     return totals;
   }
@@ -845,13 +918,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       switch (_selectedPeriod) {
         case 'Day':
           return expense.date.year == now.year &&
-                 expense.date.month == now.month &&
-                 expense.date.day == now.day;
+              expense.date.month == now.month &&
+              expense.date.day == now.day;
         case 'Week':
           final weekStart = now.subtract(Duration(days: now.weekday - 1));
-          return expense.date.isAfter(weekStart.subtract(const Duration(days: 1)));
+          return expense.date.isAfter(
+            weekStart.subtract(const Duration(days: 1)),
+          );
         case 'Month':
-          return expense.date.year == now.year && expense.date.month == now.month;
+          return expense.date.year == now.year &&
+              expense.date.month == now.month;
         case 'Year':
           return expense.date.year == now.year;
         default:
@@ -908,12 +984,14 @@ class SpendingTrendPainter extends CustomPainter {
           final hourEnd = now.subtract(Duration(hours: (i - 1) * 4));
           final hourExpenses = expenses.where((expense) {
             return expense.date.year == now.year &&
-                   expense.date.month == now.month &&
-                   expense.date.day == now.day &&
-                   expense.date.hour >= hourStart.hour &&
-                   expense.date.hour < hourEnd.hour;
+                expense.date.month == now.month &&
+                expense.date.day == now.day &&
+                expense.date.hour >= hourStart.hour &&
+                expense.date.hour < hourEnd.hour;
           });
-          dataPoints.add(hourExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+          dataPoints.add(
+            hourExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
+          );
         }
         break;
       case 'Week':
@@ -922,10 +1000,12 @@ class SpendingTrendPainter extends CustomPainter {
           final date = now.subtract(Duration(days: i));
           final dayExpenses = expenses.where((expense) {
             return expense.date.year == date.year &&
-                   expense.date.month == date.month &&
-                   expense.date.day == date.day;
+                expense.date.month == date.month &&
+                expense.date.day == date.day;
           });
-          dataPoints.add(dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+          dataPoints.add(
+            dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
+          );
         }
         break;
       case 'Month':
@@ -934,9 +1014,12 @@ class SpendingTrendPainter extends CustomPainter {
           final weekStart = now.subtract(Duration(days: (i + 1) * 7));
           final weekEnd = now.subtract(Duration(days: i * 7));
           final weekExpenses = expenses.where((expense) {
-            return expense.date.isAfter(weekStart) && expense.date.isBefore(weekEnd.add(const Duration(days: 1)));
+            return expense.date.isAfter(weekStart) &&
+                expense.date.isBefore(weekEnd.add(const Duration(days: 1)));
           });
-          dataPoints.add(weekExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+          dataPoints.add(
+            weekExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
+          );
         }
         break;
       case 'Year':
@@ -944,9 +1027,12 @@ class SpendingTrendPainter extends CustomPainter {
         for (int i = 5; i >= 0; i--) {
           final month = DateTime(now.year, now.month - i);
           final monthExpenses = expenses.where((expense) {
-            return expense.date.year == month.year && expense.date.month == month.month;
+            return expense.date.year == month.year &&
+                expense.date.month == month.month;
           });
-          dataPoints.add(monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+          dataPoints.add(
+            monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
+          );
         }
         break;
       default:
@@ -955,10 +1041,12 @@ class SpendingTrendPainter extends CustomPainter {
           final date = now.subtract(Duration(days: i));
           final dayExpenses = expenses.where((expense) {
             return expense.date.year == date.year &&
-                   expense.date.month == date.month &&
-                   expense.date.day == date.day;
+                expense.date.month == date.month &&
+                expense.date.day == date.day;
           });
-          dataPoints.add(dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+          dataPoints.add(
+            dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
+          );
         }
     }
 
@@ -978,7 +1066,9 @@ class SpendingTrendPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant SpendingTrendPainter oldDelegate) {
+    return oldDelegate.expenses != expenses || oldDelegate.period != period;
+  }
 }
 
 class PieChartPainter extends CustomPainter {
@@ -1029,7 +1119,9 @@ class PieChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant PieChartPainter oldDelegate) {
+    return oldDelegate.categoryTotals != categoryTotals;
+  }
 }
 
 class ComparisonBarPainter extends CustomPainter {
@@ -1054,10 +1146,12 @@ class ComparisonBarPainter extends CustomPainter {
           final date = now.subtract(Duration(days: i));
           final dayExpenses = expenses.where((expense) {
             return expense.date.year == date.year &&
-                   expense.date.month == date.month &&
-                   expense.date.day == date.day;
+                expense.date.month == date.month &&
+                expense.date.day == date.day;
           });
-          data.add(dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+          data.add(
+            dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
+          );
         }
         break;
       case 'Week':
@@ -1066,9 +1160,12 @@ class ComparisonBarPainter extends CustomPainter {
           final weekStart = now.subtract(Duration(days: (i + 1) * 7));
           final weekEnd = now.subtract(Duration(days: i * 7));
           final weekExpenses = expenses.where((expense) {
-            return expense.date.isAfter(weekStart) && expense.date.isBefore(weekEnd.add(const Duration(days: 1)));
+            return expense.date.isAfter(weekStart) &&
+                expense.date.isBefore(weekEnd.add(const Duration(days: 1)));
           });
-          data.add(weekExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+          data.add(
+            weekExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
+          );
         }
         break;
       case 'Month':
@@ -1076,9 +1173,12 @@ class ComparisonBarPainter extends CustomPainter {
         for (int i = 5; i >= 0; i--) {
           final month = DateTime(now.year, now.month - i);
           final monthExpenses = expenses.where((expense) {
-            return expense.date.year == month.year && expense.date.month == month.month;
+            return expense.date.year == month.year &&
+                expense.date.month == month.month;
           });
-          data.add(monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+          data.add(
+            monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
+          );
         }
         break;
       case 'Year':
@@ -1088,7 +1188,9 @@ class ComparisonBarPainter extends CustomPainter {
           final yearExpenses = expenses.where((expense) {
             return expense.date.year == year;
           });
-          data.add(yearExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+          data.add(
+            yearExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
+          );
         }
         break;
       default:
@@ -1096,9 +1198,12 @@ class ComparisonBarPainter extends CustomPainter {
         for (int i = 5; i >= 0; i--) {
           final month = DateTime(now.year, now.month - i);
           final monthExpenses = expenses.where((expense) {
-            return expense.date.year == month.year && expense.date.month == month.month;
+            return expense.date.year == month.year &&
+                expense.date.month == month.month;
           });
-          data.add(monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
+          data.add(
+            monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
+          );
         }
     }
 
@@ -1113,11 +1218,18 @@ class ComparisonBarPainter extends CustomPainter {
     for (int i = 0; i < data.length; i++) {
       final barHeight = (data[i] / maxValue) * size.height;
       final x = i * (barWidth + spacing) + spacing / 2;
-      final rect = Rect.fromLTWH(x, size.height - barHeight, barWidth, barHeight);
+      final rect = Rect.fromLTWH(
+        x,
+        size.height - barHeight,
+        barWidth,
+        barHeight,
+      );
       canvas.drawRect(rect, paint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant ComparisonBarPainter oldDelegate) {
+    return oldDelegate.expenses != expenses || oldDelegate.period != period;
+  }
 }

@@ -10,78 +10,22 @@ class ExpenseCard extends StatelessWidget {
 
   const ExpenseCard({super.key, required this.expense, this.index = 0});
 
-  // Category color mapping for the new string-based category system
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Colors.orange;
-      case 'transportation':
-        return Colors.blue;
-      case 'entertainment':
-        return Colors.purple;
-      case 'shopping':
-        return Colors.pink;
-      case 'healthcare':
-        return Colors.red;
-      case 'education':
-        return Colors.green;
-      case 'utilities':
-        return Colors.yellow;
-      case 'travel':
-        return Colors.teal;
-      case 'groceries':
-        return Colors.lightGreen;
-      case 'dining':
-        return Colors.amber;
-      case 'fuel':
-        return Colors.deepOrange;
-      case 'subscriptions':
-        return Colors.indigo;
-      case 'other':
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Icons.restaurant;
-      case 'transportation':
-        return Icons.directions_car;
-      case 'entertainment':
-        return Icons.movie;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'healthcare':
-        return Icons.local_hospital;
-      case 'education':
-        return Icons.school;
-      case 'utilities':
-        return Icons.electrical_services;
-      case 'travel':
-        return Icons.flight;
-      case 'groceries':
-        return Icons.shopping_cart;
-      case 'dining':
-        return Icons.restaurant_menu;
-      case 'fuel':
-        return Icons.local_gas_station;
-      case 'subscriptions':
-        return Icons.subscriptions;
-      case 'other':
-        return Icons.category;
-      default:
-        return Icons.category;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final categoryColor = _getCategoryColor(expense.category);
-    final categoryIcon = _getCategoryIcon(expense.category);
-    final currency = context.watch<ExpenseProvider>().currency;
+    final expenseProvider = context.watch<ExpenseProvider>();
+    final currency = expenseProvider.currency;
+
+    // Look up category from provider's custom categories
+    final category = expenseProvider.categories.firstWhere(
+      (cat) => cat.name == expense.category,
+      orElse: () => ExpenseCategory(
+        id: expense.category,
+        name: expense.category,
+        icon: '📦',
+        colorHex: '#747D8C',
+      ),
+    );
+    final categoryColor = category.color;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -106,10 +50,11 @@ class ExpenseCard extends StatelessWidget {
                   color: categoryColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  categoryIcon,
-                  color: categoryColor,
-                  size: 24,
+                child: Center(
+                  child: Text(
+                    category.icon,
+                    style: const TextStyle(fontSize: 24),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -161,10 +106,7 @@ class ExpenseCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     _formatDate(expense.date),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),
@@ -217,7 +159,10 @@ class ExpenseCard extends StatelessWidget {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF2A2A2A),
-          title: const Text('Delete Expense', style: TextStyle(color: Colors.white)),
+          title: const Text(
+            'Delete Expense',
+            style: TextStyle(color: Colors.white),
+          ),
           content: Text(
             'Are you sure you want to delete "${expense.description}"?',
             style: const TextStyle(color: Colors.white),

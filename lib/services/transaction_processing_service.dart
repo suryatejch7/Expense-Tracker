@@ -8,7 +8,6 @@ import 'text_normalization_service.dart';
 
 /// Main service orchestrating the complete transaction processing pipeline
 class TransactionProcessingService {
-  
   /// Process transaction screenshot with user's crop settings
   static Future<ProcessingResult> processTransactionScreenshotWithUserSettings(
     File imageFile,
@@ -22,7 +21,7 @@ class TransactionProcessingService {
       cropBottom: userSettings.cropBottom,
     );
   }
-  
+
   /// Process transaction screenshot with complete pipeline (PhonePe only)
   static Future<ProcessingResult> processTransactionScreenshot(
     File imageFile, {
@@ -32,6 +31,7 @@ class TransactionProcessingService {
   }) async {
     List<String> processingSteps = [];
     // Hardcoded to PhonePe since you only use PhonePe
+    Map<String, File>? dualCrops;
 
     try {
       onProgress?.call(0.1);
@@ -47,15 +47,17 @@ class TransactionProcessingService {
         throw Exception('Image file is empty');
       }
 
-      if (fileSize > 50 * 1024 * 1024) { // 50MB limit
+      if (fileSize > 50 * 1024 * 1024) {
+        // 50MB limit
         throw Exception('Image file too large (>50MB)');
       }
 
       // Step 1: Image Preprocessing - Use dual-crop approach for PhonePe
       onProgress?.call(0.2);
-      processingSteps.add('Preprocessing image with PhonePe dual-crop settings...');
+      processingSteps.add(
+        'Preprocessing image with PhonePe dual-crop settings...',
+      );
 
-      Map<String, File>? dualCrops;
       try {
         // Create separate crops for payee (left 60%) and amount (right 40%) using user crop settings
         dualCrops = await ImagePreprocessingService.preprocessPhonePeDualCrops(
@@ -75,15 +77,21 @@ class TransactionProcessingService {
 
       if (dualCrops != null) {
         // Process both crops separately for optimal extraction
-        final payeeOcr = await PrimaryOcrService.extractText(dualCrops['payee']!)
-            .timeout(const Duration(minutes: 1));
-        final amountOcr = await PrimaryOcrService.extractText(dualCrops['amount']!)
-            .timeout(const Duration(minutes: 1));
-
+        final payeeOcr = await PrimaryOcrService.extractText(
+          dualCrops['payee']!,
+        ).timeout(const Duration(minutes: 1));
+        final amountOcr = await PrimaryOcrService.extractText(
+          dualCrops['amount']!,
+        ).timeout(const Duration(minutes: 1));
 
         // Extract using the WORKING GitHub logic for payee and CURRENT logic for amount with user crop settings
-        final payeeExtracted = FieldExtractionService.extractPayeeFromLeftCrop(payeeOcr.textBlocks);
-        final amountExtracted = FieldExtractionService.extractAmountFromRightCrop(amountOcr.textBlocks);
+        final payeeExtracted = FieldExtractionService.extractPayeeFromLeftCrop(
+          payeeOcr.textBlocks,
+        );
+        final amountExtracted =
+            FieldExtractionService.extractAmountFromRightCrop(
+              amountOcr.textBlocks,
+            );
 
         // Combine results
         extractedData = ExtractedTransaction(
@@ -91,34 +99,50 @@ class TransactionProcessingService {
           payeeName: payeeExtracted,
           date: null,
           transactionId: null,
-          confidence: _calculateCombinedConfidence([amountExtracted, payeeExtracted]),
+          confidence: _calculateCombinedConfidence([
+            amountExtracted,
+            payeeExtracted,
+          ]),
         );
 
-        processingSteps.add('Dual-crop extraction completed: ${payeeExtracted != null ? "Payee found" : "Payee not found"}, ${amountExtracted != null ? "Amount found" : "Amount not found"}');
+        processingSteps.add(
+          'Dual-crop extraction completed: ${payeeExtracted != null ? "Payee found" : "Payee not found"}, ${amountExtracted != null ? "Amount found" : "Amount not found"}',
+        );
       } else {
         // Fallback to single image processing if dual-crop fails
         // Use the same dual-crop approach but with fallback extraction
-        final fallbackCrops = await ImagePreprocessingService.preprocessPhonePeDualCrops(
-          imageFile,
-          cropTop: cropTop,
-          cropBottom: cropBottom,
-        ).timeout(const Duration(seconds: 30));
+        final fallbackCrops =
+            await ImagePreprocessingService.preprocessPhonePeDualCrops(
+              imageFile,
+              cropTop: cropTop,
+              cropBottom: cropBottom,
+            ).timeout(const Duration(seconds: 30));
 
-        final payeeOcr = await PrimaryOcrService.extractText(fallbackCrops['payee']!)
-            .timeout(const Duration(minutes: 1));
-        final amountOcr = await PrimaryOcrService.extractText(fallbackCrops['amount']!)
-            .timeout(const Duration(minutes: 1));
+        final payeeOcr = await PrimaryOcrService.extractText(
+          fallbackCrops['payee']!,
+        ).timeout(const Duration(minutes: 1));
+        final amountOcr = await PrimaryOcrService.extractText(
+          fallbackCrops['amount']!,
+        ).timeout(const Duration(minutes: 1));
 
         // Extract using the same methods as dual-crop
-        final payeeExtracted = FieldExtractionService.extractPayeeFromLeftCrop(payeeOcr.textBlocks);
-        final amountExtracted = FieldExtractionService.extractAmountFromRightCrop(amountOcr.textBlocks);
+        final payeeExtracted = FieldExtractionService.extractPayeeFromLeftCrop(
+          payeeOcr.textBlocks,
+        );
+        final amountExtracted =
+            FieldExtractionService.extractAmountFromRightCrop(
+              amountOcr.textBlocks,
+            );
 
         extractedData = ExtractedTransaction(
           amount: amountExtracted,
           payeeName: payeeExtracted,
           date: null,
           transactionId: null,
-          confidence: _calculateCombinedConfidence([amountExtracted, payeeExtracted]),
+          confidence: _calculateCombinedConfidence([
+            amountExtracted,
+            payeeExtracted,
+          ]),
         );
         processingSteps.add('Fallback extraction completed');
       }
@@ -139,7 +163,9 @@ class TransactionProcessingService {
       final enhancedData = normalizedData;
 
       onProgress?.call(1.0);
-      processingSteps.add('PhonePe transaction processing completed successfully!');
+      processingSteps.add(
+        'PhonePe transaction processing completed successfully!',
+      );
 
       return ProcessingResult(
         success: true,
@@ -147,7 +173,6 @@ class TransactionProcessingService {
         processingSteps: processingSteps,
         confidence: enhancedData.confidence,
       );
-      
     } catch (e) {
       processingSteps.add('Error: ${e.toString()}');
 
@@ -158,7 +183,13 @@ class TransactionProcessingService {
         confidence: 0.0,
       );
     } finally {
-      // Clean up resources
+      // Clean up temp processed image files
+      if (dualCrops != null) {
+        await ImagePreprocessingService.cleanupTempFiles(
+          dualCrops.values.toList(),
+        );
+      }
+      // Clean up OCR resources
       try {
         await PrimaryOcrService.dispose();
       } catch (e) {
@@ -167,12 +198,12 @@ class TransactionProcessingService {
     }
   }
 
-
-
   /// Validate extracted transaction data
-  static ValidationResult validateExtractedData(ExtractedTransaction transaction) {
+  static ValidationResult validateExtractedData(
+    ExtractedTransaction transaction,
+  ) {
     final issues = <String>[];
-    
+
     if (transaction.amount == null || transaction.amount!.isEmpty) {
       issues.add('Amount not detected');
     } else {
@@ -182,13 +213,13 @@ class TransactionProcessingService {
         issues.add('Invalid amount format');
       }
     }
-    
+
     if (transaction.payeeName == null || transaction.payeeName!.isEmpty) {
       issues.add('Payee name not detected');
     } else if (transaction.payeeName!.length < 2) {
       issues.add('Payee name too short');
     }
-    
+
     if (transaction.date == null || transaction.date!.isEmpty) {
       issues.add('Date not detected');
     } else {
@@ -199,7 +230,7 @@ class TransactionProcessingService {
         issues.add('Invalid date format');
       }
     }
-    
+
     return ValidationResult(
       isValid: issues.isEmpty,
       issues: issues,

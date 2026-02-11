@@ -4,7 +4,6 @@ import '../models/transaction_ocr_models.dart';
 
 /// Service for preprocessing transaction screenshots
 class ImagePreprocessingService {
-
   /// Preprocess image based on selected payment app
   static Future<File> preprocessImage(File imageFile, PaymentApp app) async {
     try {
@@ -33,7 +32,8 @@ class ImagePreprocessingService {
       final processedImage = _applyAdaptiveThreshold(croppedImage);
 
       // Save processed image
-      final processedPath = '${imageFile.parent.path}/processed_${DateTime.now().millisecondsSinceEpoch}.png';
+      final processedPath =
+          '${imageFile.parent.path}/processed_${DateTime.now().millisecondsSinceEpoch}.png';
       final processedFile = File(processedPath);
       await processedFile.writeAsBytes(img.encodePng(processedImage));
 
@@ -58,7 +58,8 @@ class ImagePreprocessingService {
     final safeWidth = cropWidth.clamp(1, image.width - safeX);
     final safeHeight = cropHeight.clamp(1, image.height - safeY);
 
-    return img.copyCrop(image,
+    return img.copyCrop(
+      image,
       x: safeX,
       y: safeY,
       width: safeWidth,
@@ -86,8 +87,8 @@ class ImagePreprocessingService {
         final pixel = image.getPixel(x, y);
         final luminance = img.getLuminance(pixel);
         final newPixel = luminance > mean
-          ? img.ColorRgb8(255, 255, 255)
-          : img.ColorRgb8(0, 0, 0);
+            ? img.ColorRgb8(255, 255, 255)
+            : img.ColorRgb8(0, 0, 0);
         image.setPixel(x, y, newPixel);
       }
     }
@@ -104,8 +105,8 @@ class ImagePreprocessingService {
         final luminance = img.getLuminance(pixel);
 
         final newPixel = luminance > threshold
-          ? img.ColorRgb8(255, 255, 255) // White
-          : img.ColorRgb8(0, 0, 0);      // Black
+            ? img.ColorRgb8(255, 255, 255) // White
+            : img.ColorRgb8(0, 0, 0); // Black
 
         image.setPixel(x, y, newPixel);
       }
@@ -160,8 +161,10 @@ class ImagePreprocessingService {
 
       // Step 1: Crop to the horizontal strip using user-defined crop settings
       final stripY = (originalImage.height * cropTop).round();
-      final stripHeight = (originalImage.height * (cropBottom - cropTop)).round();
-      final stripImage = img.copyCrop(originalImage,
+      final stripHeight = (originalImage.height * (cropBottom - cropTop))
+          .round();
+      final stripImage = img.copyCrop(
+        originalImage,
         x: 0,
         y: stripY,
         width: originalImage.width,
@@ -170,7 +173,8 @@ class ImagePreprocessingService {
 
       // Step 2: Create left 60% crop (payee region)
       final payeeWidth = (stripImage.width * 0.6).round();
-      final payeeCrop = img.copyCrop(stripImage,
+      final payeeCrop = img.copyCrop(
+        stripImage,
         x: 0,
         y: 0,
         width: payeeWidth,
@@ -180,7 +184,8 @@ class ImagePreprocessingService {
       // Step 3: Create right 40% crop (amount region)
       final amountX = (stripImage.width * 0.6).round();
       final amountWidth = stripImage.width - amountX;
-      final amountCrop = img.copyCrop(stripImage,
+      final amountCrop = img.copyCrop(
+        stripImage,
         x: amountX,
         y: 0,
         width: amountWidth,
@@ -192,8 +197,10 @@ class ImagePreprocessingService {
       final processedAmount = _preprocessForAmount(amountCrop);
 
       // Step 5: Save both processed crops
-      final payeePath = '${imageFile.parent.path}/payee_crop_${DateTime.now().millisecondsSinceEpoch}.png';
-      final amountPath = '${imageFile.parent.path}/amount_crop_${DateTime.now().millisecondsSinceEpoch}.png';
+      final payeePath =
+          '${imageFile.parent.path}/payee_crop_${DateTime.now().millisecondsSinceEpoch}.png';
+      final amountPath =
+          '${imageFile.parent.path}/amount_crop_${DateTime.now().millisecondsSinceEpoch}.png';
 
       final payeeFile = File(payeePath);
       final amountFile = File(amountPath);
@@ -201,10 +208,7 @@ class ImagePreprocessingService {
       await payeeFile.writeAsBytes(img.encodePng(processedPayee));
       await amountFile.writeAsBytes(img.encodePng(processedAmount));
 
-      return {
-        'payee': payeeFile,
-        'amount': amountFile,
-      };
+      return {'payee': payeeFile, 'amount': amountFile};
     } catch (e) {
       throw Exception('Dual crop preprocessing failed: $e');
     }
@@ -229,5 +233,18 @@ class ImagePreprocessingService {
     processed = _enhanceContrast(processed);
     processed = _applyAdaptiveThreshold(processed);
     return processed;
+  }
+
+  /// Clean up temporary processed image files
+  static Future<void> cleanupTempFiles(List<File> files) async {
+    for (final file in files) {
+      try {
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (_) {
+        // Best effort cleanup — ignore failures
+      }
+    }
   }
 }
