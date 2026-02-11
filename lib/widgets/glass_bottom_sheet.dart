@@ -24,13 +24,10 @@ class _GlassBottomSheetState extends State<GlassBottomSheet>
       vsync: this,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
 
     _slideController.forward();
   }
@@ -46,12 +43,14 @@ class _GlassBottomSheetState extends State<GlassBottomSheet>
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Give more space - increase item height and base height
-    final itemHeight = 85.0; // Increased from 70.0
-    final baseHeight = 120.0; // Increased from 100.0
-    final contentHeight = baseHeight + (widget.items.length * itemHeight);
-    final maxHeight = screenHeight * 0.5; // Increased from 0.4 to 0.5
-    final finalHeight = contentHeight.clamp(200.0, maxHeight); // Increased min from 180
+    // Calculate height to fit all items without scrolling
+    final itemHeight = 72.0;
+    final spacing = 8.0;
+    final baseHeight = 90.0; // handle bar + title + padding
+    final contentHeight =
+        baseHeight + (widget.items.length * (itemHeight + spacing)) + 12;
+    final maxHeight = screenHeight * 0.6;
+    final finalHeight = contentHeight.clamp(200.0, maxHeight);
 
     return GestureDetector(
       // Tap anywhere outside the bottom sheet to dismiss
@@ -79,73 +78,74 @@ class _GlassBottomSheetState extends State<GlassBottomSheet>
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(25),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.15),
-                      Colors.white.withValues(alpha: 0.05),
-                    ],
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.15),
+                            Colors.white.withValues(alpha: 0.05),
+                          ],
+                        ),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 30,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Handle bar
+                          Container(
+                            margin: const EdgeInsets.only(top: 12),
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(height: 18), // Increased from 16
+                          // Title
+                          const Text(
+                            'Quick Actions',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Action items - no scrolling, all fit in view
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: widget.items.map((item) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: SizedBox(
+                                    height: itemHeight,
+                                    child: _buildActionItem(item),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    ),
                   ),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.25),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Handle bar
-                    Container(
-                      margin: const EdgeInsets.only(top: 12),
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(height: 18), // Increased from 16
-                    // Title
-                    const Text(
-                      'Quick Actions',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 20), // Increased from 16
-                    // Action items with more space
-                    Flexible(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16), // Reduced padding
-                        itemCount: widget.items.length,
-                        shrinkWrap: true,
-                        itemBuilder: (context, index) {
-                          return Container(
-                            height: itemHeight,
-                            margin: const EdgeInsets.only(bottom: 12), // Increased spacing
-                            child: _buildActionItem(widget.items[index]),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 12), // Increased bottom padding
-                  ],
                 ),
               ),
             ),
-          ),
-        ),
-      ),
           ),
         ),
       ),
@@ -159,8 +159,8 @@ class _GlassBottomSheetState extends State<GlassBottomSheet>
         borderRadius: BorderRadius.circular(15),
         onTap: item.onTap,
         child: Container(
-          height: 75.0, // Fixed height to prevent overflow
-          padding: const EdgeInsets.all(14), // Slightly reduced padding
+          height: 64.0,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(15),
             color: Colors.white.withValues(alpha: 0.1),
@@ -191,7 +191,8 @@ class _GlassBottomSheetState extends State<GlassBottomSheet>
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min, // Important: prevent overflow
                   children: [
-                    Flexible( // Wrap title in Flexible
+                    Flexible(
+                      // Wrap title in Flexible
                       child: Text(
                         item.title,
                         style: const TextStyle(
@@ -204,7 +205,8 @@ class _GlassBottomSheetState extends State<GlassBottomSheet>
                       ),
                     ),
                     const SizedBox(height: 2), // Reduced spacing
-                    Flexible( // Wrap subtitle in Flexible
+                    Flexible(
+                      // Wrap subtitle in Flexible
                       child: Text(
                         item.subtitle,
                         style: TextStyle(

@@ -516,9 +516,6 @@ class _TotalExpenseWidgetState extends State<TotalExpenseWidget>
         final budgetExcess = expenseProvider.budgetExcess;
         final monthlyBudget = expenseProvider.monthlyBudget;
         final totalExpense = expenseProvider.currentMonthTotalExpense;
-        final totalIncome = expenseProvider.totalIncomeThisMonth;
-        final netBalance = totalIncome - totalExpense;
-        final isPositive = netBalance >= 0;
         final currency = expenseProvider.currency;
 
         return Column(
@@ -527,7 +524,7 @@ class _TotalExpenseWidgetState extends State<TotalExpenseWidget>
             Row(
               children: [
                 const Text(
-                  'Net Expense',
+                  'This Month\'s Spending',
                   style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
               ],
@@ -539,17 +536,16 @@ class _TotalExpenseWidgetState extends State<TotalExpenseWidget>
                   child: AnimatedBuilder(
                     animation: _numberAnimation,
                     builder: (context, child) {
-                      final animatedValue = netBalance * _numberAnimation.value;
+                      final animatedValue =
+                          totalExpense * _numberAnimation.value;
                       return Text(
-                        '${isPositive ? '+' : ''}$currency${animatedValue.abs().toStringAsFixed(2)}',
+                        '$currency${animatedValue.toStringAsFixed(2)}',
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: isPositive
-                              ? Colors.green
-                              : (isOverBudget
-                                    ? Colors.red
-                                    : Theme.of(context).colorScheme.primary),
+                          color: isOverBudget
+                              ? Colors.red
+                              : Theme.of(context).colorScheme.primary,
                         ),
                       );
                     },
@@ -638,6 +634,8 @@ class IncomeSummaryWidget extends StatelessWidget {
         final currency = expenseProvider.currency;
         final totalIncome = expenseProvider.totalIncomeThisMonth;
         final totalExpense = expenseProvider.currentMonthTotalExpense;
+        final netBalance = totalIncome - totalExpense;
+        final isPositive = netBalance >= 0;
 
         return Container(
           margin: const EdgeInsets.only(top: 16),
@@ -692,18 +690,58 @@ class IncomeSummaryWidget extends StatelessWidget {
                 width: 1,
                 color: Colors.grey.withValues(alpha: 0.3),
               ),
+              // Net Balance section (center)
+              Expanded(
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.swap_vert_rounded,
+                          color: isPositive ? Colors.green : Colors.red,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Net',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[400],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${isPositive ? '+' : '-'}$currency${netBalance.abs().toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isPositive ? Colors.green : Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Divider
+              Container(
+                height: 40,
+                width: 1,
+                color: Colors.grey.withValues(alpha: 0.3),
+              ),
               // Total Spent section
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Total Spent',
+                      'Spent',
                       style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '$currency${totalExpense.toStringAsFixed(2)}',
+                      '-$currency${totalExpense.toStringAsFixed(2)}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

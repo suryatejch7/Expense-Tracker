@@ -23,6 +23,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
   DateTime _selectedDate = DateTime.now();
   String? _selectedAccountId;
   bool _isInitialized = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -386,6 +387,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
   }
 
   void _saveIncome() async {
+    if (_isSaving) return;
     if (_formKey.currentState!.validate()) {
       if (_selectedAccountId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -396,6 +398,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
         );
         return;
       }
+      setState(() => _isSaving = true);
 
       final now = DateTime.now();
 
@@ -437,6 +440,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
         }
       } catch (e) {
         if (mounted) {
+          setState(() => _isSaving = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
           );

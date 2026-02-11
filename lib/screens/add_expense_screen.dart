@@ -37,6 +37,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   DateTime _selectedDate = DateTime.now();
   String? _selectedAccountId;
   bool _isInitialized = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -480,9 +481,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Future<void> _saveExpense() async {
+    if (_isSaving) return;
     if (!_formKey.currentState!.validate()) {
       return;
     }
+    setState(() => _isSaving = true);
 
     try {
       final title = _titleController.text.trim();
@@ -540,6 +543,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isSaving = false);
         String errorMessage = 'Failed to save expense';
         if (e.toString().contains('network')) {
           errorMessage = 'Network error. Please check your connection.';

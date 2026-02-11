@@ -28,7 +28,7 @@ class _GlassNavBarState extends State<GlassNavBar>
   late AnimationController _highlightController;
   late AnimationController _activeController;
   late AnimationController _swipeController;
-  
+
   late Animation<double> _scaleAnimation;
   late Animation<double> _highlightAnimation;
   late Animation<double> _activeAnimation;
@@ -61,37 +61,21 @@ class _GlassNavBarState extends State<GlassNavBar>
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.96,
-    ).animate(CurvedAnimation(
-      parent: _pressController,
-      curve: Curves.easeInOutCubic,
-    ));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.96).animate(
+      CurvedAnimation(parent: _pressController, curve: Curves.easeInOutCubic),
+    );
 
-    _highlightAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _highlightController,
-      curve: Curves.easeOut,
-    ));
+    _highlightAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _highlightController, curve: Curves.easeOut),
+    );
 
-    _activeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _activeController,
-      curve: Curves.easeInOutCubic,
-    ));
+    _activeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _activeController, curve: Curves.easeInOutCubic),
+    );
 
-    _swipeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _swipeController,
-      curve: Curves.easeInOutCubic,
-    ));
+    _swipeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _swipeController, curve: Curves.easeInOutCubic),
+    );
   }
 
   @override
@@ -125,8 +109,8 @@ class _GlassNavBarState extends State<GlassNavBar>
     _highlightController.reverse();
   }
 
-  void _showQuickActions(int index) {
-    final items = _getQuickActionItems(index);
+  void _showQuickActions() {
+    final items = _getAllQuickActionItems();
 
     showModalBottomSheet(
       context: context,
@@ -137,70 +121,67 @@ class _GlassNavBarState extends State<GlassNavBar>
     );
   }
 
-  List<QuickActionItem> _getQuickActionItems(int index) {
-    if (index == 0) {
-      return [
-        QuickActionItem(
-          id: 'search',
-          icon: Icons.search,
-          title: 'Search',
-          subtitle: 'Find specific expenses',
-          color: Colors.blue,
-          onTap: () {
-            Navigator.pop(context);
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SearchScreen()),
-            );
-          },
-        ),
-        QuickActionItem(
-          id: 'settings',
-          icon: Icons.settings_outlined,
-          title: 'Settings',
-          subtitle: 'App preferences',
-          color: Colors.grey,
-          onTap: () {
-            Navigator.pop(context);
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SettingsScreen()),
-            );
-          },
-        ),
-      ];
-    } else {
-      return [
-        QuickActionItem(
-          id: 'analytics',
-          icon: Icons.pie_chart_outline,
-          title: 'Analytics',
-          subtitle: 'View spending insights',
-          color: Colors.purple,
-          onTap: () {
-            Navigator.pop(context);
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
-            );
-          },
-        ),
-        QuickActionItem(
-          id: 'crop_calibration',
-          icon: Icons.crop_free,
-          title: 'Crop Calibration',
-          subtitle: 'Calibrate PhonePe OCR',
-          color: Colors.orange,
-          onTap: () {
-            Navigator.pop(context);
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const CropCalibrationScreen()),
-            );
-          },
-        ),
-      ];
-    }
+  List<QuickActionItem> _getAllQuickActionItems() {
+    return [
+      QuickActionItem(
+        id: 'search',
+        icon: Icons.search,
+        title: 'Search',
+        subtitle: 'Find specific expenses',
+        color: Colors.blue,
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SearchScreen()),
+          );
+        },
+      ),
+      QuickActionItem(
+        id: 'analytics',
+        icon: Icons.pie_chart_outline,
+        title: 'Analytics',
+        subtitle: 'View spending insights',
+        color: Colors.purple,
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+          );
+        },
+      ),
+      QuickActionItem(
+        id: 'crop_calibration',
+        icon: Icons.crop_free,
+        title: 'Crop Calibration',
+        subtitle: 'Calibrate PhonePe OCR',
+        color: Colors.orange,
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CropCalibrationScreen(),
+            ),
+          );
+        },
+      ),
+      QuickActionItem(
+        id: 'settings',
+        icon: Icons.settings_outlined,
+        title: 'Settings',
+        subtitle: 'App preferences',
+        color: Colors.grey,
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SettingsScreen()),
+          );
+        },
+      ),
+    ];
   }
 
   void _handleHorizontalSwipe(DragEndDetails details) {
@@ -236,10 +217,7 @@ class _GlassNavBarState extends State<GlassNavBar>
       right: 0,
       child: Center(
         child: AnimatedBuilder(
-          animation: Listenable.merge([
-            _scaleAnimation, 
-            _swipeAnimation
-          ]),
+          animation: Listenable.merge([_scaleAnimation, _swipeAnimation]),
           builder: (context, child) {
             return Transform.scale(
               scale: _scaleAnimation.value * 0.9, // Scale down the nav bar
@@ -248,25 +226,36 @@ class _GlassNavBarState extends State<GlassNavBar>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(35),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                      sigmaX: 15, 
-                      sigmaY: 15
-                    ),
+                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
                       height: 70,
-                      width: 200,
+                      width: 280,
                       transform: Matrix4.identity()
-                        ..setTranslationRaw(_swipeAnimation.value * 10 * (widget.currentIndex == 0 ? 1 : -1), 0, 0)
-                        ..scaleByVector3(vmath.Vector3.all(1.0 + (_swipeAnimation.value * 0.015))),
+                        ..setTranslationRaw(
+                          _swipeAnimation.value *
+                              10 *
+                              (widget.currentIndex == 0 ? 1 : -1),
+                          0,
+                          0,
+                        )
+                        ..scaleByVector3(
+                          vmath.Vector3.all(
+                            1.0 + (_swipeAnimation.value * 0.015),
+                          ),
+                        ),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(35),
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Colors.white.withValues(alpha: 0.15 + (_swipeAnimation.value * 0.05)),
-                            Colors.white.withValues(alpha: 0.08 + (_swipeAnimation.value * 0.03)),
+                            Colors.white.withValues(
+                              alpha: 0.15 + (_swipeAnimation.value * 0.05),
+                            ),
+                            Colors.white.withValues(
+                              alpha: 0.08 + (_swipeAnimation.value * 0.03),
+                            ),
                           ],
                         ),
                         border: Border.all(
@@ -295,6 +284,7 @@ class _GlassNavBarState extends State<GlassNavBar>
                             activeIcon: Icons.dashboard,
                             label: 'Home',
                           ),
+                          _buildActionsNavItem(),
                           _buildNavItem(
                             index: 1,
                             icon: Icons.pie_chart_outline_rounded,
@@ -323,23 +313,12 @@ class _GlassNavBarState extends State<GlassNavBar>
     final isActive = widget.currentIndex == index;
 
     return AnimatedBuilder(
-      animation: Listenable.merge([
-        _highlightAnimation,
-        _activeAnimation,
-      ]),
+      animation: Listenable.merge([_highlightAnimation, _activeAnimation]),
       builder: (context, child) {
         return GestureDetector(
           onTapDown: (_) => _onTapDown(index),
           onTapUp: (_) => _onTapUp(index),
           onTapCancel: _onTapCancel,
-          onLongPress: () => _showQuickActions(index),
-          onVerticalDragEnd: (details) {
-            if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
-              // Swipe up detected
-              _showQuickActions(index);
-            }
-          },
-          onHorizontalDragEnd: _handleHorizontalSwipe,
           child: Container(
             width: 80,
             height: 50,
@@ -348,17 +327,14 @@ class _GlassNavBarState extends State<GlassNavBar>
               color: isActive
                   ? Colors.white.withValues(alpha: 0.12)
                   : Colors.transparent,
-              ),
-              child: Column(
+            ),
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   transitionBuilder: (child, animation) {
-                    return ScaleTransition(
-                      scale: animation,
-                      child: child,
-                    );
+                    return ScaleTransition(scale: animation, child: child);
                   },
                   child: Icon(
                     isActive ? activeIcon : icon,
@@ -386,6 +362,44 @@ class _GlassNavBarState extends State<GlassNavBar>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildActionsNavItem() {
+    return GestureDetector(
+      onTap: () => _showQuickActions(),
+      onVerticalDragEnd: (details) {
+        if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
+          _showQuickActions();
+        }
+      },
+      child: Container(
+        width: 80,
+        height: 50,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(25),
+          color: Colors.transparent,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.bolt_rounded,
+              color: Colors.white.withValues(alpha: 0.7),
+              size: 24,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Actions',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontWeight: FontWeight.normal,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
