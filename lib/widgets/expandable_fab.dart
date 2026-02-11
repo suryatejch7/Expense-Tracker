@@ -32,20 +32,16 @@ class _ExpandableFabState extends State<ExpandableFab>
       duration: const Duration(milliseconds: 350),
       vsync: this,
     );
-    
-    _rotateAnimation = Tween<double>(begin: 0.0, end: 0.125).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutCubic,
-      ),
-    );
 
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+    _rotateAnimation = Tween<double>(
+      begin: 0.0,
+      end: 0.125,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.9,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
   }
 
   @override
@@ -74,6 +70,16 @@ class _ExpandableFabState extends State<ExpandableFab>
     }
   }
 
+  /// Instantly reset to closed state without animation (for navigation)
+  void _closeInstant() {
+    if (_isOpen) {
+      setState(() {
+        _isOpen = false;
+        _controller.reset();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -88,13 +94,15 @@ class _ExpandableFabState extends State<ExpandableFab>
                 animation: _controller,
                 builder: (context, child) {
                   return Container(
-                    color: Colors.black.withValues(alpha: 0.5 * _controller.value.clamp(0.0, 1.0)),
+                    color: Colors.black.withValues(
+                      alpha: 0.5 * _controller.value.clamp(0.0, 1.0),
+                    ),
                   );
                 },
               ),
             ),
           ),
-        
+
         // Menu items
         Column(
           mainAxisSize: MainAxisSize.min,
@@ -107,12 +115,12 @@ class _ExpandableFabState extends State<ExpandableFab>
               icon: Icons.arrow_downward_rounded,
               color: Colors.green,
               onTap: () {
-                _close();
+                _closeInstant();
                 widget.onAddIncome();
               },
               offset: 140,
             ),
-            
+
             // Add Expense button (Primary color)
             _buildMenuItem(
               index: 1,
@@ -120,12 +128,12 @@ class _ExpandableFabState extends State<ExpandableFab>
               icon: Icons.arrow_upward_rounded,
               color: Theme.of(context).colorScheme.primary,
               onTap: () {
-                _close();
+                _closeInstant();
                 widget.onAddExpense();
               },
               offset: 70,
             ),
-            
+
             // Main FAB
             _buildMainFab(context),
           ],
@@ -151,9 +159,10 @@ class _ExpandableFabState extends State<ExpandableFab>
           0.8 + (index * 0.1),
           curve: Curves.easeOutCubic,
         ).transform(_controller.value.clamp(0.0, 1.0));
-        
+
         // Apply spring-like overshoot manually for fluid feel
-        final springValue = intervalValue + (0.1 * math.sin(intervalValue * math.pi));
+        final springValue =
+            intervalValue + (0.1 * math.sin(intervalValue * math.pi));
 
         return Transform.translate(
           offset: Offset(0, offset * (1 - intervalValue)),
@@ -212,11 +221,7 @@ class _ExpandableFabState extends State<ExpandableFab>
                     ),
                   ],
                 ),
-                child: Icon(
-                  icon,
-                  color: Colors.white,
-                  size: 24,
-                ),
+                child: Icon(icon, color: Colors.white, size: 24),
               ),
             ),
           ],
@@ -246,14 +251,19 @@ class _ExpandableFabState extends State<ExpandableFab>
                         ? [Colors.grey.shade700, Colors.grey.shade800]
                         : [
                             Theme.of(context).colorScheme.primary,
-                            Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
+                            Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.8),
                           ],
                   ),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: (_isOpen ? Colors.grey : Theme.of(context).colorScheme.primary)
-                          .withValues(alpha: 0.4),
+                      color:
+                          (_isOpen
+                                  ? Colors.grey
+                                  : Theme.of(context).colorScheme.primary)
+                              .withValues(alpha: 0.4),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -262,10 +272,7 @@ class _ExpandableFabState extends State<ExpandableFab>
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   transitionBuilder: (child, animation) {
-                    return ScaleTransition(
-                      scale: animation,
-                      child: child,
-                    );
+                    return ScaleTransition(scale: animation, child: child);
                   },
                   child: Icon(
                     _isOpen ? Icons.close : Icons.add,

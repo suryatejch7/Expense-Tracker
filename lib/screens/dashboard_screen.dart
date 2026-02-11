@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/expense_models.dart';
 import '../providers/expense_provider.dart';
 import '../widgets/expense_card.dart';
 import '../widgets/income_card.dart';
@@ -315,15 +316,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
+    final currency = provider.currency;
+    final categories = provider.categories;
+
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
           final expense = expenses[index];
+          final category = _findCategory(categories, expense.category);
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: ExpenseCard(
               key: ValueKey('expense_${expense.id}'),
               expense: expense,
+              currency: currency,
+              category: category,
               index: index,
             ),
           );
@@ -366,6 +373,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
+    final currency = provider.currency;
+
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
@@ -375,6 +384,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: IncomeCard(
               key: ValueKey('income_${income.id}'),
               income: income,
+              currency: currency,
               index: index,
             ),
           );
@@ -423,6 +433,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
+    final currency = provider.currency;
+    final categories = provider.categories;
+
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
@@ -435,11 +448,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ? ExpenseCard(
                     key: ValueKey('expense_${transaction['data'].id}'),
                     expense: transaction['data'],
+                    currency: currency,
+                    category: _findCategory(
+                      categories,
+                      (transaction['data'] as Expense).category,
+                    ),
                     index: index,
                   )
                 : IncomeCard(
                     key: ValueKey('income_${transaction['data'].id}'),
                     income: transaction['data'],
+                    currency: currency,
                     index: index,
                   ),
           );
@@ -448,6 +467,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         addAutomaticKeepAlives: false,
         addRepaintBoundaries: true,
       ),
+    );
+  }
+
+  /// Helper to find a category by name without creating closures every call
+  ExpenseCategory _findCategory(
+    List<ExpenseCategory> categories,
+    String categoryName,
+  ) {
+    for (final cat in categories) {
+      if (cat.name == categoryName) return cat;
+    }
+    return ExpenseCategory(
+      id: categoryName,
+      name: categoryName,
+      icon: '📦',
+      colorHex: '#747D8C',
     );
   }
 }

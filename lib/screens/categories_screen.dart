@@ -89,7 +89,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   onPressed: _showFilterSheet,
-                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.2),
                   labelStyle: TextStyle(
                     color: Theme.of(context).colorScheme.primary,
                     fontWeight: FontWeight.w500,
@@ -128,18 +130,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   const SizedBox(height: 16),
                   Text(
                     'No expenses for ${_getPeriodLabel().toLowerCase()}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey,
-                    ),
+                    style: const TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'Add some expenses to see category breakdown',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -157,10 +153,14 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -219,7 +219,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     final entry = sortedCategories[index];
                     final categoryName = entry.key;
                     final amount = entry.value;
-                    final percentage = totalForPeriod > 0 ? (amount / totalForPeriod * 100) : 0.0;
+                    final percentage = totalForPeriod > 0
+                        ? (amount / totalForPeriod * 100)
+                        : 0.0;
 
                     // Find the category object
                     final category = expenseProvider.categories.firstWhere(
@@ -236,7 +238,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     final budget = _selectedPeriod == FilterPeriod.monthly
                         ? expenseProvider.getCategoryBudget(categoryName)
                         : 0.0;
-                    final isOverBudget = _selectedPeriod == FilterPeriod.monthly &&
+                    final isOverBudget =
+                        _selectedPeriod == FilterPeriod.monthly &&
                         budget > 0 &&
                         amount > budget;
                     final budgetExcess = amount - budget;
@@ -262,8 +265,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16),
                             border: isOverBudget
-                              ? Border.all(color: Colors.red, width: 2)
-                              : null,
+                                ? Border.all(color: Colors.red, width: 2)
+                                : null,
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -276,8 +279,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                       height: 60,
                                       decoration: BoxDecoration(
                                         color: isOverBudget
-                                          ? Colors.red.withValues(alpha: 0.2)
-                                          : category.color.withValues(alpha: 0.2),
+                                            ? Colors.red.withValues(alpha: 0.2)
+                                            : category.color.withValues(
+                                                alpha: 0.2,
+                                              ),
                                         borderRadius: BorderRadius.circular(16),
                                       ),
                                       child: Center(
@@ -285,7 +290,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                           category.icon,
                                           style: TextStyle(
                                             fontSize: 28,
-                                            color: isOverBudget ? Colors.red : category.color,
+                                            color: isOverBudget
+                                                ? Colors.red
+                                                : category.color,
                                           ),
                                         ),
                                       ),
@@ -293,7 +300,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                     const SizedBox(width: 16),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Row(
                                             children: [
@@ -302,22 +310,32 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                                 style: TextStyle(
                                                   fontSize: 18,
                                                   fontWeight: FontWeight.w600,
-                                                  color: isOverBudget ? Colors.red : Colors.white,
+                                                  color: isOverBudget
+                                                      ? Colors.red
+                                                      : Colors.white,
                                                 ),
                                               ),
                                               if (isOverBudget) ...[
                                                 const SizedBox(width: 8),
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2,
+                                                      ),
                                                   decoration: BoxDecoration(
                                                     color: Colors.red,
-                                                    borderRadius: BorderRadius.circular(8),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
                                                   ),
                                                   child: const Text(
                                                     'OVER',
                                                     style: TextStyle(
                                                       fontSize: 10,
-                                                      fontWeight: FontWeight.bold,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                       color: Colors.white,
                                                     ),
                                                   ),
@@ -333,21 +351,32 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                               color: Colors.grey,
                                             ),
                                           ),
-                                          if (budget > 0 && _selectedPeriod == FilterPeriod.monthly) ...[
+                                          if (budget > 0 &&
+                                              _selectedPeriod ==
+                                                  FilterPeriod.monthly) ...[
                                             const SizedBox(height: 8),
                                             LinearProgressIndicator(
-                                              value: (amount / budget).clamp(0.0, 1.0),
-                                              backgroundColor: Colors.grey.withValues(alpha: 0.3),
-                                              valueColor: AlwaysStoppedAnimation<Color>(
-                                                isOverBudget ? Colors.red : category.color,
+                                              value: (amount / budget).clamp(
+                                                0.0,
+                                                1.0,
                                               ),
+                                              backgroundColor: Colors.grey
+                                                  .withValues(alpha: 0.3),
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    isOverBudget
+                                                        ? Colors.red
+                                                        : category.color,
+                                                  ),
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
                                               'Budget: ₹${budget.toStringAsFixed(0)}${isOverBudget ? ' (Over by ₹${budgetExcess.toStringAsFixed(0)})' : ''}',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: isOverBudget ? Colors.red : Colors.grey,
+                                                color: isOverBudget
+                                                    ? Colors.red
+                                                    : Colors.grey,
                                               ),
                                             ),
                                           ],
@@ -355,14 +384,17 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                       ),
                                     ),
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
                                       children: [
                                         Text(
                                           '₹${amount.toStringAsFixed(0)}',
                                           style: TextStyle(
                                             fontSize: 20,
                                             fontWeight: FontWeight.bold,
-                                            color: isOverBudget ? Colors.red : Colors.white,
+                                            color: isOverBudget
+                                                ? Colors.red
+                                                : Colors.white,
                                           ),
                                         ),
                                         const SizedBox(height: 4),
@@ -502,41 +534,62 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildFilterOption(FilterPeriod.weekly, 'This Week', Icons.view_week),
-            _buildFilterOption(FilterPeriod.monthly, 'This Month', Icons.calendar_month),
-            _buildFilterOption(FilterPeriod.yearly, 'This Year', Icons.calendar_today),
-            _buildFilterOption(FilterPeriod.allTime, 'All Time', Icons.all_inclusive),
+            _buildFilterOption(
+              FilterPeriod.weekly,
+              'This Week',
+              Icons.view_week,
+            ),
+            _buildFilterOption(
+              FilterPeriod.monthly,
+              'This Month',
+              Icons.calendar_month,
+            ),
+            _buildFilterOption(
+              FilterPeriod.yearly,
+              'This Year',
+              Icons.calendar_today,
+            ),
+            _buildFilterOption(
+              FilterPeriod.allTime,
+              'All Time',
+              Icons.all_inclusive,
+            ),
             const Divider(color: Colors.grey),
             ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _selectedPeriod == FilterPeriod.custom
-                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
-                    : Colors.grey.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _selectedPeriod == FilterPeriod.custom
+                      ? Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.2)
+                      : Colors.grey.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.date_range,
+                  color: _selectedPeriod == FilterPeriod.custom
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.grey,
+                ),
               ),
-              child: Icon(
-                Icons.date_range,
-                color: _selectedPeriod == FilterPeriod.custom
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey,
-              ),
-            ),
-            title: const Text('Custom Date Range'),
-            subtitle: _startDate != null && _endDate != null
-                ? Text(
-                    '${DateFormat('MMM d, yyyy').format(_startDate!)} - ${DateFormat('MMM d, yyyy').format(_endDate!)}',
-                    style: TextStyle(
+              title: const Text('Custom Date Range'),
+              subtitle: _startDate != null && _endDate != null
+                  ? Text(
+                      '${DateFormat('MMM d, yyyy').format(_startDate!)} - ${DateFormat('MMM d, yyyy').format(_endDate!)}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    )
+                  : const Text('Select a date range'),
+              trailing: _selectedPeriod == FilterPeriod.custom
+                  ? Icon(
+                      Icons.check_circle,
                       color: Theme.of(context).colorScheme.primary,
-                    ),
-                  )
-                : const Text('Select a date range'),
-            trailing: _selectedPeriod == FilterPeriod.custom
-                ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary)
-                : null,
-            onTap: _selectDateRange,
-          ),
+                    )
+                  : null,
+              onTap: _selectDateRange,
+            ),
             const SizedBox(height: 20),
             const Text(
               'Filter by Account',
@@ -552,42 +605,50 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                 final accounts = provider.accounts;
                 return Column(
                   children: [
-                    _buildAccountOption(null, 'All Accounts', Icons.account_balance_wallet),
-                    ...accounts.map((account) => _buildAccountOption(
-                      account.id,
-                      account.name,
-                      Icons.account_balance,
-                    )),
+                    _buildAccountOption(
+                      null,
+                      'All Accounts',
+                      Icons.account_balance_wallet,
+                    ),
+                    ...accounts.map(
+                      (account) => _buildAccountOption(
+                        account.id,
+                        account.name,
+                        Icons.account_balance,
+                      ),
+                    ),
                   ],
                 );
               },
             ),
             const Divider(color: Colors.grey),
             const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                widget.onFilterSelected(_selectedPeriod, _startDate, _endDate, _selectedAccountId);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  widget.onFilterSelected(
+                    _selectedPeriod,
+                    _startDate,
+                    _endDate,
+                    _selectedAccountId,
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-              ),
-              child: const Text(
-                'Apply Filter',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                child: const Text(
+                  'Apply Filter',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -607,12 +668,17 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
         ),
         child: Icon(
           icon,
-          color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Colors.grey,
         ),
       ),
       title: Text(title),
       trailing: isSelected
-          ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary)
+          ? Icon(
+              Icons.check_circle,
+              color: Theme.of(context).colorScheme.primary,
+            )
           : null,
       onTap: () {
         setState(() {
@@ -635,12 +701,17 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
         ),
         child: Icon(
           icon,
-          color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Colors.grey,
         ),
       ),
       title: Text(title),
       trailing: isSelected
-          ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary)
+          ? Icon(
+              Icons.check_circle,
+              color: Theme.of(context).colorScheme.primary,
+            )
           : null,
       onTap: () {
         setState(() {
@@ -708,7 +779,10 @@ class CategoryDetailScreen extends StatelessWidget {
           customEnd: customEndDate,
           accountId: accountId,
         );
-        final totalAmount = expenses.fold(0.0, (sum, expense) => sum + expense.amount);
+        final totalAmount = expenses.fold(
+          0.0,
+          (sum, expense) => sum + expense.amount,
+        );
 
         // Get account name for display if filtered
         String? accountName;
@@ -803,7 +877,12 @@ class CategoryDetailScreen extends StatelessWidget {
                         itemBuilder: (context, index) {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 8),
-                            child: ExpenseCard(expense: expenses[index], index: index),
+                            child: ExpenseCard(
+                              expense: expenses[index],
+                              currency: expenseProvider.currency,
+                              category: category,
+                              index: index,
+                            ),
                           );
                         },
                       ),

@@ -129,6 +129,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                 controller: _titleController,
                 labelText: 'Income Title',
                 hintText: 'e.g., Salary, Loan Repayment, Refund',
+                textCapitalization: TextCapitalization.words,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter a title';
@@ -166,6 +167,7 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
                 controller: _sourceController,
                 labelText: 'Source (Optional)',
                 hintText: 'e.g., Friend\'s name, Company, Amazon',
+                textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 20),
 
@@ -256,12 +258,14 @@ class _AddIncomeScreenState extends State<AddIncomeScreen> {
     String? prefixText,
     int maxLines = 1,
     String? Function(String?)? validator,
+    TextCapitalization textCapitalization = TextCapitalization.none,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
       validator: validator,
+      textCapitalization: textCapitalization,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: labelText,

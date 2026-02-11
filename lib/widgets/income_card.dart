@@ -6,19 +6,21 @@ import '../screens/add_income_screen.dart';
 
 class IncomeCard extends StatelessWidget {
   final Income income;
-  final int index; // For staggered animation
+  final int index;
+  final String currency;
 
-  const IncomeCard({super.key, required this.income, this.index = 0});
+  const IncomeCard({
+    super.key,
+    required this.income,
+    required this.currency,
+    this.index = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final currency = context.watch<ExpenseProvider>().currency;
-
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      elevation: 2,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+      child: GestureDetector(
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -95,10 +97,7 @@ class IncomeCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     _formatDate(income.date),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),
@@ -152,7 +151,10 @@ class IncomeCard extends StatelessWidget {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF2A2A2A),
-          title: const Text('Delete Income', style: TextStyle(color: Colors.white)),
+          title: const Text(
+            'Delete Income',
+            style: TextStyle(color: Colors.white),
+          ),
           content: Text(
             'Are you sure you want to delete "${income.title}"?',
             style: const TextStyle(color: Colors.white),

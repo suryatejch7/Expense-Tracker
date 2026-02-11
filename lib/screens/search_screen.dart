@@ -75,11 +75,22 @@ class _SearchScreenState extends State<SearchScreen> {
                 final incomes = expenseProvider.filteredIncomes;
                 // Combine and sort by date (most recent first)
                 final List<dynamic> combinedResults = [
-                  ...expenses.map((e) => {'type': 'expense', 'data': e, 'date': e.date}),
-                  ...incomes.map((i) => {'type': 'income', 'data': i, 'date': i.date}),
+                  ...expenses.map(
+                    (e) => {'type': 'expense', 'data': e, 'date': e.date},
+                  ),
+                  ...incomes.map(
+                    (i) => {'type': 'income', 'data': i, 'date': i.date},
+                  ),
                 ];
-                combinedResults.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
-                return _buildResultsContent(combinedResults);
+                combinedResults.sort(
+                  (a, b) =>
+                      (b['date'] as DateTime).compareTo(a['date'] as DateTime),
+                );
+                return _buildResultsContent(
+                  combinedResults,
+                  expenseProvider.currency,
+                  expenseProvider.categories,
+                );
               },
             ),
           ),
@@ -88,82 +99,83 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildResultsContent(List<dynamic> results) {
+  Widget _buildResultsContent(
+    List<dynamic> results,
+    String currency,
+    List<ExpenseCategory> categories,
+  ) {
     if (_controller.text.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.search,
-                          size: 80,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Start typing to search',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Search expenses and income',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search, size: 80, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Start typing to search',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Search expenses and income',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
 
-                if (results.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.search_off,
-                          size: 80,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'No results found',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Try searching with different keywords',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+    if (results.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 80, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No results found',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Try searching with different keywords',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: results.length,
-                  itemBuilder: (context, index) {
-                    final item = results[index];
-                    final isExpense = item['type'] == 'expense';
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: isExpense
-                          ? ExpenseCard(expense: item['data'] as Expense, index: index)
-                          : IncomeCard(income: item['data'] as Income, index: index),
-                    );
-                  },
-                );
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: results.length,
+      itemBuilder: (context, index) {
+        final item = results[index];
+        final isExpense = item['type'] == 'expense';
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: isExpense
+              ? ExpenseCard(
+                  expense: item['data'] as Expense,
+                  currency: currency,
+                  category: categories.firstWhere(
+                    (cat) => cat.name == (item['data'] as Expense).category,
+                    orElse: () => ExpenseCategory(
+                      id: (item['data'] as Expense).category,
+                      name: (item['data'] as Expense).category,
+                      icon: '📦',
+                      colorHex: '#747D8C',
+                    ),
+                  ),
+                  index: index,
+                )
+              : IncomeCard(
+                  income: item['data'] as Income,
+                  currency: currency,
+                  index: index,
+                ),
+        );
+      },
+    );
   }
 }

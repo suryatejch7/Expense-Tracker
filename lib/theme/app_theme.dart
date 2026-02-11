@@ -27,11 +27,11 @@ class AppTheme {
       ),
       cardTheme: const CardThemeData(
         color: Colors.black,
-        elevation: 8,
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(16)),
         ),
-        shadowColor: Colors.black26,
+        shadowColor: Colors.transparent,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

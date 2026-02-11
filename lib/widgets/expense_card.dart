@@ -6,32 +6,25 @@ import '../screens/add_expense_screen.dart';
 
 class ExpenseCard extends StatelessWidget {
   final Expense expense;
-  final int index; // For staggered animation
+  final int index;
+  final String currency;
+  final ExpenseCategory category;
 
-  const ExpenseCard({super.key, required this.expense, this.index = 0});
+  const ExpenseCard({
+    super.key,
+    required this.expense,
+    required this.currency,
+    required this.category,
+    this.index = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final expenseProvider = context.watch<ExpenseProvider>();
-    final currency = expenseProvider.currency;
-
-    // Look up category from provider's custom categories
-    final category = expenseProvider.categories.firstWhere(
-      (cat) => cat.name == expense.category,
-      orElse: () => ExpenseCategory(
-        id: expense.category,
-        name: expense.category,
-        icon: '📦',
-        colorHex: '#747D8C',
-      ),
-    );
     final categoryColor = category.color;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      elevation: 2,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+      child: GestureDetector(
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(

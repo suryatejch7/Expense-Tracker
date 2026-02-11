@@ -114,6 +114,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 controller: _titleController,
                 labelText: 'Expense Title',
                 hintText: 'e.g., Grocery Shopping',
+                textCapitalization: TextCapitalization.words,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter a title';
@@ -185,6 +186,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 controller: _payeeController,
                 labelText: 'Payee',
                 hintText: 'e.g., Amazon, Uber',
+                textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 20),
 
@@ -244,12 +246,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     String? prefixText,
     int maxLines = 1,
     String? Function(String?)? validator,
+    TextCapitalization textCapitalization = TextCapitalization.none,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
       validator: validator,
+      textCapitalization: textCapitalization,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: labelText,
