@@ -1,9 +1,7 @@
 import '../models/transaction_ocr_models.dart';
 
-/// Service for extracting specific fields from OCR results using app templates
 class FieldExtractionService {
 
-  /// Extract transaction fields from OCR results
   static ExtractedTransaction extractFields(
     OcrResult ocrResult,
     PaymentApp app, {
@@ -12,32 +10,28 @@ class FieldExtractionService {
   }) {
     final template = PaymentAppTemplate.getTemplate(app);
 
-    // Extract individual fields
     final amount = _extractAmount(ocrResult.textBlocks, template, cropTop: cropTop, cropBottom: cropBottom);
     final payee = _extractPayee(ocrResult.textBlocks, template, cropTop: cropTop, cropBottom: cropBottom);
 
     return ExtractedTransaction(
       amount: amount,
       payeeName: payee,
-      date: null, // Date extraction completely removed
+      date: null,
       transactionId: null,
       confidence: _calculateOverallConfidence([amount, payee]),
     );
   }
 
-  /// Extract amount using currency patterns and position heuristics
   static String? _extractAmount(
     List<TextBlock> textBlocks, 
     PaymentAppTemplate template, {
     double cropTop = 0.17,
     double cropBottom = 0.21,
   }) {
-    // For PhonePe, use region-based extraction with user-defined coordinates
     if (template.app == PaymentApp.phonePe) {
       return _extractPhonePeAmount(textBlocks, template, cropTop: cropTop, cropBottom: cropBottom);
     }
 
-    // Simple approach for other apps: look for currency patterns in all text blocks
     for (final block in textBlocks) {
       final text = block.text.trim();
 
@@ -63,13 +57,11 @@ class FieldExtractionService {
         }
       }
 
-      // Look for standalone numbers that could be amounts
       final numberPattern = RegExp(r'\b(\d{1,5}(?:\.\d{1,2})?)\b');
       final numberMatch = numberPattern.firstMatch(text);
       if (numberMatch != null) {
         String amount = numberMatch.group(1)!;
         
-        // Remove 7 from start if it's the first digit (rupee symbol misread)
         if (amount.startsWith('7')) {
           amount = amount.substring(1);
         }
@@ -84,7 +76,6 @@ class FieldExtractionService {
     return null;
   }
 
-  /// Extract amount specifically from PhonePe's optimized crop region
   static String? _extractPhonePeAmount(
     List<TextBlock> textBlocks, 
     PaymentAppTemplate template, {
@@ -94,7 +85,6 @@ class FieldExtractionService {
     final amountRegion = template.fieldRegions['amount'];
     if (amountRegion == null) return null;
 
-    // Get image dimensions from text blocks (approximate)
     double maxX = 0, maxY = 0;
     for (final block in textBlocks) {
       final rightX = (block.boundingBox.x + block.boundingBox.width).toDouble();
@@ -103,34 +93,27 @@ class FieldExtractionService {
       if (bottomY > maxY) maxY = bottomY;
     }
 
-    // If we can't determine image dimensions, fall back to simple extraction
     if (maxX == 0 || maxY == 0) {
       return _extractAmountSimple(textBlocks);
     }
 
-    // Filter text blocks that fall within the amount region
-    // Top 17%, Bottom 21% (so 4% height strip), Right 40% (60%-100% from left)
     final amountBlocks = textBlocks.where((block) {
       final blockCenterX = block.boundingBox.x + (block.boundingBox.width / 2);
       final blockCenterY = block.boundingBox.y + (block.boundingBox.height / 2);
 
-      // Convert region coordinates to pixel coordinates using user-defined crop settings
-      final regionLeft = 0.6 * maxX;   // 60% from left (right 40% for amount)
-      final regionRight = 1.0 * maxX;  // 100% from left
-      final regionTop = cropTop * maxY;   // User-defined top crop
-      final regionBottom = cropBottom * maxY; // User-defined bottom crop
+      final regionLeft = 0.6 * maxX;
+      final regionRight = 1.0 * maxX;
+      final regionTop = cropTop * maxY;
+      final regionBottom = cropBottom * maxY;
 
-      // Check if block center is in the amount region
       return blockCenterX >= regionLeft &&
              blockCenterX <= regionRight &&
              blockCenterY >= regionTop &&
              blockCenterY <= regionBottom;
     }).toList();
 
-    // Sort by confidence and look for amount patterns
     amountBlocks.sort((a, b) => b.confidence.compareTo(a.confidence));
 
-    // First pass: look for currency symbols (₹ or Rs)
     for (final block in amountBlocks) {
       final text = block.text.trim();
 

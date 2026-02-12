@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../models/expense_models.dart';
+import '../screens/categories_screen.dart';
 
 class CategorySummary extends StatefulWidget {
   const CategorySummary({super.key});
@@ -63,7 +64,18 @@ class _CategorySummaryState extends State<CategorySummary> {
 
                   return Padding(
                     padding: const EdgeInsets.only(right: 16),
-                    child: Container(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => CategoryDetailScreen(
+                              categoryName: categoryName,
+                              filterPeriod: FilterPeriod.monthly,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Container(
                       width: 100,
                       decoration: BoxDecoration(
                         color: const Color(0xFF2A2A2A),
@@ -127,6 +139,7 @@ class _CategorySummaryState extends State<CategorySummary> {
                             ),
                         ],
                       ),
+                    ),
                     ),
                   );
                 },

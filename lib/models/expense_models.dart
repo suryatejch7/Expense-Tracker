@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Model for expense transactions stored in Supabase
 class Expense {
   final String? id;
   final double amount;
@@ -30,7 +29,6 @@ class Expense {
     required this.updatedAt,
   });
 
-  /// Create Expense from Supabase row
   factory Expense.fromSupabase(Map<String, dynamic> data) {
     return Expense(
       id: data['id']?.toString(),
@@ -48,7 +46,6 @@ class Expense {
     );
   }
 
-  /// Convert Expense to Supabase format
   Map<String, dynamic> toSupabase() {
     return {
       if (id != null) 'id': id,
@@ -66,7 +63,6 @@ class Expense {
     };
   }
 
-  /// Create a copy with updated fields
   Expense copyWith({
     String? id,
     double? amount,
@@ -98,15 +94,14 @@ class Expense {
   }
 }
 
-/// Model for income/credit transactions stored in Supabase
 class Income {
   final String? id;
   final double amount;
   final String title;
-  final String source; // Who paid / where it came from
+  final String source;
   final DateTime date;
   final String? notes;
-  final String? accountId; // Which account received the money
+  final String? accountId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -122,7 +117,6 @@ class Income {
     required this.updatedAt,
   });
 
-  /// Create Income from Supabase row
   factory Income.fromSupabase(Map<String, dynamic> data) {
     return Income(
       id: data['id']?.toString(),
@@ -137,7 +131,6 @@ class Income {
     );
   }
 
-  /// Convert Income to Supabase format
   Map<String, dynamic> toSupabase() {
     return {
       if (id != null) 'id': id,
@@ -152,7 +145,6 @@ class Income {
     };
   }
 
-  /// Create a copy with updated fields
   Income copyWith({
     String? id,
     double? amount,
@@ -178,7 +170,6 @@ class Income {
   }
 }
 
-/// Model for expense categories
 class ExpenseCategory {
   final String id;
   final String name;
@@ -192,22 +183,19 @@ class ExpenseCategory {
     required this.icon,
     Color? color,
     this.isDefault = false,
-    String? colorHex, // Add support for colorHex parameter
+    String? colorHex,
   }) : color = colorHex != null ? _parseColorFromHex(colorHex) : (color ?? Colors.grey);
 
-  /// Parse color from hex string
   static Color _parseColorFromHex(String hexColor) {
     String cleanHex = hexColor.replaceAll('#', '');
     if (cleanHex.length == 6) {
-      cleanHex = 'FF$cleanHex'; // Add alpha if not present
+      cleanHex = 'FF$cleanHex';
     }
     return Color(int.parse(cleanHex, radix: 16));
   }
 
-  /// Get display name (alias for name)
   String get displayName => name;
 
-  /// Create ExpenseCategory from Supabase data
   factory ExpenseCategory.fromSupabase(Map<String, dynamic> data) {
     return ExpenseCategory(
       id: data['id'],
@@ -218,7 +206,6 @@ class ExpenseCategory {
     );
   }
 
-  /// Convert ExpenseCategory to Supabase format
   Map<String, dynamic> toSupabase() {
     return {
       'id': id,
@@ -229,7 +216,6 @@ class ExpenseCategory {
     };
   }
 
-  /// Create default categories
   static List<ExpenseCategory> getDefaultCategories() {
     return [
       ExpenseCategory(
@@ -257,7 +243,7 @@ class ExpenseCategory {
         id: 'entertainment',
         name: 'Entertainment',
         icon: '🎬',
-        color: Colors.red,
+        color: Colors.cyan,
         isDefault: true,
       ),
       ExpenseCategory(
@@ -292,7 +278,6 @@ class ExpenseCategory {
   }
 }
 
-/// Model for bank accounts
 class BankAccount {
   final String id;
   final String name;
@@ -304,7 +289,6 @@ class BankAccount {
     this.isDefault = false,
   });
 
-  /// Create BankAccount from Supabase data
   factory BankAccount.fromSupabase(Map<String, dynamic> data) {
     return BankAccount(
       id: data['id'] as String,
@@ -313,7 +297,6 @@ class BankAccount {
     );
   }
 
-  /// Convert BankAccount to Supabase format
   Map<String, dynamic> toSupabase() {
     return {
       'id': id,
@@ -322,7 +305,6 @@ class BankAccount {
     };
   }
 
-  /// Create a copy with updated fields
   BankAccount copyWith({
     String? id,
     String? name,

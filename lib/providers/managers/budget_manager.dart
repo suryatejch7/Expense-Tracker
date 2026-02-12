@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import '../../models/expense_models.dart';
 import '../../services/supabase_service.dart';
 
-/// Manages budget calculations and category budgets.
-/// Internal delegate used by ExpenseProvider.
 class BudgetManager {
   final Map<String, double> _categoryBudgets = {};
   double _monthlyBudget = 25000.0;
@@ -17,13 +15,11 @@ class BudgetManager {
     _categoryBudgets.addAll(categoryBudgets);
   }
 
-  /// Update monthly budget on backend
   Future<void> updateMonthlyBudget(double budget, int userId) async {
     await ExpenseSupabaseService.updateMonthlyBudget(budget, userId: userId);
     _monthlyBudget = budget;
   }
 
-  /// Get budget for a category by name, looking up in custom categories
   double getCategoryBudget(
     String categoryName,
     List<ExpenseCategory> customCategories,
@@ -44,7 +40,6 @@ class BudgetManager {
     return 0.0;
   }
 
-  /// Set budget for a category
   Future<void> setCategoryBudget(
     String categoryName,
     double budget,
@@ -96,7 +91,6 @@ class BudgetManager {
     _categoryBudgets[categoryId] = budget;
   }
 
-  /// Check if a category is over budget for current month
   bool isCategoryOverBudget(
     String category,
     double currentMonthCategoryExpenses,

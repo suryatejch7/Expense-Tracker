@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/expense_models.dart';
 
-/// Model for custom expense categories created by users
 class CustomCategory {
   final String id;
   final String name;
@@ -72,17 +71,14 @@ class CustomCategory {
   }
 }
 
-// Predefined icon options for category creation
 class CategoryIcons {
   static const List<IconData> availableIcons = [
-    // Food & Dining
     Icons.restaurant,
     Icons.fastfood,
     Icons.local_pizza,
     Icons.local_cafe,
     Icons.wine_bar,
 
-    // Transportation
     Icons.directions_car,
     Icons.directions_bus,
     Icons.train,
@@ -91,7 +87,6 @@ class CategoryIcons {
     Icons.motorcycle,
     Icons.pedal_bike,
 
-    // Entertainment
     Icons.movie,
     Icons.theater_comedy,
     Icons.music_note,
@@ -99,14 +94,12 @@ class CategoryIcons {
     Icons.sports_soccer,
     Icons.camera_alt,
 
-    // Shopping
     Icons.shopping_bag,
     Icons.shopping_cart,
     Icons.store,
     Icons.local_mall,
     Icons.checkroom,
 
-    // Bills & Finance
     Icons.receipt_long,
     Icons.payment,
     Icons.credit_card,
@@ -115,35 +108,30 @@ class CategoryIcons {
     Icons.wifi,
     Icons.electrical_services,
 
-    // Health & Fitness
     Icons.local_hospital,
     Icons.medical_services,
     Icons.fitness_center,
     Icons.spa,
     Icons.psychology,
 
-    // Education & Work
     Icons.school,
     Icons.work,
     Icons.laptop,
     Icons.book,
     Icons.library_books,
 
-    // Travel & Vacation
     Icons.luggage,
     Icons.hotel,
     Icons.beach_access,
     Icons.hiking,
     Icons.map,
 
-    // Home & Family
     Icons.home,
     Icons.family_restroom,
     Icons.pets,
     Icons.child_care,
     Icons.elderly,
 
-    // Miscellaneous
     Icons.category,
     Icons.star,
     Icons.favorite,
@@ -177,7 +165,6 @@ class CategoryIcons {
   ];
 }
 
-// Default categories that come with the app
 class DefaultCategories {
   static List<ExpenseCategory> get defaultCategories =>
       ExpenseCategory.getDefaultCategories();

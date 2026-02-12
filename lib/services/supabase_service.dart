@@ -2,13 +2,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/expense_models.dart';
 import '../models/user_settings.dart' as models;
 
-/// Service for managing expenses and user settings in Supabase
 class ExpenseSupabaseService {
   static final SupabaseClient _supabase = Supabase.instance.client;
 
-  // ==================== USER MANAGEMENT ====================
-
-  /// Create a new user
   static Future<models.User> createUser(String userName) async {
     try {
       final response = await _supabase
@@ -24,7 +20,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Get user by ID
   static Future<models.User?> getUserById(int userId) async {
     try {
       final response = await _supabase
@@ -38,7 +33,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Get user by username
   static Future<models.User?> getUserByUsername(String userName) async {
     try {
       final response = await _supabase
@@ -52,7 +46,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Check if username exists
   static Future<bool> isUsernameTaken(String userName) async {
     try {
       final response = await _supabase
@@ -66,7 +59,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Get all users
   static Future<List<models.User>> getAllUsers() async {
     try {
       final response = await _supabase
@@ -81,9 +73,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  // ==================== USER SETTINGS ====================
-
-  /// Create default user settings for a new user
   static Future<models.UserSettings> createDefaultUserSettings(int userId) async {
     try {
       final now = DateTime.now();
@@ -107,7 +96,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Get user settings from Supabase
   static Future<models.UserSettings> getUserSettings({required int userId}) async {
     try {
       final response = await _supabase
@@ -117,7 +105,6 @@ class ExpenseSupabaseService {
           .maybeSingle();
       
       if (response == null) {
-        // Create default settings if none exist
         return await createDefaultUserSettings(userId);
       }
       
@@ -127,7 +114,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Save user settings to Supabase
   static Future<void> saveUserSettings(models.UserSettings settings) async {
     try {
       await _supabase
@@ -138,7 +124,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Update user name
   static Future<void> updateUserName(String userName, {required int userId}) async {
     try {
       await _supabase
@@ -153,7 +138,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Update monthly budget
   static Future<void> updateMonthlyBudget(double budget, {required int userId}) async {
     try {
       await _supabase
@@ -168,7 +152,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Update category budget
   static Future<void> updateCategoryBudget(String categoryId, double budget, {required int userId}) async {
     try {
       final settings = await getUserSettings(userId: userId);
@@ -179,7 +162,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Save custom categories
   static Future<void> saveCustomCategories(List<ExpenseCategory> categories, {required int userId}) async {
     try {
       final settings = await getUserSettings(userId: userId);
@@ -193,7 +175,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Save bank accounts
   static Future<void> saveAccounts(List<BankAccount> accounts, {required int userId}) async {
     try {
       final settings = await getUserSettings(userId: userId);
@@ -207,9 +188,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  // ==================== EXPENSE MANAGEMENT ====================
-
-  /// Add a new expense to Supabase
   static Future<String> addExpense(Expense expense, int userId) async {
     try {
       final data = expense.toSupabase();
@@ -225,7 +203,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Update an existing expense
   static Future<void> updateExpense(Expense expense, int userId) async {
     if (expense.id == null) throw Exception('Expense ID is required for update');
     try {
@@ -241,7 +218,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Delete an expense
   static Future<void> deleteExpense(String expenseId, int userId) async {
     try {
       await _supabase
@@ -254,7 +230,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Get all expenses for a user
   static Future<List<Expense>> getExpenses({
     required int userId,
     String? category,
@@ -281,10 +256,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Get expenses with pagination for lazy loading
-  /// Returns expenses sorted by date (newest first)
-  /// [limit] - number of expenses per page
-  /// [offset] - number of expenses to skip
   static Future<List<Expense>> getExpensesPaginated({
     required int userId,
     int limit = 20,
@@ -306,7 +277,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Get total count of expenses for a user (for pagination info)
   static Future<int> getExpensesCount({required int userId}) async {
     try {
       final response = await _supabase
@@ -321,7 +291,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Get expenses for analytics
   static Future<List<Expense>> getExpensesForPeriod(DateTime startDate, DateTime endDate, {required int userId}) async {
     try {
       final response = await _supabase
@@ -340,7 +309,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Search expenses
   static Future<List<Expense>> searchExpenses(String query, {required int userId}) async {
     try {
       final response = await _supabase
@@ -358,9 +326,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  // ============= INCOME METHODS =============
-
-  /// Add a new income
   static Future<String> addIncome(Income income, int userId) async {
     try {
       final data = income.toSupabase();
@@ -378,7 +343,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Update an existing income
   static Future<void> updateIncome(Income income, int userId) async {
     try {
       final data = income.toSupabase();
@@ -394,7 +358,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Delete an income
   static Future<void> deleteIncome(String incomeId, int userId) async {
     try {
       await _supabase
@@ -407,7 +370,6 @@ class ExpenseSupabaseService {
     }
   }
 
-  /// Get all incomes for a user
   static Future<List<Income>> getIncomes({required int userId}) async {
     try {
       final response = await _supabase
@@ -420,7 +382,6 @@ class ExpenseSupabaseService {
           .map((item) => Income.fromSupabase(item))
           .toList();
     } catch (e) {
-      // If table doesn't exist yet, return empty list
       return [];
     }
   }

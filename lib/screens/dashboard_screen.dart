@@ -6,7 +6,6 @@ import '../widgets/expense_card.dart';
 import '../widgets/income_card.dart';
 import '../widgets/category_summary.dart';
 
-/// View type for the recent transactions list
 enum RecentViewType { expenses, income, all }
 
 class DashboardScreen extends StatefulWidget {
@@ -33,13 +32,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  /// Infinite scroll listener - loads more when near bottom
   void _onScroll() {
     if (!_scrollController.hasClients) return;
 
     final maxScroll = _scrollController.position.maxScrollExtent;
     final currentScroll = _scrollController.position.pixels;
-    final threshold = maxScroll * 0.8; // Load more at 80% scroll
+    final threshold = maxScroll * 0.8;
 
     if (currentScroll >= threshold) {
       final provider = context.read<ExpenseProvider>();
@@ -163,7 +161,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Build the view type selector dropdown
   Widget _buildViewTypeSelector() {
     return Row(
       children: [
@@ -286,7 +283,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildExpensesList(ExpenseProvider provider) {
-    final expenses = provider.filteredExpenses;
+    final expenses = provider.expenses;
 
     if (expenses.isEmpty) {
       return SliverFillRemaining(
@@ -343,7 +340,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildIncomesList(ExpenseProvider provider) {
-    final incomes = provider.filteredIncomes;
+    final incomes = provider.incomes;
 
     if (incomes.isEmpty) {
       return SliverFillRemaining(
@@ -397,8 +394,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildAllTransactionsList(ExpenseProvider provider) {
-    final expenses = provider.filteredExpenses;
-    final incomes = provider.filteredIncomes;
+    final expenses = provider.expenses;
+    final incomes = provider.incomes;
 
     // Combine and sort by date (most recent first)
     final List<dynamic> allTransactions = [
@@ -470,7 +467,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Helper to find a category by name without creating closures every call
+
   ExpenseCategory _findCategory(
     List<ExpenseCategory> categories,
     String categoryName,

@@ -29,7 +29,6 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    // Set the context for sharing service after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SharingIntentService.setContext(context);
       _checkDataConsistency();
@@ -39,14 +38,11 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _checkDataConsistency() async {
     if (!mounted) return;
     
-    // Import ExpenseProvider to check data consistency
     final expenseProvider = context.read<ExpenseProvider>();
     
-    // Check if data is consistent with backend
     final isConsistent = await expenseProvider.verifyDataConsistency();
     
     if (!isConsistent && mounted) {
-      // Reload expenses from backend to fix inconsistency
       await expenseProvider.reloadExpenses();
     }
   }
@@ -57,17 +53,13 @@ class _MainScreenState extends State<MainScreen> {
       extendBody: true,
       body: Stack(
         children: [
-          // Background - pitch black
           Container(
             color: Colors.black,
           ),
-          // Main content without bottom padding
           _screens[_currentIndex],
-          // Glass navigation bar positioned at bottom
           GlassNavBar(
             currentIndex: _currentIndex,
             onTap: (index) {
-              // Only update if tapping a different tab
               if (index != _currentIndex) {
                 setState(() {
                   _currentIndex = index;
@@ -75,11 +67,10 @@ class _MainScreenState extends State<MainScreen> {
               }
             },
           ),
-          // Expandable FAB for Add Expense/Income
           if (_currentIndex == 0)
             Positioned(
               right: 16,
-              bottom: 120, // Position above the nav bar
+              bottom: 120,
               child: ExpandableFab(
                 onAddExpense: () {
                   Navigator.push(

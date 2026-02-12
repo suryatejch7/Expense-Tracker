@@ -11,7 +11,6 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-
   @override
   void initState() {
     super.initState();
@@ -41,7 +40,12 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Replace with your own Lottie animation file
-            Lottie.asset('assets/animations/splash.json', width: 200, height: 200, repeat: true),
+            Lottie.asset(
+              'assets/animations/splash.json',
+              width: 200,
+              height: 200,
+              repeat: true,
+            ),
             const SizedBox(height: 32),
             const Text(
               'Expense Tracker',
@@ -54,10 +58,7 @@ class _SplashScreenState extends State<SplashScreen> {
             const SizedBox(height: 16),
             const Text(
               'Initializing...',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 16,
-              ),
+              style: TextStyle(color: Colors.grey, fontSize: 16),
             ),
           ],
         ),

@@ -19,11 +19,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   void initState() {
     super.initState();
-    // Note: Data is already loaded by UserProvider initialization
-    // Manual refresh is available via the refresh button if needed
   }
 
-  // Get filtered expenses based on selected account
   List<Expense> _getFilteredExpenses(ExpenseProvider provider) {
     if (_selectedAccountId == null) {
       return provider.expenses;
@@ -68,39 +65,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Period Selector
                 _buildPeriodSelector(),
                 const SizedBox(height: 12),
 
-                // Account Selector
                 _buildAccountSelector(provider),
                 const SizedBox(height: 20),
 
-                // Total Spending Overview
                 _buildTotalSpendingCard(provider),
                 const SizedBox(height: 20),
 
-                // Spending Trend Chart
                 _buildSpendingTrendCard(provider),
                 const SizedBox(height: 20),
 
-                // Category Pie Chart
                 _buildCategoryPieChart(provider),
                 const SizedBox(height: 20),
 
-                // Top Categories
                 _buildTopCategoriesCard(provider),
                 const SizedBox(height: 20),
 
-                // Budget Tracking
                 _buildBudgetTrackingCard(provider),
                 const SizedBox(height: 20),
 
-                // Spending Insights
                 _buildSpendingInsights(provider),
                 const SizedBox(height: 20),
 
-                // Monthly Comparison
                 _buildMonthlyComparison(provider),
               ],
             ),
@@ -235,6 +223,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget _buildTotalSpendingCard(ExpenseProvider provider) {
     final periodData = _getPeriodData(provider);
     final previousPeriodData = _getPreviousPeriodData(provider);
+    final currency = provider.currency;
     final changePercent = previousPeriodData > 0
         ? ((periodData - previousPeriodData) / previousPeriodData * 100)
         : 0.0;
@@ -247,7 +236,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '₹${periodData.toStringAsFixed(0)}',
+                '$currency${periodData.toStringAsFixed(0)}',
                 style: const TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
@@ -291,7 +280,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'vs Previous $_selectedPeriod: ₹${previousPeriodData.toStringAsFixed(0)}',
+            'vs Previous $_selectedPeriod: $currency${previousPeriodData.toStringAsFixed(0)}',
             style: const TextStyle(color: Colors.grey, fontSize: 14),
           ),
         ],
@@ -300,43 +289,138 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Widget _buildSpendingTrendCard(ExpenseProvider provider) {
+    final expenses = _getFilteredExpenses(provider);
+    final labels = _getTrendLabels();
+
     return _buildAnalyticsCard(
       title: 'Spending Trend',
       child: SizedBox(
-        height: 150,
+        height: 180,
         child: CustomPaint(
           painter: SpendingTrendPainter(
-            expenses: _getFilteredExpenses(provider),
+            expenses: expenses,
             period: _selectedPeriod,
+            labels: labels,
           ),
-          size: const Size.fromHeight(150),
+          size: const Size.fromHeight(180),
         ),
       ),
     );
   }
 
+  List<String> _getTrendLabels() {
+    final now = DateTime.now();
+    switch (_selectedPeriod) {
+      case 'Day':
+        // 6 segments of 4 hours
+        return List.generate(6, (i) {
+          final hour = ((5 - i) * 4);
+          final h = (now.hour - hour).clamp(0, 23);
+          return '${h.toString().padLeft(2, '0')}:00';
+        }).reversed.toList();
+      case 'Week':
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        return List.generate(7, (i) {
+          final date = now.subtract(Duration(days: 6 - i));
+          return days[date.weekday - 1];
+        });
+      case 'Month':
+        return List.generate(4, (i) {
+          final weekEnd = now.subtract(Duration(days: i * 7));
+          return 'W${4 - i}';
+        }).reversed.toList();
+      case 'Year':
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return List.generate(6, (i) {
+          final m = DateTime(now.year, now.month - (5 - i));
+          return months[m.month - 1];
+        });
+      default:
+        return [];
+    }
+  }
+
   Widget _buildCategoryPieChart(ExpenseProvider provider) {
     final categoryTotals = _getCategoryTotalsForPeriod(provider);
+    final periodTotal = _getPeriodData(provider);
+    final categories = provider.categories;
+
     if (categoryTotals.isEmpty) {
       return _buildAnalyticsCard(
-        title: 'Category Breakdown - $_selectedPeriod',
+        title: 'Category Breakdown',
         child: const Center(
-          child: Text(
-            'No data available',
-            style: TextStyle(color: Colors.grey),
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Text(
+              'No expenses in this period',
+              style: TextStyle(color: Colors.grey),
+            ),
           ),
         ),
       );
     }
 
-    return _buildAnalyticsCard(
-      title: 'Category Breakdown - $_selectedPeriod',
-      child: SizedBox(
-        height: 200,
-        child: CustomPaint(
-          painter: PieChartPainter(categoryTotals: categoryTotals),
-          size: const Size.fromHeight(200),
+    // Build sorted entries with their category objects
+    final sortedEntries = categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    // Get category colors in the same order
+    final categoryColors = sortedEntries.map((entry) {
+      final cat = categories.firstWhere(
+        (c) => c.name == entry.key,
+        orElse: () => ExpenseCategory(
+          id: entry.key, name: entry.key, icon: '📦', colorHex: '#747D8C',
         ),
+      );
+      return cat.color;
+    }).toList();
+
+    return _buildAnalyticsCard(
+      title: 'Category Breakdown',
+      child: Column(
+        children: [
+          SizedBox(
+            height: 200,
+            child: CustomPaint(
+              painter: _CategoryPieChartPainter(
+                categoryTotals: Map.fromEntries(sortedEntries),
+                colors: categoryColors,
+              ),
+              size: const Size.fromHeight(200),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Legend
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: sortedEntries.asMap().entries.map((mapEntry) {
+              final index = mapEntry.key;
+              final entry = mapEntry.value;
+              final percentage = periodTotal > 0
+                  ? (entry.value / periodTotal * 100)
+                  : 0.0;
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: categoryColors[index],
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${entry.key} (${percentage.toStringAsFixed(0)}%)',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
@@ -350,18 +434,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     if (sortedCategories.isEmpty) {
       return _buildAnalyticsCard(
-        title: 'Top Categories - $_selectedPeriod',
+        title: 'Top Categories',
         child: const Center(
-          child: Text(
-            'No data available',
-            style: TextStyle(color: Colors.grey),
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Text(
+              'No expenses in this period',
+              style: TextStyle(color: Colors.grey),
+            ),
           ),
         ),
       );
     }
 
+    final currency = provider.currency;
+
     return _buildAnalyticsCard(
-      title: 'Top Categories - $_selectedPeriod',
+      title: 'Top Categories',
       child: Column(
         children: sortedCategories.take(5).map((entry) {
           final categoryName = entry.key;
@@ -441,7 +530,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                 ),
                 Text(
-                  '₹${amount.toStringAsFixed(0)}',
+                  '$currency${amount.toStringAsFixed(0)}',
                   style: TextStyle(
                     color: isOverBudget ? Colors.red : Colors.white,
                     fontWeight: FontWeight.bold,
@@ -469,6 +558,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ),
       );
     }
+
+    final currency = provider.currency;
 
     return _buildAnalyticsCard(
       title: 'Budget Tracking',
@@ -528,11 +619,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Spent: ₹${provider.currentMonthTotalExpense.toStringAsFixed(0)}',
+                        'Spent: $currency${provider.currentMonthTotalExpense.toStringAsFixed(0)}',
                         style: const TextStyle(color: Colors.white),
                       ),
                       Text(
-                        'Budget: ₹${provider.monthlyBudget.toStringAsFixed(0)}',
+                        'Budget: $currency${provider.monthlyBudget.toStringAsFixed(0)}',
                         style: const TextStyle(color: Colors.white),
                       ),
                     ],
@@ -540,7 +631,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   if (provider.isOverBudget) ...[
                     const SizedBox(height: 4),
                     Text(
-                      'Over by: ₹${provider.budgetExcess.toStringAsFixed(0)}',
+                      'Over by: $currency${provider.budgetExcess.toStringAsFixed(0)}',
                       style: const TextStyle(
                         color: Colors.red,
                         fontWeight: FontWeight.bold,
@@ -597,7 +688,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           ),
                           const Spacer(),
                           Text(
-                            '₹${spent.toStringAsFixed(0)} / ₹${budget.toStringAsFixed(0)}',
+                            '$currency${spent.toStringAsFixed(0)} / $currency${budget.toStringAsFixed(0)}',
                             style: TextStyle(
                               color: isOverBudget ? Colors.red : Colors.white,
                               fontWeight: FontWeight.bold,
@@ -616,7 +707,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       if (isOverBudget) ...[
                         const SizedBox(height: 4),
                         Text(
-                          'Over by: ₹${(spent - budget).toStringAsFixed(0)}',
+                          'Over by: $currency${(spent - budget).toStringAsFixed(0)}',
                           style: const TextStyle(
                             color: Colors.red,
                             fontSize: 12,
@@ -667,33 +758,51 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Widget _buildMonthlyComparison(ExpenseProvider provider) {
     String title;
+    List<String> labels;
+    final now = DateTime.now();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
     switch (_selectedPeriod) {
       case 'Day':
         title = 'Last 7 Days';
+        labels = List.generate(7, (i) {
+          final date = now.subtract(Duration(days: 6 - i));
+          return days[date.weekday - 1];
+        });
         break;
       case 'Week':
         title = 'Last 4 Weeks';
+        labels = List.generate(4, (i) => 'W${i + 1}');
         break;
       case 'Month':
         title = 'Last 6 Months';
+        labels = List.generate(6, (i) {
+          final m = DateTime(now.year, now.month - (5 - i));
+          return months[m.month - 1];
+        });
         break;
       case 'Year':
         title = 'Last 3 Years';
+        labels = List.generate(3, (i) => '${now.year - 2 + i}');
         break;
       default:
-        title = 'Monthly Comparison';
+        title = 'Comparison';
+        labels = [];
     }
 
     return _buildAnalyticsCard(
       title: title,
       child: SizedBox(
-        height: 120,
+        height: 160,
         child: CustomPaint(
           painter: ComparisonBarPainter(
             expenses: _getFilteredExpenses(provider),
             period: _selectedPeriod,
+            labels: labels,
+            currency: provider.currency,
           ),
-          size: const Size.fromHeight(120),
+          size: const Size.fromHeight(160),
         ),
       ),
     );
@@ -793,6 +902,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final categoryTotals = _getCategoryTotalsForPeriod(provider);
     final periodTotal = _getPeriodData(provider);
     final categories = provider.categories;
+    final currency = provider.currency;
 
     if (categoryTotals.isNotEmpty) {
       final topCategory = categoryTotals.entries.reduce(
@@ -813,7 +923,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         'icon': Icons.trending_up,
         'color': Colors.blue,
         'text':
-            '${topCategoryObj.displayName} is your highest spending category this $_selectedPeriod (₹${topCategory.value.toStringAsFixed(0)})',
+            '${topCategoryObj.displayName} is your highest spending category this $_selectedPeriod ($currency${topCategory.value.toStringAsFixed(0)})',
       });
     }
 
@@ -824,7 +934,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           'icon': Icons.warning,
           'color': Colors.red,
           'text':
-              'You\'ve exceeded your monthly budget by ₹${provider.budgetExcess.toStringAsFixed(0)}',
+              'You\'ve exceeded your monthly budget by $currency${provider.budgetExcess.toStringAsFixed(0)}',
         });
       }
 
@@ -858,22 +968,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     double periodTotal,
   ) {
     final now = DateTime.now();
+    final currency = provider.currency;
     switch (_selectedPeriod) {
       case 'Day':
-        return 'Total today: ₹${periodTotal.toStringAsFixed(0)}';
+        return 'Total today: $currency${periodTotal.toStringAsFixed(0)}';
       case 'Week':
         final daysInWeek = now.weekday;
         final avg = daysInWeek > 0 ? periodTotal / daysInWeek : 0;
-        return 'Average daily spending this week: ₹${avg.toStringAsFixed(0)}';
+        return 'Average daily spending this week: $currency${avg.toStringAsFixed(0)}';
       case 'Month':
         final avg = now.day > 0 ? periodTotal / now.day : 0;
-        return 'Average daily spending this month: ₹${avg.toStringAsFixed(0)}';
+        return 'Average daily spending this month: $currency${avg.toStringAsFixed(0)}';
       case 'Year':
         final dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays + 1;
         final avg = dayOfYear > 0 ? periodTotal / dayOfYear : 0;
-        return 'Average daily spending this year: ₹${avg.toStringAsFixed(0)}';
+        return 'Average daily spending this year: $currency${avg.toStringAsFixed(0)}';
       default:
-        return 'Average daily spending: ₹${(periodTotal / now.day).toStringAsFixed(0)}';
+        return 'Average daily spending: $currency${(periodTotal / now.day).toStringAsFixed(0)}';
     }
   }
 
@@ -941,44 +1052,153 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 class SpendingTrendPainter extends CustomPainter {
   final List<Expense> expenses;
   final String period;
+  final List<String> labels;
 
-  SpendingTrendPainter({required this.expenses, required this.period});
+  SpendingTrendPainter({
+    required this.expenses,
+    required this.period,
+    required this.labels,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.blue
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
+    const labelHeight = 20.0;
+    const leftPadding = 40.0;
+    const rightPadding = 10.0;
+    final chartWidth = size.width - leftPadding - rightPadding;
+    final chartHeight = size.height - labelHeight - 10;
 
-    final path = Path();
-    final points = _getDataPoints(size);
+    final dataPoints = _getDataValues();
+    if (dataPoints.isEmpty) return;
 
-    if (points.isNotEmpty) {
-      path.moveTo(points.first.dx, points.first.dy);
-      for (int i = 1; i < points.length; i++) {
-        path.lineTo(points[i].dx, points[i].dy);
+    final maxValue = dataPoints.reduce(math.max);
+    if (maxValue == 0) {
+      // Draw "No data" text
+      final textPainter = TextPainter(
+        text: const TextSpan(
+          text: 'No spending data',
+          style: TextStyle(color: Colors.grey, fontSize: 12),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      textPainter.paint(
+        canvas,
+        Offset(size.width / 2 - textPainter.width / 2, size.height / 2 - textPainter.height / 2),
+      );
+      return;
+    }
+
+    // Draw Y-axis labels (amounts)
+    for (int i = 0; i <= 3; i++) {
+      final value = maxValue * i / 3;
+      final y = chartHeight - (chartHeight * i / 3) + 5;
+      String label;
+      if (value >= 100000) {
+        label = '${(value / 1000).toStringAsFixed(0)}K';
+      } else if (value >= 1000) {
+        label = '${(value / 1000).toStringAsFixed(1)}K';
+      } else {
+        label = value.toStringAsFixed(0);
       }
-      canvas.drawPath(path, paint);
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: const TextStyle(color: Colors.grey, fontSize: 9),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      textPainter.paint(canvas, Offset(0, y - textPainter.height / 2));
 
-      // Draw points
-      final pointPaint = Paint()
-        ..color = Colors.blue
+      // Draw horizontal grid line
+      final gridPaint = Paint()
+        ..color = Colors.grey.withOpacity(0.1)
+        ..strokeWidth = 0.5;
+      canvas.drawLine(
+        Offset(leftPadding, y),
+        Offset(size.width - rightPadding, y),
+        gridPaint,
+      );
+    }
+
+    // Calculate points
+    final points = <Offset>[];
+    for (int i = 0; i < dataPoints.length; i++) {
+      final x = leftPadding + (i / (dataPoints.length - 1).clamp(1, double.infinity)) * chartWidth;
+      final y = chartHeight - (dataPoints[i] / maxValue) * chartHeight + 5;
+      points.add(Offset(x, y));
+    }
+
+    // Draw fill gradient
+    if (points.length >= 2) {
+      final fillPath = Path();
+      fillPath.moveTo(points.first.dx, chartHeight + 5);
+      for (final p in points) {
+        fillPath.lineTo(p.dx, p.dy);
+      }
+      fillPath.lineTo(points.last.dx, chartHeight + 5);
+      fillPath.close();
+
+      final fillPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF00D4FF).withOpacity(0.3),
+            const Color(0xFF00D4FF).withOpacity(0.0),
+          ],
+        ).createShader(Rect.fromLTWH(leftPadding, 0, chartWidth, chartHeight + 5));
+      canvas.drawPath(fillPath, fillPaint);
+    }
+
+    // Draw line
+    final linePaint = Paint()
+      ..color = const Color(0xFF00D4FF)
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final linePath = Path();
+    if (points.isNotEmpty) {
+      linePath.moveTo(points.first.dx, points.first.dy);
+      for (int i = 1; i < points.length; i++) {
+        linePath.lineTo(points[i].dx, points[i].dy);
+      }
+      canvas.drawPath(linePath, linePaint);
+
+      // Draw dots
+      final dotPaint = Paint()
+        ..color = const Color(0xFF00D4FF)
         ..style = PaintingStyle.fill;
-
       for (final point in points) {
-        canvas.drawCircle(point, 4, pointPaint);
+        canvas.drawCircle(point, 3.5, dotPaint);
+      }
+    }
+
+    // Draw X-axis labels
+    if (labels.isNotEmpty) {
+      for (int i = 0; i < labels.length && i < dataPoints.length; i++) {
+        final x = leftPadding + (i / (dataPoints.length - 1).clamp(1, double.infinity)) * chartWidth;
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: labels[i],
+            style: const TextStyle(color: Colors.grey, fontSize: 10),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        textPainter.paint(
+          canvas,
+          Offset(x - textPainter.width / 2, size.height - labelHeight + 4),
+        );
       }
     }
   }
 
-  List<Offset> _getDataPoints(Size size) {
+  List<double> _getDataValues() {
     final now = DateTime.now();
     final dataPoints = <double>[];
 
     switch (period) {
       case 'Day':
-        // Show hourly breakdown for today (last 24 hours in 6 segments)
         for (int i = 5; i >= 0; i--) {
           final hourStart = now.subtract(Duration(hours: i * 4));
           final hourEnd = now.subtract(Duration(hours: (i - 1) * 4));
@@ -989,13 +1209,10 @@ class SpendingTrendPainter extends CustomPainter {
                 expense.date.hour >= hourStart.hour &&
                 expense.date.hour < hourEnd.hour;
           });
-          dataPoints.add(
-            hourExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
-          );
+          dataPoints.add(hourExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
         }
         break;
       case 'Week':
-        // Show last 7 days
         for (int i = 6; i >= 0; i--) {
           final date = now.subtract(Duration(days: i));
           final dayExpenses = expenses.where((expense) {
@@ -1003,13 +1220,10 @@ class SpendingTrendPainter extends CustomPainter {
                 expense.date.month == date.month &&
                 expense.date.day == date.day;
           });
-          dataPoints.add(
-            dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
-          );
+          dataPoints.add(dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
         }
         break;
       case 'Month':
-        // Show last 4 weeks
         for (int i = 3; i >= 0; i--) {
           final weekStart = now.subtract(Duration(days: (i + 1) * 7));
           final weekEnd = now.subtract(Duration(days: i * 7));
@@ -1017,26 +1231,20 @@ class SpendingTrendPainter extends CustomPainter {
             return expense.date.isAfter(weekStart) &&
                 expense.date.isBefore(weekEnd.add(const Duration(days: 1)));
           });
-          dataPoints.add(
-            weekExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
-          );
+          dataPoints.add(weekExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
         }
         break;
       case 'Year':
-        // Show last 6 months
         for (int i = 5; i >= 0; i--) {
           final month = DateTime(now.year, now.month - i);
           final monthExpenses = expenses.where((expense) {
             return expense.date.year == month.year &&
                 expense.date.month == month.month;
           });
-          dataPoints.add(
-            monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
-          );
+          dataPoints.add(monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
         }
         break;
       default:
-        // Default to last 7 days
         for (int i = 6; i >= 0; i--) {
           final date = now.subtract(Duration(days: i));
           final dayExpenses = expenses.where((expense) {
@@ -1044,25 +1252,11 @@ class SpendingTrendPainter extends CustomPainter {
                 expense.date.month == date.month &&
                 expense.date.day == date.day;
           });
-          dataPoints.add(
-            dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
-          );
+          dataPoints.add(dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
         }
     }
 
-    if (dataPoints.isEmpty) return [];
-
-    final maxValue = dataPoints.reduce(math.max);
-    if (maxValue == 0) return [];
-
-    final points = <Offset>[];
-    for (int i = 0; i < dataPoints.length; i++) {
-      final x = (i / (dataPoints.length - 1)) * size.width;
-      final y = size.height - (dataPoints[i] / maxValue) * size.height;
-      points.add(Offset(x, y));
-    }
-
-    return points;
+    return dataPoints;
   }
 
   @override
@@ -1071,38 +1265,30 @@ class SpendingTrendPainter extends CustomPainter {
   }
 }
 
-class PieChartPainter extends CustomPainter {
+class _CategoryPieChartPainter extends CustomPainter {
   final Map<String, double> categoryTotals;
+  final List<Color> colors;
 
-  PieChartPainter({required this.categoryTotals});
+  _CategoryPieChartPainter({required this.categoryTotals, required this.colors});
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 3;
     final total = categoryTotals.values.fold(0.0, (sum, value) => sum + value);
+    if (total == 0) return;
 
     double startAngle = -math.pi / 2;
-
-    final colors = [
-      Colors.blue,
-      Colors.red,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.yellow,
-      Colors.cyan,
-      Colors.pink,
-      Colors.teal,
-      Colors.indigo,
-    ];
-
     int colorIndex = 0;
 
     for (final entry in categoryTotals.entries) {
       final sweepAngle = (entry.value / total) * 2 * math.pi;
+      final color = colorIndex < colors.length
+          ? colors[colorIndex]
+          : Colors.grey;
+
       final paint = Paint()
-        ..color = colors[colorIndex % colors.length]
+        ..color = color
         ..style = PaintingStyle.fill;
 
       canvas.drawArc(
@@ -1113,13 +1299,43 @@ class PieChartPainter extends CustomPainter {
         paint,
       );
 
+      // Draw percentage label inside segment if large enough
+      final percentage = (entry.value / total * 100);
+      if (percentage >= 8) {
+        final labelAngle = startAngle + sweepAngle / 2;
+        final labelRadius = radius * 0.65;
+        final labelX = center.dx + labelRadius * math.cos(labelAngle);
+        final labelY = center.dy + labelRadius * math.sin(labelAngle);
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: '${percentage.toStringAsFixed(0)}%',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        textPainter.paint(
+          canvas,
+          Offset(labelX - textPainter.width / 2, labelY - textPainter.height / 2),
+        );
+      }
+
       startAngle += sweepAngle;
       colorIndex++;
     }
+
+    // Draw center circle for donut effect
+    final centerPaint = Paint()
+      ..color = const Color(0xFF0D0D0D)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, radius * 0.45, centerPaint);
   }
 
   @override
-  bool shouldRepaint(covariant PieChartPainter oldDelegate) {
+  bool shouldRepaint(covariant _CategoryPieChartPainter oldDelegate) {
     return oldDelegate.categoryTotals != categoryTotals;
   }
 }
@@ -1127,21 +1343,27 @@ class PieChartPainter extends CustomPainter {
 class ComparisonBarPainter extends CustomPainter {
   final List<Expense> expenses;
   final String period;
+  final List<String> labels;
+  final String currency;
 
-  ComparisonBarPainter({required this.expenses, required this.period});
+  ComparisonBarPainter({
+    required this.expenses,
+    required this.period,
+    required this.labels,
+    required this.currency,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.blue
-      ..style = PaintingStyle.fill;
+    const labelHeight = 22.0;
+    const topPadding = 20.0;
+    final chartHeight = size.height - labelHeight - topPadding;
 
     final now = DateTime.now();
     final data = <double>[];
 
     switch (period) {
       case 'Day':
-        // Last 7 days
         for (int i = 6; i >= 0; i--) {
           final date = now.subtract(Duration(days: i));
           final dayExpenses = expenses.where((expense) {
@@ -1149,13 +1371,10 @@ class ComparisonBarPainter extends CustomPainter {
                 expense.date.month == date.month &&
                 expense.date.day == date.day;
           });
-          data.add(
-            dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
-          );
+          data.add(dayExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
         }
         break;
       case 'Week':
-        // Last 4 weeks
         for (int i = 3; i >= 0; i--) {
           final weekStart = now.subtract(Duration(days: (i + 1) * 7));
           final weekEnd = now.subtract(Duration(days: i * 7));
@@ -1163,68 +1382,123 @@ class ComparisonBarPainter extends CustomPainter {
             return expense.date.isAfter(weekStart) &&
                 expense.date.isBefore(weekEnd.add(const Duration(days: 1)));
           });
-          data.add(
-            weekExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
-          );
+          data.add(weekExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
         }
         break;
       case 'Month':
-        // Last 6 months
         for (int i = 5; i >= 0; i--) {
           final month = DateTime(now.year, now.month - i);
           final monthExpenses = expenses.where((expense) {
             return expense.date.year == month.year &&
                 expense.date.month == month.month;
           });
-          data.add(
-            monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
-          );
+          data.add(monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
         }
         break;
       case 'Year':
-        // Last 3 years
         for (int i = 2; i >= 0; i--) {
           final year = now.year - i;
           final yearExpenses = expenses.where((expense) {
             return expense.date.year == year;
           });
-          data.add(
-            yearExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
-          );
+          data.add(yearExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
         }
         break;
       default:
-        // Default to last 6 months
         for (int i = 5; i >= 0; i--) {
           final month = DateTime(now.year, now.month - i);
           final monthExpenses = expenses.where((expense) {
             return expense.date.year == month.year &&
                 expense.date.month == month.month;
           });
-          data.add(
-            monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount),
-          );
+          data.add(monthExpenses.fold(0.0, (sum, expense) => sum + expense.amount));
         }
     }
 
     if (data.isEmpty) return;
 
     final maxValue = data.reduce(math.max);
-    if (maxValue == 0) return;
+    if (maxValue == 0) {
+      final textPainter = TextPainter(
+        text: const TextSpan(
+          text: 'No spending data',
+          style: TextStyle(color: Colors.grey, fontSize: 12),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      textPainter.paint(
+        canvas,
+        Offset(size.width / 2 - textPainter.width / 2, size.height / 2 - textPainter.height / 2),
+      );
+      return;
+    }
 
-    final barWidth = size.width / data.length * 0.8;
-    final spacing = size.width / data.length * 0.2;
+    final barWidth = size.width / data.length * 0.6;
+    final spacing = size.width / data.length;
 
     for (int i = 0; i < data.length; i++) {
-      final barHeight = (data[i] / maxValue) * size.height;
-      final x = i * (barWidth + spacing) + spacing / 2;
-      final rect = Rect.fromLTWH(
-        x,
-        size.height - barHeight,
-        barWidth,
-        barHeight,
+      final barHeight = (data[i] / maxValue) * chartHeight;
+      final x = i * spacing + (spacing - barWidth) / 2;
+
+      // Bar gradient
+      final barRect = Rect.fromLTWH(x, topPadding + chartHeight - barHeight, barWidth, barHeight);
+      final barPaint = Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF00D4FF), Color(0xFF0088AA)],
+        ).createShader(barRect);
+      
+      final rRect = RRect.fromRectAndCorners(
+        barRect,
+        topLeft: const Radius.circular(4),
+        topRight: const Radius.circular(4),
       );
-      canvas.drawRect(rect, paint);
+      canvas.drawRRect(rRect, barPaint);
+
+      // Value label on top of bar
+      if (data[i] > 0) {
+        String valueLabel;
+        if (data[i] >= 100000) {
+          valueLabel = '${(data[i] / 1000).toStringAsFixed(0)}K';
+        } else if (data[i] >= 1000) {
+          valueLabel = '${(data[i] / 1000).toStringAsFixed(1)}K';
+        } else {
+          valueLabel = data[i].toStringAsFixed(0);
+        }
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: valueLabel,
+            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        textPainter.paint(
+          canvas,
+          Offset(
+            x + barWidth / 2 - textPainter.width / 2,
+            topPadding + chartHeight - barHeight - textPainter.height - 4,
+          ),
+        );
+      }
+
+      // X-axis label
+      if (i < labels.length) {
+        final labelPainter = TextPainter(
+          text: TextSpan(
+            text: labels[i],
+            style: const TextStyle(color: Colors.grey, fontSize: 10),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        labelPainter.paint(
+          canvas,
+          Offset(
+            x + barWidth / 2 - labelPainter.width / 2,
+            size.height - labelHeight + 4,
+          ),
+        );
+      }
     }
   }
 

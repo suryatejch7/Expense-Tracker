@@ -44,7 +44,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     super.initState();
 
     if (widget.expense != null) {
-      // Editing existing expense
       _titleController.text = widget.expense!.description;
       _amountController.text = widget.expense!.amount.toString();
       _payeeController.text = widget.expense!.payee ?? '';
@@ -53,17 +52,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _selectedDate = widget.expense!.date;
       _selectedAccountId = widget.expense!.accountId;
     } else {
-      // Handle OCR pre-filled data
       if (widget.prefilledAmount != null) {
         _amountController.text = widget.prefilledAmount!.toString();
       }
 
-      if (widget.prefilledPayee != null) {
-        _payeeController.text = widget.prefilledPayee!;
-        // Auto-generate title from payee if available
-        if (widget.prefilledPayee!.isNotEmpty) {
-          _titleController.text = 'Payment to ${widget.prefilledPayee}';
-        }
+      if (widget.prefilledPayee != null && widget.prefilledPayee!.isNotEmpty) {
+        _titleController.text = widget.prefilledPayee!;
       }
     }
   }
@@ -71,7 +65,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Initialize default account only once, synchronously during first build
     if (!_isInitialized) {
       _isInitialized = true;
       final provider = context.read<ExpenseProvider>();
@@ -107,17 +100,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title Field
-              _buildSectionTitle('Title'),
+              // Payee Field
+              _buildSectionTitle('Payee'),
               const SizedBox(height: 8),
               _buildTextField(
                 controller: _titleController,
-                labelText: 'Expense Title',
-                hintText: 'e.g., Grocery Shopping',
+                labelText: 'Payee',
+                hintText: 'e.g., Amazon, Swiggy',
                 textCapitalization: TextCapitalization.words,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
+                    return 'Please enter a payee';
                   }
                   return null;
                 },
@@ -179,13 +172,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Payee Field
-              _buildSectionTitle('Payee (Optional)'),
+              // Purpose Field
+              _buildSectionTitle('Purpose (Optional)'),
               const SizedBox(height: 8),
               _buildTextField(
                 controller: _payeeController,
-                labelText: 'Payee',
-                hintText: 'e.g., Amazon, Uber',
+                labelText: 'Purpose',
+                hintText: 'e.g., Groceries, Movie tickets',
                 textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 20),

@@ -75,7 +75,7 @@ class ExpenseCard extends StatelessWidget {
                     if (expense.payee != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'Payee: ${expense.payee}',
+                        'Purpose: ${expense.payee}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.grey,

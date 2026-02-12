@@ -19,30 +19,22 @@ class UserProvider extends ChangeNotifier {
   
   int get userId => _currentUser?.id ?? 0;
   String get userName => _currentUser?.userName ?? '';
-
-  /// Load user from SharedPreferences on app start
   Future<void> loadUserFromStorage() async {
-    // Only load from storage once during app startup
     if (_hasLoadedFromStorage) {
       return;
     }
     _hasLoadedFromStorage = true;
-    
-    // Set loading state without notifying listeners during build
     _isLoading = true;
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getInt('userId');
       
       if (userId != null && userId > 0) {
-        // Load user from database
         final user = await ExpenseSupabaseService.getUserById(userId);
         if (user != null) {
           _currentUser = user;
-          // Load user settings
           _userSettings = await ExpenseSupabaseService.getUserSettings(userId: userId);
         } else {
-          // User not found in database, clear storage
           await clearUser();
         }
       }
@@ -51,38 +43,26 @@ class UserProvider extends ChangeNotifier {
       await clearUser();
     } finally {
       _isLoading = false;
-      // Defer all notifyListeners calls to avoid calling during build
       SchedulerBinding.instance.addPostFrameCallback((_) {
         notifyListeners();
       });
     }
   }
-
-  /// Register a new user
   Future<bool> registerUser(String userName) async {
     _setLoading(true);
     _errorMessage = null;
     
     try {
-      // Check if username already exists (case-sensitive)
       final exists = await ExpenseSupabaseService.isUsernameTaken(userName);
       if (exists) {
         _errorMessage = 'Username already exists';
         return false;
       }
-
-      // Create new user
       final user = await ExpenseSupabaseService.createUser(userName);
-      
-      // Create default settings
       final settings = await ExpenseSupabaseService.createDefaultUserSettings(user.id);
-      
-      // Save to storage and state
       await _saveUserToStorage(user);
       _currentUser = user;
       _userSettings = settings;
-      
-      // Notify listeners that the user state has changed
       notifyListeners();
       
       return true;
@@ -93,8 +73,6 @@ class UserProvider extends ChangeNotifier {
       _setLoading(false);
     }
   }
-
-  /// Login with username
   Future<bool> loginWithUsername(String userName) async {
     _setLoading(true);
     _errorMessage = null;
@@ -105,16 +83,10 @@ class UserProvider extends ChangeNotifier {
         _errorMessage = 'User not found';
         return false;
       }
-
-      // Load user settings
       final settings = await ExpenseSupabaseService.getUserSettings(userId: user.id);
-      
-      // Save to storage and state
       await _saveUserToStorage(user);
       _currentUser = user;
       _userSettings = settings;
-      
-      // Notify listeners that the user state has changed
       notifyListeners();
       
       return true;
@@ -125,8 +97,6 @@ class UserProvider extends ChangeNotifier {
       _setLoading(false);
     }
   }
-
-  /// Login with user ID
   Future<bool> loginWithUserId(int userId) async {
     _setLoading(true);
     _errorMessage = null;
@@ -137,16 +107,10 @@ class UserProvider extends ChangeNotifier {
         _errorMessage = 'User not found';
         return false;
       }
-
-      // Load user settings
       final settings = await ExpenseSupabaseService.getUserSettings(userId: user.id);
-      
-      // Save to storage and state
       await _saveUserToStorage(user);
       _currentUser = user;
       _userSettings = settings;
-      
-      // Notify listeners that the user state has changed
       notifyListeners();
       
       return true;
@@ -157,8 +121,6 @@ class UserProvider extends ChangeNotifier {
       _setLoading(false);
     }
   }
-
-  /// Update user settings
   Future<void> updateUserSettings(models.UserSettings settings) async {
     try {
       await ExpenseSupabaseService.saveUserSettings(settings);
@@ -169,8 +131,6 @@ class UserProvider extends ChangeNotifier {
       throw Exception(_errorMessage);
     }
   }
-
-  /// Update user name
   Future<bool> updateUserName(String userName) async {
     if (_currentUser == null) {
       _errorMessage = 'No user logged in';
@@ -193,8 +153,6 @@ class UserProvider extends ChangeNotifier {
       return false;
     }
   }
-
-  /// Update monthly budget
   Future<void> updateMonthlyBudget(double budget) async {
     if (_currentUser == null) {
       _errorMessage = 'No user logged in';
@@ -212,8 +170,6 @@ class UserProvider extends ChangeNotifier {
       throw Exception(_errorMessage);
     }
   }
-
-  /// Clear user data and logout
   Future<void> clearUser() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userId');
@@ -225,8 +181,6 @@ class UserProvider extends ChangeNotifier {
     _hasLoadedFromStorage = false; // Reset flag to allow loading from storage again
     notifyListeners();
   }
-
-  /// Initialize expense provider with current user data
   Future<void> initializeExpenseProvider(ExpenseProvider expenseProvider) async {
     if (_currentUser != null && _userSettings != null) {
       await expenseProvider.initializeWithUser(
@@ -236,8 +190,6 @@ class UserProvider extends ChangeNotifier {
       );
     }
   }
-
-  /// Get all available users
   Future<List<models.User>> getAllUsers() async {
     try {
       final users = await ExpenseSupabaseService.getAllUsers();
@@ -247,11 +199,7 @@ class UserProvider extends ChangeNotifier {
       return [];
     }
   }
-
-  /// Check if user is logged in
   bool get isLoggedIn => _currentUser != null;
-
-  /// Private helper methods
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();

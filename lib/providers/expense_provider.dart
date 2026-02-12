@@ -9,7 +9,6 @@ import 'managers/budget_manager.dart';
 import 'managers/account_manager.dart';
 import 'managers/notification_manager.dart';
 
-/// Filter period options for expenses
 enum FilterPeriod {
   weekly,
   monthly,
@@ -19,7 +18,6 @@ enum FilterPeriod {
 }
 
 class ExpenseProvider extends ChangeNotifier {
-  // ==================== INTERNAL DELEGATES ====================
   final ExpenseDataManager _expenseManager = ExpenseDataManager();
   final IncomeDataManager _incomeManager = IncomeDataManager();
   final BudgetManager _budgetManager = BudgetManager();
@@ -29,7 +27,6 @@ class ExpenseProvider extends ChangeNotifier {
   final List<ExpenseCategory> _customCategories = [];
   String _searchQuery = '';
 
-  // USER SETTINGS
   int _userId = 0;
   String _userName = '';
   String _currency = '₹';
@@ -37,7 +34,6 @@ class ExpenseProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isInitialized = false;
 
-  // ==================== GETTERS (PUBLIC API UNCHANGED) ====================
   List<Expense> get expenses => _expenseManager.expenses;
   List<Income> get incomes => _incomeManager.incomes;
   List<ExpenseCategory> get customCategories => _customCategories;
@@ -52,16 +48,10 @@ class ExpenseProvider extends ChangeNotifier {
   bool get hasMoreExpenses => _expenseManager.hasMoreExpenses;
   bool get isLoadingMore => _expenseManager.isLoadingMore;
 
-  /// Get the default account
   BankAccount? get defaultAccount => _accountManager.defaultAccount;
 
-  // Only custom categories
   List<ExpenseCategory> get categories => _customCategories;
 
-  // ==================== INITIALIZATION ====================
-
-  /// Initialize expense provider with user data
-  /// Uses cache-first strategy for faster startup
   Future<void> initializeWithUser(
       int userId, String userName, UserSettings userSettings) async {
     _userId = userId;
@@ -74,38 +64,30 @@ class ExpenseProvider extends ChangeNotifier {
     _customCategories.addAll(userSettings.customCategories);
     _accountManager.initialize(userSettings.accounts);
 
-    // Reset pagination state
     _expenseManager.resetPagination();
 
-    // Try to load from cache first for instant UI
     final hasCachedData = await _expenseManager.loadFromCache(userId);
     if (hasCachedData) {
       _isInitialized = true;
-      notifyListeners(); // Show cached data immediately
+      notifyListeners();
 
-      // Then sync with server in background
       await _expenseManager.syncWithServer(userId);
       notifyListeners();
     } else {
-      // No cache, load from server with pagination
       await _expenseManager.loadExpensesPaginated(userId);
       _isInitialized = true;
       notifyListeners();
     }
 
-    // Cache settings for offline access
     await CacheService.cacheSettings(userSettings);
     await CacheService.saveCurrentUserId(userId);
 
-    // Load incomes from server
     await loadIncomes();
 
-    // Schedule periodic notifications
     await _notificationManager
         .schedulePeriodicNotifications(_expenseManager.expenses);
   }
 
-  /// Clear user data when logging out
   void clearUserData() {
     _userId = 0;
     _userName = '';
@@ -120,12 +102,10 @@ class ExpenseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Force recalculation notification
   void _refreshCalculations() {
     notifyListeners();
   }
 
-  /// Force refresh all data from backend
   Future<void> forceRefresh() async {
     if (_userId == 0) return;
 
@@ -134,13 +114,10 @@ class ExpenseProvider extends ChangeNotifier {
       _expenseManager.resetPagination();
       notifyListeners();
 
-      // Reload expenses from backend
       await _expenseManager.loadExpenses(_userId);
 
-      // Reload incomes from backend
       await loadIncomes();
 
-      // Reload user settings from backend
       final userSettings =
           await ExpenseSupabaseService.getUserSettings(userId: _userId);
       _budgetManager.initialize(
@@ -150,12 +127,10 @@ class ExpenseProvider extends ChangeNotifier {
       _customCategories.addAll(userSettings.customCategories);
       _accountManager.initialize(userSettings.accounts);
 
-      // Update settings cache
       await CacheService.cacheSettings(userSettings);
 
       notifyListeners();
     } catch (e) {
-      // Failed to force refresh
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -201,8 +176,6 @@ class ExpenseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ==================== TOTALS & AGGREGATIONS ====================
-
   double get totalExpense {
     return _expenseManager.expenses
         .fold(0, (sum, expense) => sum + expense.amount);
@@ -224,7 +197,6 @@ class ExpenseProvider extends ChangeNotifier {
     return totals;
   }
 
-  // Budget-related getters
   bool get isOverBudget =>
       _budgetManager.isOverBudget(currentMonthTotalExpense);
   double get budgetExcess =>
@@ -234,8 +206,6 @@ class ExpenseProvider extends ChangeNotifier {
       _budgetManager.budgetRemaining(currentMonthTotalExpense);
   double get budgetUsagePercentage =>
       _budgetManager.budgetUsagePercentage(currentMonthTotalExpense);
-
-  // ==================== CURRENT MONTH GETTERS ====================
 
   List<Expense> get currentMonthExpenses {
     final now = DateTime.now();
@@ -269,8 +239,6 @@ class ExpenseProvider extends ChangeNotifier {
         .where((expense) => expense.category == category)
         .fold(0.0, (sum, expense) => sum + expense.amount);
   }
-
-  // ==================== FILTERED EXPENSES BY PERIOD ====================
 
   List<Expense> getExpensesByPeriodType(FilterPeriod period,
       {DateTime? customStart, DateTime? customEnd, String? accountId}) {
@@ -351,13 +319,10 @@ class ExpenseProvider extends ChangeNotifier {
         .toList();
   }
 
-  // ==================== EXPENSE CRUD ====================
-
   Future<void> addExpense(Expense expense) async {
     try {
       await _expenseManager.addExpense(expense, _userId);
 
-      // Trigger notifications
       await _notificationManager.triggerExpenseNotifications(
         expense: expense,
         allExpenses: _expenseManager.expenses,
@@ -401,13 +366,11 @@ class ExpenseProvider extends ChangeNotifier {
     }
   }
 
-  /// Load more expenses (infinite scroll)
   Future<void> loadMoreExpenses() async {
     final changed = await _expenseManager.loadMoreExpenses(_userId);
     if (changed) notifyListeners();
   }
 
-  /// Reload expenses from backend
   Future<void> reloadExpenses() async {
     if (_userId == 0) return;
 
@@ -421,19 +384,15 @@ class ExpenseProvider extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      // Failed to reload - keep existing data
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  /// Check data consistency
   Future<bool> verifyDataConsistency() async {
     return _expenseManager.verifyDataConsistency(_userId);
   }
-
-  // ==================== INCOME CRUD ====================
 
   Future<void> addIncome(Income income) async {
     try {
@@ -529,8 +488,6 @@ class ExpenseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ==================== BUDGET METHODS ====================
-
   Future<void> updateMonthlyBudget(double budget) async {
     try {
       _isLoading = true;
@@ -597,8 +554,6 @@ class ExpenseProvider extends ChangeNotifier {
         category, getCurrentMonthCategoryExpenses(category), _customCategories);
   }
 
-  // ==================== CATEGORY METHODS ====================
-
   Future<void> addCustomCategory(ExpenseCategory category) async {
     try {
       _customCategories.add(category);
@@ -629,8 +584,6 @@ class ExpenseProvider extends ChangeNotifier {
       throw Exception('Failed to remove category: $e');
     }
   }
-
-  // ==================== ACCOUNT METHODS ====================
 
   BankAccount? getAccountById(String accountId) =>
       _accountManager.getAccountById(accountId);
@@ -666,16 +619,12 @@ class ExpenseProvider extends ChangeNotifier {
     }
   }
 
-  // ==================== USER SETTINGS ====================
-
   void updateLocalUserName(String newName) {
     if (newName.isNotEmpty && newName != _userName) {
       _userName = newName;
       notifyListeners();
     }
   }
-
-  // ==================== UTILITY METHODS ====================
 
   List<Expense> getExpensesByCategory(String category) {
     return _expenseManager.expenses
@@ -689,7 +638,6 @@ class ExpenseProvider extends ChangeNotifier {
         .fold(0.0, (sum, expense) => sum + expense.amount);
   }
 
-  /// Load user settings from Supabase
   Future<void> _loadUserSettings() async {
     try {
       final settings =
@@ -700,7 +648,6 @@ class ExpenseProvider extends ChangeNotifier {
       _customCategories.clear();
       _customCategories.addAll(settings.customCategories);
     } catch (e) {
-      // Failed to load user settings
     }
   }
 
@@ -708,8 +655,6 @@ class ExpenseProvider extends ChangeNotifier {
     await _loadUserSettings();
     await _expenseManager.loadExpenses(_userId);
   }
-
-  // ==================== ANALYTICS HELPERS ====================
 
   Future<List<Expense>> getExpensesForPeriod(
       DateTime startDate, DateTime endDate) async {

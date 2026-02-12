@@ -7,7 +7,6 @@ import '../services/transaction_processing_service.dart';
 import '../screens/add_expense_screen.dart';
 import '../providers/user_provider.dart';
 
-/// Screen for handling transaction screenshot intake and processing
 class TransactionScannerScreen extends StatefulWidget {
   final File? initialImage;
 
@@ -33,9 +32,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
     super.initState();
     if (widget.initialImage != null) {
       _selectedImage = widget.initialImage;
-      // PhonePe is automatically selected since it's the only supported app
       _selectedApp = PaymentApp.phonePe;
-      // Auto-start processing when image is shared
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _processTransaction();
       });
@@ -519,12 +516,10 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
     }
   }
 
-  /// Check if processing can be started
   bool _canProcess() {
     return _selectedImage != null && _selectedApp != null && !_isProcessing;
   }
 
-  /// Process transaction using the complete pipeline
   Future<void> _processTransaction() async {
     if (!_canProcess()) return;
 
@@ -576,9 +571,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
           _extractedData = result.extractedTransaction;
         });
 
-        // Automatically navigate to Add Expense screen after successful extraction
         if (mounted) {
-          // Show brief success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -652,7 +645,7 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
     }
   }
 
-  /// Add extracted transaction to expenses
+
   void _addToExpenses() async {
     if (_extractedData == null) return;
 

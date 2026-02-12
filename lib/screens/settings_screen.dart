@@ -354,121 +354,117 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        // Custom Categories List
-                        ...expenseProvider.customCategories.map((category) {
-                        final budget = expenseProvider.getCustomCategoryBudget(category.id);
-                        final spent = expenseProvider.getCustomCategoryExpenses(category.id);
-                        final isOverBudget = budget > 0 && spent > budget;
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2A2A2A),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isOverBudget
-                                  ? Colors.red.withValues(alpha: 0.5)
-                                  : Colors.grey.withValues(alpha: 0.3),
-                            ),
+                        // Custom Categories Grid (2 columns)
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 1.1,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        category.icon,
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          color: category.color,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        category.name,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      if (category.isDefault) ...[
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue.withValues(alpha: 0.2),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: const Text(
-                                            'Default',
-                                            style: TextStyle(
-                                              color: Colors.blue,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        onPressed: () => _showExpenseCategoryBudgetDialog(category),
-                                        icon: const Icon(
-                                          Icons.edit,
-                                          color: Colors.grey,
-                                          size: 20,
-                                        ),
-                                      ),
-                                      if (!category.isDefault) // Only allow deleting custom categories
-                                        IconButton(
-                                          onPressed: () => _showDeleteExpenseCategoryDialog(category),
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            color: Colors.red,
-                                            size: 20,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
+                          itemCount: expenseProvider.customCategories.length,
+                          itemBuilder: (context, index) {
+                            final category = expenseProvider.customCategories[index];
+                            final budget = expenseProvider.getCustomCategoryBudget(category.id);
+                            final spent = expenseProvider.getCustomCategoryExpenses(category.id);
+                            final isOverBudget = budget > 0 && spent > budget;
+
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2A2A2A),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isOverBudget
+                                      ? Colors.red.withValues(alpha: 0.5)
+                                      : category.color.withValues(alpha: 0.3),
+                                  width: isOverBudget ? 2 : 1,
+                                ),
                               ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    budget > 0 ? 'Budget: ₹${budget.toStringAsFixed(0)}' : 'No limit',
-                                    style: const TextStyle(color: Colors.grey),
+                                  // Top row: icon + actions
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: category.color.withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            category.icon,
+                                            style: const TextStyle(fontSize: 20),
+                                          ),
+                                        ),
+                                      ),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          GestureDetector(
+                                            onTap: () => _showExpenseCategoryBudgetDialog(category),
+                                            child: const Icon(Icons.edit, color: Colors.grey, size: 18),
+                                          ),
+                                          if (!category.isDefault) ...[
+                                            const SizedBox(width: 8),
+                                            GestureDetector(
+                                              onTap: () => _showDeleteExpenseCategoryDialog(category),
+                                              child: Icon(Icons.delete, color: Colors.grey.withValues(alpha: 0.7), size: 18),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ],
                                   ),
+                                  const SizedBox(height: 8),
+                                  // Category name
                                   Text(
-                                    'Spent: ₹${spent.toStringAsFixed(0)}',
+                                    category.name,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const Spacer(),
+                                  // Budget info
+                                  Text(
+                                    budget > 0
+                                        ? '₹${spent.toStringAsFixed(0)} / ₹${budget.toStringAsFixed(0)}'
+                                        : '₹${spent.toStringAsFixed(0)} spent',
                                     style: TextStyle(
-                                      color: isOverBudget ? Colors.red : Colors.white,
-                                      fontWeight: FontWeight.bold,
+                                      color: isOverBudget ? Colors.red : Colors.grey,
+                                      fontSize: 12,
+                                      fontWeight: isOverBudget ? FontWeight.bold : FontWeight.normal,
                                     ),
                                   ),
+                                  if (budget > 0) ...[
+                                    const SizedBox(height: 6),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: LinearProgressIndicator(
+                                        value: (spent / budget).clamp(0.0, 1.0),
+                                        minHeight: 4,
+                                        backgroundColor: Colors.grey.withValues(alpha: 0.3),
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          isOverBudget ? Colors.red : category.color,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
-                              if (budget > 0) ...[
-                                const SizedBox(height: 8),
-                                LinearProgressIndicator(
-                                  value: (spent / budget).clamp(0.0, 1.0),
-                                  backgroundColor: Colors.grey.withValues(alpha: 0.3),
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    isOverBudget ? Colors.red : category.color,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                     }),
+                            );
+                          },
+                        ),
                       ],
                     ],
                   ),
@@ -628,7 +624,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Test Notification Button
           ElevatedButton.icon(
             onPressed: () async {
-              await NotificationService.checkDailyBudgetAlert(800, 1000);
+              await NotificationService.checkMonthlyBudgetExceeded(26000, 25000);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -668,9 +664,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  '• Budget alerts when you reach 80% of your limits\n'
-                  '• Weekly spending summaries\n'
-                  '• Monthly financial insights',
+                  '• Monthly budget exceeded alert\n'
+                  '• Category budget exceeded alert',
                   style: TextStyle(
                     color: Colors.grey,
                     fontSize: 14,
@@ -781,7 +776,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Colors.blue,
                     Colors.green,
-                    Colors.red,
+                    Colors.cyan,
                     Colors.orange,
                     Colors.purple,
                     Colors.pink,

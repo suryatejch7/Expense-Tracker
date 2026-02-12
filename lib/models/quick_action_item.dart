@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Model for quick action items on the dashboard
 class QuickActionItem {
   final String id;
   final String title;
@@ -41,7 +40,6 @@ class QuickActionItem {
   }
 }
 
-/// Factory class for creating default quick actions
 class QuickActions {
   static List<QuickActionItem> getDefaultActions(BuildContext context) {
     return [

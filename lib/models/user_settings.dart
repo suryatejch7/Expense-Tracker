@@ -1,9 +1,7 @@
 import '../models/expense_models.dart';
 
-// Import BankAccount from expense_models.dart
 export '../models/expense_models.dart' show BankAccount;
 
-/// Model for user data
 class User {
   final int id;
   final String userName;
@@ -36,7 +34,6 @@ class User {
   }
 }
 
-/// Model for user settings stored in Supabase
 class UserSettings {
   final int userId;
   final double monthlyBudget;
@@ -64,22 +61,18 @@ class UserSettings {
     required this.updatedAt,
   });
 
-  /// Create UserSettings from Supabase data
   factory UserSettings.fromSupabase(Map<String, dynamic> data) {
-    // Parse category budgets from JSONB
     final categoryBudgetsJson = data['category_budgets'] as Map<String, dynamic>? ?? {};
     final categoryBudgets = <String, double>{};
     categoryBudgetsJson.forEach((key, value) {
       categoryBudgets[key] = (value as num).toDouble();
     });
 
-    // Parse custom categories from JSONB
     final customCategoriesJson = data['custom_categories'] as List<dynamic>? ?? [];
     final customCategories = customCategoriesJson
         .map((item) => ExpenseCategory.fromSupabase(item as Map<String, dynamic>))
         .toList();
 
-    // Parse accounts from JSONB
     final accountsJson = data['accounts'] as List<dynamic>? ?? [];
     final accounts = accountsJson
         .map((item) => BankAccount.fromSupabase(item as Map<String, dynamic>))
@@ -100,7 +93,6 @@ class UserSettings {
     );
   }
 
-  /// Convert UserSettings to Supabase format
   Map<String, dynamic> toSupabase() {
     return {
       'user_id': userId,
@@ -117,7 +109,6 @@ class UserSettings {
     };
   }
 
-  /// Create a copy with updated fields
   UserSettings copyWith({
     int? userId,
     double? monthlyBudget,

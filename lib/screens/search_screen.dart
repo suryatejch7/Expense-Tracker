@@ -23,6 +23,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    // Clear search query so it doesn't leak to home page filtered results
+    context.read<ExpenseProvider>().clearSearch();
     _controller.dispose();
     super.dispose();
   }

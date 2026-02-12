@@ -2,8 +2,6 @@ import '../../models/expense_models.dart';
 import '../../services/supabase_service.dart';
 import '../../services/cache_service.dart';
 
-/// Manages expense data: CRUD, pagination, caching, and server sync.
-/// Internal delegate used by ExpenseProvider.
 class ExpenseDataManager {
   final List<Expense> _expenses = [];
   static const int pageSize = 20;
@@ -15,7 +13,6 @@ class ExpenseDataManager {
   bool get hasMoreExpenses => _hasMoreExpenses;
   bool get isLoadingMore => _isLoadingMore;
 
-  /// Sync local data with server (background operation)
   Future<void> syncWithServer(int userId) async {
     try {
       final serverExpenses = await ExpenseSupabaseService.getExpenses(
@@ -39,11 +36,9 @@ class ExpenseDataManager {
       _expenses.addAll(mergedExpenses);
       await CacheService.cacheExpenses(_expenses, userId);
     } catch (e) {
-      // Server sync failed, continue with cached data
     }
   }
 
-  /// Load expenses from Supabase (all at once)
   Future<void> loadExpenses(int userId) async {
     try {
       final expenses = await ExpenseSupabaseService.getExpenses(userId: userId);
@@ -63,7 +58,6 @@ class ExpenseDataManager {
     }
   }
 
-  /// Load expenses with pagination (for initial load)
   Future<void> loadExpensesPaginated(int userId) async {
     try {
       _currentPage = 0;
@@ -90,8 +84,6 @@ class ExpenseDataManager {
     }
   }
 
-  /// Load more expenses (infinite scroll)
-  /// Returns true if state changed and listeners should be notified
   Future<bool> loadMoreExpenses(int userId) async {
     if (!_hasMoreExpenses || _isLoadingMore || userId == 0) return false;
 
