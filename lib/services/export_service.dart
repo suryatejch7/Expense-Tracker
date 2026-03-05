@@ -22,7 +22,7 @@ class ExportService {
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: 'Expense Tracker Export',
+        subject: 'Vyaya Export',
       );
     } catch (e) {
       if (context.mounted) {

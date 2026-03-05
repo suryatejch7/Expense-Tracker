@@ -48,7 +48,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 32),
             const Text(
-              'Expense Tracker',
+              'Vyaya',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 28,

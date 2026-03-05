@@ -38,7 +38,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
       ],
       child: MaterialApp(
-        title: 'Expense Tracker',
+        title: 'Vyaya',
         theme: AppTheme.darkTheme,
         home: const AppBootstrap(),
         debugShowCheckedModeBanner: false,

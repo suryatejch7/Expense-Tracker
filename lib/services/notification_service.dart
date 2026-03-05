@@ -94,7 +94,7 @@ class NotificationService {
       NotificationDetails(
         android: AndroidNotificationDetails(
           'expense_tracker',
-          'Expense Tracker Notifications',
+          'Vyaya Notifications',
           importance: importance,
           priority: _getPriorityFromImportance(importance),
           icon: '@mipmap/ic_launcher',

@@ -98,7 +98,7 @@ class BackupService {
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: 'Expense Tracker Backup',
+        subject: 'Vyaya Backup',
       );
     } catch (e) {
       if (context.mounted) {

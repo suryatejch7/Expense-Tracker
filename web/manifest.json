@@ -1,6 +1,6 @@
 {
-    "name": "expensetracker",
-    "short_name": "expensetracker",
+    "name": "Vyaya",
+    "short_name": "Vyaya",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
