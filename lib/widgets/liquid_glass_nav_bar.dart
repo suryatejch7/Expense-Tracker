@@ -7,7 +7,6 @@ import '../screens/search_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/analytics_screen.dart';
 import '../screens/crop_calibration_screen.dart';
-import '../services/export_service.dart';
 
 class GlassNavBar extends StatefulWidget {
   final int currentIndex;
