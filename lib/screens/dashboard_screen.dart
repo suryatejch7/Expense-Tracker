@@ -6,7 +6,7 @@ import '../widgets/expense_card.dart';
 import '../widgets/income_card.dart';
 import '../widgets/category_summary.dart';
 
-enum RecentViewType { expenses, income, all }
+enum RecentViewType { all, creditCard }
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -17,7 +17,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final ScrollController _scrollController = ScrollController();
-  RecentViewType _selectedViewType = RecentViewType.expenses;
+  RecentViewType _selectedViewType = RecentViewType.all;
 
   @override
   void initState() {
@@ -196,19 +196,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           itemBuilder: (context) => [
             _buildPopupMenuItem(
-              RecentViewType.expenses,
-              'Recent Expenses',
-              Icons.arrow_upward_rounded,
-            ),
-            _buildPopupMenuItem(
-              RecentViewType.income,
-              'Recent Income',
-              Icons.arrow_downward_rounded,
-            ),
-            _buildPopupMenuItem(
               RecentViewType.all,
               'Recent Activity',
               Icons.swap_vert_rounded,
+            ),
+            _buildPopupMenuItem(
+              RecentViewType.creditCard,
+              'Credit Card Activity',
+              Icons.credit_card_rounded,
             ),
           ],
         ),
@@ -230,8 +225,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Icon(
             icon,
             color: isSelected
-                ? (type == RecentViewType.income
-                      ? Colors.green
+                ? (type == RecentViewType.creditCard
+                      ? Colors.orange
                       : Theme.of(context).colorScheme.primary)
                 : Colors.grey,
             size: 20,
@@ -248,8 +243,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Spacer(),
             Icon(
               Icons.check,
-              color: type == RecentViewType.income
-                  ? Colors.green
+              color: type == RecentViewType.creditCard
+                  ? Colors.orange
                   : Theme.of(context).colorScheme.primary,
               size: 18,
             ),
@@ -261,24 +256,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String _getViewTypeLabel(RecentViewType type) {
     switch (type) {
-      case RecentViewType.expenses:
-        return 'Recent Expenses';
-      case RecentViewType.income:
-        return 'Recent Income';
       case RecentViewType.all:
         return 'Recent Activity';
+      case RecentViewType.creditCard:
+        return 'Credit Card';
     }
   }
 
   /// Build the transactions list based on selected view type
   Widget _buildTransactionsList(ExpenseProvider provider) {
     switch (_selectedViewType) {
-      case RecentViewType.expenses:
-        return _buildExpensesList(provider);
-      case RecentViewType.income:
-        return _buildIncomesList(provider);
       case RecentViewType.all:
         return _buildAllTransactionsList(provider);
+      case RecentViewType.creditCard:
+        return _buildCreditCardList(provider);
     }
   }
 
@@ -287,8 +278,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     if (expenses.isEmpty) {
       return SliverFillRemaining(
-        child: Center(
+        hasScrollBody: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
@@ -344,8 +338,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     if (incomes.isEmpty) {
       return SliverFillRemaining(
-        child: Center(
+        hasScrollBody: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
@@ -408,8 +405,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     if (allTransactions.isEmpty) {
       return SliverFillRemaining(
-        child: Center(
+        hasScrollBody: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.swap_vert_rounded, size: 80, color: Colors.grey[700]),
@@ -461,6 +461,183 @@ class _DashboardScreenState extends State<DashboardScreen> {
           );
         },
         childCount: allTransactions.length,
+        addAutomaticKeepAlives: false,
+        addRepaintBoundaries: true,
+      ),
+    );
+  }
+
+  Widget _buildCreditCardList(ExpenseProvider provider) {
+    // Get all credit card account IDs
+    final creditCardAccountIds = provider.accounts
+        .where((a) => a.isCreditCard)
+        .map((a) => a.id)
+        .toSet();
+
+    if (creditCardAccountIds.isEmpty) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.credit_card_off_rounded,
+                size: 80,
+                color: Colors.grey[700],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No credit cards added',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Add a credit card account in Settings to track spending',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Filter expenses that are linked to credit card accounts
+    final ccExpenses = provider.expenses
+        .where((e) =>
+            e.accountId != null && creditCardAccountIds.contains(e.accountId))
+        .toList();
+
+    if (ccExpenses.isEmpty) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.credit_card_rounded,
+                size: 80,
+                color: Colors.grey[700],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No credit card spending',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Expenses linked to your credit card accounts will appear here',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final currency = provider.currency;
+    final categories = provider.categories;
+
+    // Credit card total this month
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthTotal = ccExpenses
+        .where((e) => !e.date.isBefore(monthStart))
+        .fold(0.0, (sum, e) => sum + e.amount);
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          // First item: summary card
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.orange.withValues(alpha: 0.2),
+                      Colors.deepOrange.withValues(alpha: 0.1),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.credit_card_rounded,
+                        color: Colors.orange,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'This Month\'s CC Spending',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$currency${monthTotal.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            color: Colors.orange,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${ccExpenses.where((e) => !e.date.isBefore(monthStart)).length} txns',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // Expense items (offset by 1 for summary card)
+          final expense = ccExpenses[index - 1];
+          final category = _findCategory(categories, expense.category);
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: ExpenseCard(
+              key: ValueKey('cc_expense_${expense.id}'),
+              expense: expense,
+              currency: currency,
+              category: category,
+              index: index - 1,
+            ),
+          );
+        },
+        childCount: ccExpenses.length + 1, // +1 for summary card
         addAutomaticKeepAlives: false,
         addRepaintBoundaries: true,
       ),

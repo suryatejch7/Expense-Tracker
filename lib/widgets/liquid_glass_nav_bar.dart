@@ -7,6 +7,7 @@ import '../screens/search_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/analytics_screen.dart';
 import '../screens/crop_calibration_screen.dart';
+import '../services/export_service.dart';
 
 class GlassNavBar extends StatefulWidget {
   final int currentIndex;
@@ -115,7 +116,7 @@ class _GlassNavBarState extends State<GlassNavBar>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.5),
+      barrierColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => GlassBottomSheet(items: items),
     );

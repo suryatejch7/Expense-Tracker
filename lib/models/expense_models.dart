@@ -278,22 +278,56 @@ class ExpenseCategory {
   }
 }
 
+enum AccountType {
+  savings,
+  current,
+  creditCard;
+
+  String get label {
+    switch (this) {
+      case AccountType.savings:
+        return 'Savings';
+      case AccountType.current:
+        return 'Current';
+      case AccountType.creditCard:
+        return 'Credit Card';
+    }
+  }
+
+  static AccountType fromString(String? value) {
+    switch (value) {
+      case 'current':
+        return AccountType.current;
+      case 'creditCard':
+      case 'credit_card':
+        return AccountType.creditCard;
+      default:
+        return AccountType.savings;
+    }
+  }
+}
+
 class BankAccount {
   final String id;
   final String name;
   final bool isDefault;
+  final AccountType type;
 
   BankAccount({
     required this.id,
     required this.name,
     this.isDefault = false,
+    this.type = AccountType.savings,
   });
+
+  bool get isCreditCard => type == AccountType.creditCard;
 
   factory BankAccount.fromSupabase(Map<String, dynamic> data) {
     return BankAccount(
       id: data['id'] as String,
       name: data['name'] as String,
       isDefault: data['is_default'] as bool? ?? false,
+      type: AccountType.fromString(data['type'] as String?),
     );
   }
 
@@ -302,6 +336,7 @@ class BankAccount {
       'id': id,
       'name': name,
       'is_default': isDefault,
+      'type': type.name,
     };
   }
 
@@ -309,11 +344,13 @@ class BankAccount {
     String? id,
     String? name,
     bool? isDefault,
+    AccountType? type,
   }) {
     return BankAccount(
       id: id ?? this.id,
       name: name ?? this.name,
       isDefault: isDefault ?? this.isDefault,
+      type: type ?? this.type,
     );
   }
 }

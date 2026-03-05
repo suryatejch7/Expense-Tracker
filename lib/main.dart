@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'providers/expense_provider.dart';
 import 'providers/user_provider.dart';
 import 'screens/main_screen.dart';
-import 'screens/register_user_screen.dart';
-import 'services/supabase_init_service.dart';
+import 'services/supabase_service.dart';
+import 'services/backup_service.dart';
 import 'services/notification_service.dart';
 import 'services/cache_service.dart';
 import 'theme/app_theme.dart';
@@ -12,8 +12,11 @@ import 'theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Supabase
-  await SupabaseInitService.initialize();
+  // Initialize Local Storage
+  await ExpenseSupabaseService.initialize();
+
+  // Restore from auto-backup file if SharedPreferences was wiped
+  await BackupService.restoreFromAutoBackupIfNeeded();
 
   // Initialize Cache Service
   await CacheService.init();
@@ -37,92 +40,62 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Expense Tracker',
         theme: AppTheme.darkTheme,
-        home: const AuthWrapper(),
+        home: const AppBootstrap(),
         debugShowCheckedModeBanner: false,
       ),
     );
   }
 }
 
-// AuthWrapper handles authentication state
-class AuthWrapper extends StatefulWidget {
-  const AuthWrapper({super.key});
+/// Silently ensures a local user exists, then shows MainScreen.
+class AppBootstrap extends StatefulWidget {
+  const AppBootstrap({super.key});
 
   @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
+  State<AppBootstrap> createState() => _AppBootstrapState();
 }
 
-class _AuthWrapperState extends State<AuthWrapper> {
-  bool _initialized = false;
+class _AppBootstrapState extends State<AppBootstrap> {
+  bool _ready = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeApp();
+    _bootstrap();
   }
 
-  Future<void> _initializeApp() async {
-    // Load user from storage
+  Future<void> _bootstrap() async {
     final userProvider = context.read<UserProvider>();
     final expenseProvider = context.read<ExpenseProvider>();
+
+    // Try to load existing user
     await userProvider.loadUserFromStorage();
 
-    // Initialize expense provider if user is logged in
+    // If no user exists, create a default local user automatically
+    if (!userProvider.isLoggedIn) {
+      await userProvider.registerUser('LocalUser');
+    }
+
+    // Initialize expense provider with the user
     if (userProvider.isLoggedIn) {
       await userProvider.initializeExpenseProvider(expenseProvider);
     }
 
     if (mounted) {
-      setState(() {
-        _initialized = true;
-      });
+      setState(() => _ready = true);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_initialized) {
+    if (!_ready) {
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: Colors.white),
-              SizedBox(height: 16),
-              Text(
-                'Loading...',
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-            ],
-          ),
+          child: CircularProgressIndicator(color: Colors.white),
         ),
       );
     }
-
-    // Use Selector to monitor only isLoggedIn boolean
-    return Selector<UserProvider, bool>(
-      selector: (_, userProvider) => userProvider.isLoggedIn,
-      builder: (context, isLoggedIn, child) {
-        if (isLoggedIn) {
-          return const MainScreen();
-        } else {
-          return RegisterUserScreen(
-            onRegistered: () async {
-              final userProvider = context.read<UserProvider>();
-
-              // Initialize expense provider when user is registered
-              if (userProvider.isLoggedIn) {
-                await userProvider.initializeExpenseProvider(
-                  context.read<ExpenseProvider>(),
-                );
-              }
-
-              // Let the Selector handle the rebuild automatically when isLoggedIn changes
-            },
-          );
-        }
-      },
-    );
+    return const MainScreen();
   }
 }

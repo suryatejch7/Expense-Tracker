@@ -122,20 +122,22 @@ class _GlassBottomSheetState extends State<GlassBottomSheet>
                             ),
                           ),
                           const SizedBox(height: 16),
-                          // Action items - no scrolling, all fit in view
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: widget.items.map((item) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: SizedBox(
-                                    height: itemHeight,
-                                    child: _buildActionItem(item),
-                                  ),
-                                );
-                              }).toList(),
+                          // Action items - scrollable when they overflow
+                          Flexible(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: widget.items.map((item) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: SizedBox(
+                                      height: itemHeight,
+                                      child: _buildActionItem(item),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 8),

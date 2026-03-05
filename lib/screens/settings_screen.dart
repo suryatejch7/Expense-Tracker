@@ -4,6 +4,10 @@ import '../providers/expense_provider.dart';
 import '../providers/user_provider.dart';
 import '../models/expense_models.dart';
 import '../services/notification_service.dart';
+import '../services/supabase_service.dart';
+import '../services/export_service.dart';
+import '../services/backup_service.dart';
+import 'package:file_picker/file_picker.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -480,40 +484,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Notification Settings Section
                 _buildNotificationSettingsSection(),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
 
-                // Logout Button
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.logout, size: 20),
-                      label: const Text('Logout'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () async {
-                        final navigator = Navigator.of(context);
-                        // Clear user session
-                        await userProvider.clearUser();
-                        
-                        // Clear expense provider data
-                        expenseProvider.clearUserData();
-                        
-                        // Pop the SettingsScreen to return to the underlying screen
-                        if (mounted && navigator.canPop()) {
-                          navigator.pop();
-                        }
-                      },
-                    ),
-                  ),
-                ),
+                // Data Management Section
+                _buildDataManagementSection(userProvider, expenseProvider),
 
                 const SizedBox(height: 32),
               ],
@@ -1115,43 +1089,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.account_balance,
-                          color: account.isDefault
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.grey,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          account.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 16,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Icon(
+                            account.isCreditCard
+                                ? Icons.credit_card
+                                : Icons.account_balance,
+                            color: account.isDefault
+                                ? Theme.of(context).colorScheme.primary
+                                : (account.isCreditCard
+                                      ? Colors.orange
+                                      : Colors.grey),
+                            size: 24,
                           ),
-                        ),
-                        if (account.isDefault) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  account.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 16,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  account.type.label,
+                                  style: TextStyle(
+                                    color: account.isCreditCard
+                                        ? Colors.orange.withValues(alpha: 0.8)
+                                        : Colors.grey.withValues(alpha: 0.8),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
-                            child: Text(
-                              'Default',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                          ),
+                          if (account.isDefault) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Default',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                     Row(
                       children: [
@@ -1186,70 +1184,154 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showAddAccountDialog() {
     final accountNameController = TextEditingController();
+    AccountType selectedType = AccountType.savings;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2A2A2A),
-        title: const Text(
-          'Add Bank Account',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: TextField(
-          controller: accountNameController,
-          style: const TextStyle(color: Colors.white),
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: 'e.g., SBI, HDFC, Axis',
-            hintStyle: const TextStyle(color: Colors.grey),
-            filled: true,
-            fillColor: const Color(0xFF1A1A1A),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            prefixIcon: const Icon(Icons.account_balance, color: Colors.grey),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF2A2A2A),
+          title: const Text(
+            'Add Account',
+            style: TextStyle(color: Colors.white),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = accountNameController.text.trim();
-              if (name.isEmpty) return;
-
-              final navigator = Navigator.of(context);
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
-              final provider = context.read<ExpenseProvider>();
-
-              final newAccount = BankAccount(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                name: name,
-                isDefault: provider.accounts.isEmpty,
-              );
-
-              await provider.addAccount(newAccount);
-              navigator.pop();
-
-              if (mounted) {
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(
-                    content: Text('Account "$name" added successfully!'),
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    duration: const Duration(seconds: 1),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: accountNameController,
+                style: const TextStyle(color: Colors.white),
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'e.g., SBI, HDFC, Axis',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: const Color(0xFF1A1A1A),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-            ),
-            child: const Text('Add'),
+                  prefixIcon: Icon(
+                    selectedType == AccountType.creditCard
+                        ? Icons.credit_card
+                        : Icons.account_balance,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Account type selector
+              Row(
+                children: AccountType.values.map((type) {
+                  final isSelected = selectedType == type;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setDialogState(() {
+                          selectedType = type;
+                        });
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? (type == AccountType.creditCard
+                                    ? Colors.orange.withValues(alpha: 0.2)
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withValues(alpha: 0.2))
+                              : const Color(0xFF1A1A1A),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isSelected
+                                ? (type == AccountType.creditCard
+                                      ? Colors.orange
+                                      : Theme.of(context).colorScheme.primary)
+                                : Colors.grey.withValues(alpha: 0.3),
+                            width: isSelected ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              type == AccountType.creditCard
+                                  ? Icons.credit_card
+                                  : Icons.account_balance,
+                              color: isSelected
+                                  ? (type == AccountType.creditCard
+                                        ? Colors.orange
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .primary)
+                                  : Colors.grey,
+                              size: 18,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              type.label,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.grey[400],
+                                fontSize: 11,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = accountNameController.text.trim();
+                if (name.isEmpty) return;
+
+                final navigator = Navigator.of(context);
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final provider = context.read<ExpenseProvider>();
+
+                final newAccount = BankAccount(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  name: name,
+                  isDefault: provider.accounts.isEmpty,
+                  type: selectedType,
+                );
+
+                await provider.addAccount(newAccount);
+                navigator.pop();
+
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          '${selectedType.label} "$name" added successfully!'),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+              ),
+              child: const Text('Add'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1269,6 +1351,248 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     }
+  }
+
+  // ==================== DATA MANAGEMENT SECTION ====================
+
+  Widget _buildDataManagementSection(
+    UserProvider userProvider,
+    ExpenseProvider expenseProvider,
+  ) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0D0D),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.grey.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Data Management',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Export Data
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.download_rounded, size: 20),
+              label: const Text('Export Data (CSV)'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () {
+                ExportService.exportAndShare(context);
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Exports all expenses and income as a CSV file you can share or open in a spreadsheet app.',
+            style: TextStyle(
+              color: Colors.grey.withValues(alpha: 0.7),
+              fontSize: 12,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Backup Data (JSON)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.backup_rounded, size: 20),
+              label: const Text('Backup Data'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () {
+                BackupService.createAndShareBackup(context);
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Creates a full JSON backup of all your data that you can save and restore later.',
+            style: TextStyle(
+              color: Colors.grey.withValues(alpha: 0.7),
+              fontSize: 12,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Restore Data
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.restore_rounded, size: 20),
+              label: const Text('Restore from Backup'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => _pickAndRestoreBackup(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Pick a previously exported JSON backup file to restore all your data.',
+            style: TextStyle(
+              color: Colors.grey.withValues(alpha: 0.7),
+              fontSize: 12,
+            ),
+          ),
+
+          const Divider(height: 32, color: Colors.grey),
+
+          // Reset All Data
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.delete_forever, size: 20),
+              label: const Text('Reset All Data'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.withValues(alpha: 0.15),
+                foregroundColor: Colors.red,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: Colors.red.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+              onPressed: () =>
+                  _showResetDataDialog(userProvider, expenseProvider),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Permanently deletes all expenses, income, categories, accounts, and settings. This cannot be undone.',
+            style: TextStyle(
+              color: Colors.red.withValues(alpha: 0.5),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickAndRestoreBackup() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+
+    if (result == null || result.files.isEmpty) return;
+    final path = result.files.single.path;
+    if (path == null) return;
+
+    if (!mounted) return;
+
+    // Confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        title: const Text(
+          'Restore Backup?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'This will replace ALL current data with the data from the backup file.\n\nYour current data will be lost. Continue?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+            child: const Text('Restore',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    await BackupService.restoreFromFile(context, path);
+  }
+
+  void _showResetDataDialog(
+    UserProvider userProvider,
+    ExpenseProvider expenseProvider,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        title: const Text(
+          'Reset All Data?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'This will permanently delete ALL your data including expenses, income, categories, and settings.\n\nThis action cannot be undone. Consider exporting your data first.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+
+              await ExpenseSupabaseService.resetAllData();
+              expenseProvider.clearUserData();
+              await userProvider.clearUser();
+
+              if (mounted) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Reset Everything',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showDeleteAccountDialog(BankAccount account) {

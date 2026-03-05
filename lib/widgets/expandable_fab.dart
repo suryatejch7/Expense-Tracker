@@ -90,15 +90,8 @@ class _ExpandableFabState extends State<ExpandableFab>
           Positioned.fill(
             child: GestureDetector(
               onTap: _close,
-              child: AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  return Container(
-                    color: Colors.black.withValues(
-                      alpha: 0.5 * _controller.value.clamp(0.0, 1.0),
-                    ),
-                  );
-                },
+              child: Container(
+                color: Colors.transparent,
               ),
             ),
           ),

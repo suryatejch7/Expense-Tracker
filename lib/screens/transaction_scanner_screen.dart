@@ -40,6 +40,26 @@ class _TransactionScannerScreenState extends State<TransactionScannerScreen> {
   }
 
   @override
+  void dispose() {
+    // Clean up shared images from the intent cache
+    _cleanupSharedImage();
+    super.dispose();
+  }
+
+  Future<void> _cleanupSharedImage() async {
+    // Only clean up images that came from sharing intent (not gallery picks)
+    if (widget.initialImage == null) return;
+    try {
+      final file = widget.initialImage!;
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {
+      // Best-effort cleanup
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android Auto Backup rules.
+  Ensures SharedPreferences (and any internal files) are backed up
+  to Google Drive and restored automatically on reinstall.
+-->
+<full-backup-content>
+    <include domain="sharedpref" path="." />
+    <include domain="file" path="." />
+</full-backup-content>
