@@ -9,7 +9,9 @@ import '../widgets/category_summary.dart';
 enum RecentViewType { all, creditCard }
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final void Function(bool isSelectionMode, int selectedCount, VoidCallback clearSelection, VoidCallback deleteSelected)? onSelectionChanged;
+
+  const DashboardScreen({super.key, this.onSelectionChanged});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -18,6 +20,108 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final ScrollController _scrollController = ScrollController();
   RecentViewType _selectedViewType = RecentViewType.all;
+  bool _isSelectionMode = false;
+  final Set<String> _selectedExpenseIds = {};
+  final Set<String> _selectedIncomeIds = {};
+
+  int get _totalSelected => _selectedExpenseIds.length + _selectedIncomeIds.length;
+
+  void _notifySelectionChanged() {
+    widget.onSelectionChanged?.call(
+      _isSelectionMode,
+      _totalSelected,
+      _clearSelection,
+      _deleteSelected,
+    );
+  }
+
+  void _toggleExpenseSelection(String id) {
+    setState(() {
+      if (_selectedExpenseIds.contains(id)) {
+        _selectedExpenseIds.remove(id);
+      } else {
+        _selectedExpenseIds.add(id);
+      }
+      if (_totalSelected == 0) _isSelectionMode = false;
+    });
+    _notifySelectionChanged();
+  }
+
+  void _toggleIncomeSelection(String id) {
+    setState(() {
+      if (_selectedIncomeIds.contains(id)) {
+        _selectedIncomeIds.remove(id);
+      } else {
+        _selectedIncomeIds.add(id);
+      }
+      if (_totalSelected == 0) _isSelectionMode = false;
+    });
+    _notifySelectionChanged();
+  }
+
+  void _startSelectionWithExpense(String id) {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedExpenseIds.add(id);
+    });
+    _notifySelectionChanged();
+  }
+
+  void _startSelectionWithIncome(String id) {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedIncomeIds.add(id);
+    });
+    _notifySelectionChanged();
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedExpenseIds.clear();
+      _selectedIncomeIds.clear();
+    });
+    _notifySelectionChanged();
+  }
+
+  void _deleteSelected() {
+    final expenseCount = _selectedExpenseIds.length;
+    final incomeCount = _selectedIncomeIds.length;
+    final total = expenseCount + incomeCount;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        title: const Text('Delete Selected', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Delete $total selected item${total > 1 ? 's' : ''}? This cannot be undone.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              final provider = context.read<ExpenseProvider>();
+              for (final id in _selectedExpenseIds) {
+                provider.deleteExpense(id);
+              }
+              for (final id in _selectedIncomeIds) {
+                provider.deleteIncome(id);
+              }
+              _clearSelection();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -323,6 +427,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               currency: currency,
               category: category,
               index: index,
+              isSelectionMode: _isSelectionMode,
+              isSelected: _selectedExpenseIds.contains(expense.id),
+              onLongPress: () => _startSelectionWithExpense(expense.id!),
+              onSelectionTap: () => _toggleExpenseSelection(expense.id!),
             ),
           );
         },
@@ -380,6 +488,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               income: income,
               currency: currency,
               index: index,
+              isSelectionMode: _isSelectionMode,
+              isSelected: _selectedIncomeIds.contains(income.id),
+              onLongPress: () => _startSelectionWithIncome(income.id!),
+              onSelectionTap: () => _toggleIncomeSelection(income.id!),
             ),
           );
         },
@@ -451,12 +563,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       (transaction['data'] as Expense).category,
                     ),
                     index: index,
+                    isSelectionMode: _isSelectionMode,
+                    isSelected: _selectedExpenseIds.contains(transaction['data'].id),
+                    onLongPress: () => _startSelectionWithExpense(transaction['data'].id!),
+                    onSelectionTap: () => _toggleExpenseSelection(transaction['data'].id!),
                   )
                 : IncomeCard(
                     key: ValueKey('income_${transaction['data'].id}'),
                     income: transaction['data'],
                     currency: currency,
                     index: index,
+                    isSelectionMode: _isSelectionMode,
+                    isSelected: _selectedIncomeIds.contains(transaction['data'].id),
+                    onLongPress: () => _startSelectionWithIncome(transaction['data'].id!),
+                    onSelectionTap: () => _toggleIncomeSelection(transaction['data'].id!),
                   ),
           );
         },
@@ -634,6 +754,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               currency: currency,
               category: category,
               index: index - 1,
+              isSelectionMode: _isSelectionMode,
+              isSelected: _selectedExpenseIds.contains(expense.id),
+              onLongPress: () => _startSelectionWithExpense(expense.id!),
+              onSelectionTap: () => _toggleExpenseSelection(expense.id!),
             ),
           );
         },
@@ -843,9 +967,6 @@ class IncomeSummaryWidget extends StatelessWidget {
         final currency = expenseProvider.currency;
         final totalIncome = expenseProvider.totalIncomeThisMonth;
         final totalExpense = expenseProvider.currentMonthTotalExpense;
-        final netBalance = totalIncome - totalExpense;
-        final isPositive = netBalance >= 0;
-
         return Container(
           margin: const EdgeInsets.only(top: 16),
           padding: const EdgeInsets.all(16),
@@ -899,54 +1020,25 @@ class IncomeSummaryWidget extends StatelessWidget {
                 width: 1,
                 color: Colors.grey.withValues(alpha: 0.3),
               ),
-              // Net Balance section (center)
-              Expanded(
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.swap_vert_rounded,
-                          color: isPositive ? Colors.green : Colors.red,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Net',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[400],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${isPositive ? '+' : '-'}$currency${netBalance.abs().toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isPositive ? Colors.green : Colors.red,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Divider
-              Container(
-                height: 40,
-                width: 1,
-                color: Colors.grey.withValues(alpha: 0.3),
-              ),
               // Total Spent section
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      'Spent',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Icon(
+                          Icons.arrow_upward_rounded,
+                          color: Colors.red,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Spent',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(

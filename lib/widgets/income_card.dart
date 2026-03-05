@@ -8,12 +8,20 @@ class IncomeCard extends StatelessWidget {
   final Income income;
   final int index;
   final String currency;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final VoidCallback? onLongPress;
+  final VoidCallback? onSelectionTap;
 
   const IncomeCard({
     super.key,
     required this.income,
     required this.currency,
     this.index = 0,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onLongPress,
+    this.onSelectionTap,
   });
 
   @override
@@ -21,17 +29,31 @@ class IncomeCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => AddIncomeScreen(income: income),
-            ),
-          );
+          if (isSelectionMode) {
+            onSelectionTap?.call();
+          } else {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => AddIncomeScreen(income: income),
+              ),
+            );
+          }
         },
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
+              if (isSelectionMode) ...[
+                Icon(
+                  isSelected ? Icons.check_circle : Icons.circle_outlined,
+                  color: isSelected ? Colors.green : Colors.grey,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+              ],
               // Income icon - green themed (same size as expense card)
               Container(
                 width: 50,

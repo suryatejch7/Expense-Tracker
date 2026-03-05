@@ -513,26 +513,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
       if (widget.expense != null) {
         await provider.updateExpense(expense);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('✅ Expense updated successfully!'),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              duration: const Duration(seconds: 1),
-            ),
-          );
-        }
       } else {
         await provider.addExpense(expense);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('✅ Expense saved to cloud!'),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              duration: const Duration(seconds: 1),
-            ),
-          );
-        }
       }
 
       if (mounted) {

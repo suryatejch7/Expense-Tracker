@@ -11,11 +11,19 @@ import '../screens/crop_calibration_screen.dart';
 class GlassNavBar extends StatefulWidget {
   final int currentIndex;
   final Function(int) onTap;
+  final bool isSelectionMode;
+  final int selectedCount;
+  final VoidCallback? onClearSelection;
+  final VoidCallback? onDeleteSelected;
 
   const GlassNavBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.isSelectionMode = false,
+    this.selectedCount = 0,
+    this.onClearSelection,
+    this.onDeleteSelected,
   });
 
   @override
@@ -277,21 +285,36 @@ class _GlassNavBarState extends State<GlassNavBar>
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildNavItem(
-                            index: 0,
-                            icon: Icons.dashboard_rounded,
-                            activeIcon: Icons.dashboard,
-                            label: 'Home',
-                          ),
-                          _buildActionsNavItem(),
-                          _buildNavItem(
-                            index: 1,
-                            icon: Icons.pie_chart_outline_rounded,
-                            activeIcon: Icons.pie_chart_rounded,
-                            label: 'Categories',
-                          ),
-                        ],
+                        children: widget.isSelectionMode
+                            ? [
+                                _buildSelectionNavItem(
+                                  icon: Icons.close_rounded,
+                                  label: 'Cancel',
+                                  onTap: widget.onClearSelection,
+                                ),
+                                _buildSelectionCount(),
+                                _buildSelectionNavItem(
+                                  icon: Icons.delete_rounded,
+                                  label: 'Delete',
+                                  onTap: widget.onDeleteSelected,
+                                  color: Colors.red,
+                                ),
+                              ]
+                            : [
+                                _buildNavItem(
+                                  index: 0,
+                                  icon: Icons.dashboard_rounded,
+                                  activeIcon: Icons.dashboard,
+                                  label: 'Home',
+                                ),
+                                _buildActionsNavItem(),
+                                _buildNavItem(
+                                  index: 1,
+                                  icon: Icons.pie_chart_outline_rounded,
+                                  activeIcon: Icons.pie_chart_rounded,
+                                  label: 'Categories',
+                                ),
+                              ],
                       ),
                     ),
                   ),
@@ -399,6 +422,72 @@ class _GlassNavBarState extends State<GlassNavBar>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionNavItem({
+    required IconData icon,
+    required String label,
+    VoidCallback? onTap,
+    Color? color,
+  }) {
+    final itemColor = color ?? Colors.white;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 80,
+        height: 50,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(25),
+          color: Colors.transparent,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: itemColor, size: 24),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                color: itemColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionCount() {
+    return Container(
+      width: 80,
+      height: 50,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(25),
+        color: Colors.white.withValues(alpha: 0.12),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            '${widget.selectedCount}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          Text(
+            'selected',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 10,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -9,6 +9,10 @@ class ExpenseCard extends StatelessWidget {
   final int index;
   final String currency;
   final ExpenseCategory category;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final VoidCallback? onLongPress;
+  final VoidCallback? onSelectionTap;
 
   const ExpenseCard({
     super.key,
@@ -16,6 +20,10 @@ class ExpenseCard extends StatelessWidget {
     required this.currency,
     required this.category,
     this.index = 0,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onLongPress,
+    this.onSelectionTap,
   });
 
   @override
@@ -23,34 +31,48 @@ class ExpenseCard extends StatelessWidget {
     final categoryColor = category.color;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 6),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => AddExpenseScreen(expense: expense),
-            ),
-          );
+          if (isSelectionMode) {
+            onSelectionTap?.call();
+          } else {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => AddExpenseScreen(expense: expense),
+              ),
+            );
+          }
         },
+        onLongPress: onLongPress,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
+              if (isSelectionMode) ...[
+                Icon(
+                  isSelected ? Icons.check_circle : Icons.circle_outlined,
+                  color: isSelected ? categoryColor : Colors.grey,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+              ],
               Container(
-                width: 50,
-                height: 50,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: categoryColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
                   child: Text(
                     category.icon,
-                    style: const TextStyle(fontSize: 24),
+                    style: const TextStyle(fontSize: 20),
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,28 +80,34 @@ class ExpenseCard extends StatelessWidget {
                     Text(
                       expense.description,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       expense.category,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 12,
                         color: categoryColor,
                         fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (expense.payee != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         'Purpose: ${expense.payee}',
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: Colors.grey,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ],
@@ -91,21 +119,21 @@ class ExpenseCard extends StatelessWidget {
                   Text(
                     '$currency${expense.amount.toStringAsFixed(2)}',
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     _formatDate(expense.date),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
                   ),
                 ],
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.grey),
+                icon: const Icon(Icons.more_vert, color: Colors.grey, size: 20),
                 onSelected: (value) {
                   if (value == 'delete') {
                     _showDeleteDialog(context);

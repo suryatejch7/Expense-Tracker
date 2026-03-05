@@ -20,15 +20,29 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  bool _isSelectionMode = false;
+  int _selectedCount = 0;
+  VoidCallback? _clearSelection;
+  VoidCallback? _deleteSelected;
 
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const CategoriesScreen(),
-  ];
+  final List<Widget> _screens = [];
 
   @override
   void initState() {
     super.initState();
+    _screens.addAll([
+      DashboardScreen(
+        onSelectionChanged: (isSelectionMode, selectedCount, clearSelection, deleteSelected) {
+          setState(() {
+            _isSelectionMode = isSelectionMode;
+            _selectedCount = selectedCount;
+            _clearSelection = clearSelection;
+            _deleteSelected = deleteSelected;
+          });
+        },
+      ),
+      const CategoriesScreen(),
+    ]);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SharingIntentService.setContext(context);
       _checkDataConsistency();
@@ -66,6 +80,10 @@ class _MainScreenState extends State<MainScreen> {
                 });
               }
             },
+            isSelectionMode: _isSelectionMode,
+            selectedCount: _selectedCount,
+            onClearSelection: _clearSelection,
+            onDeleteSelected: _deleteSelected,
           ),
           if (_currentIndex == 0)
             Positioned(
