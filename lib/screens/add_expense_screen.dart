@@ -66,7 +66,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         _titleController.text = widget.prefilledPayee!;
       }
 
-      if (widget.prefilledCategory != null && widget.prefilledCategory!.isNotEmpty) {
+      if (widget.prefilledCategory != null &&
+          widget.prefilledCategory!.isNotEmpty) {
         _selectedCategory = widget.prefilledCategory!;
       }
 
@@ -85,7 +86,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       if (_selectedAccountId == null && provider.defaultAccount != null) {
         _selectedAccountId = provider.defaultAccount!.id;
       }
-      
+
       if (widget.autoSave) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _saveExpense();

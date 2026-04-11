@@ -24,7 +24,7 @@ class IntentService {
         }
       }
     });
-    
+
     // Check initial intent
     _getInitialIntent();
   }
@@ -42,14 +42,14 @@ class IntentService {
 
   static void _handleExpenseIntent(Map<String, dynamic> data) {
     if (_context == null) return;
-    
+
     // Extract fields
     final amountStr = data['amount']?.toString();
     final payeeStr = data['payee']?.toString() ?? data['title']?.toString();
     final categoryStr = data['category']?.toString();
     final notesStr = data['notes']?.toString();
     final autoSave = data['auto']?.toString().toLowerCase() == 'true';
-    
+
     double? prefilledAmount;
     if (amountStr != null) {
       prefilledAmount = double.tryParse(amountStr);
@@ -68,4 +68,3 @@ class IntentService {
     );
   }
 }
-

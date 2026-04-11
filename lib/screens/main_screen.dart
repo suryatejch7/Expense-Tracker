@@ -11,7 +11,6 @@ import '../widgets/liquid_glass_nav_bar.dart';
 import '../widgets/expandable_fab.dart';
 import '../providers/expense_provider.dart';
 
-
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -33,14 +32,15 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _screens.addAll([
       DashboardScreen(
-        onSelectionChanged: (isSelectionMode, selectedCount, clearSelection, deleteSelected) {
-          setState(() {
-            _isSelectionMode = isSelectionMode;
-            _selectedCount = selectedCount;
-            _clearSelection = clearSelection;
-            _deleteSelected = deleteSelected;
-          });
-        },
+        onSelectionChanged:
+            (isSelectionMode, selectedCount, clearSelection, deleteSelected) {
+              setState(() {
+                _isSelectionMode = isSelectionMode;
+                _selectedCount = selectedCount;
+                _clearSelection = clearSelection;
+                _deleteSelected = deleteSelected;
+              });
+            },
       ),
       const CategoriesScreen(),
     ]);
@@ -53,11 +53,11 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _checkDataConsistency() async {
     if (!mounted) return;
-    
+
     final expenseProvider = context.read<ExpenseProvider>();
-    
+
     final isConsistent = await expenseProvider.verifyDataConsistency();
-    
+
     if (!isConsistent && mounted) {
       await expenseProvider.reloadExpenses();
     }
@@ -69,9 +69,7 @@ class _MainScreenState extends State<MainScreen> {
       extendBody: true,
       body: Stack(
         children: [
-          Container(
-            color: Colors.black,
-          ),
+          Container(color: Colors.black),
           _screens[_currentIndex],
           GlassNavBar(
             currentIndex: _currentIndex,
@@ -119,7 +117,7 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ),
         ],
-      )
+      ),
     );
   }
 }
