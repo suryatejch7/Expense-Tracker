@@ -30,7 +30,7 @@ if (hasKeystore) {
 }
 
 android {
-    namespace "com.example.expensetracker"
+    namespace "com.android.vyayasans"
     compileSdk flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
@@ -49,7 +49,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.expensetracker"
+        applicationId "com.android.vyayasans"
         minSdkVersion flutter.minSdkVersion
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()

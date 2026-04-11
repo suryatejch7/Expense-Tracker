@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.expensetracker">
+    package="com.android.vyayasans">
 
     <!-- Permissions for OCR and image processing -->
     <uses-permission android:name="android.permission.CAMERA" />
@@ -39,6 +39,7 @@
                 android:resource="@style/NormalTheme" />
 
             <!-- Main launcher intent -->
+            <!-- Intent filter for MacroDroid --><intent-filter><action android:name="com.vyaya.ADD_EXPENSE" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

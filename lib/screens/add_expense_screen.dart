@@ -10,6 +10,9 @@ class AddExpenseScreen extends StatefulWidget {
   final String? prefilledPayee;
   final String? prefilledPaymentApp;
   final String? prefilledTransactionId;
+  final String? prefilledCategory;
+  final String? prefilledNotes;
+  final bool autoSave;
   final ExtractedTransaction? extractedData;
 
   const AddExpenseScreen({
@@ -19,6 +22,9 @@ class AddExpenseScreen extends StatefulWidget {
     this.prefilledPayee,
     this.prefilledPaymentApp,
     this.prefilledTransactionId,
+    this.prefilledCategory,
+    this.prefilledNotes,
+    this.autoSave = false,
     this.extractedData,
   });
 
@@ -59,6 +65,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       if (widget.prefilledPayee != null && widget.prefilledPayee!.isNotEmpty) {
         _titleController.text = widget.prefilledPayee!;
       }
+
+      if (widget.prefilledCategory != null && widget.prefilledCategory!.isNotEmpty) {
+        _selectedCategory = widget.prefilledCategory!;
+      }
+
+      if (widget.prefilledNotes != null && widget.prefilledNotes!.isNotEmpty) {
+        _noteController.text = widget.prefilledNotes!;
+      }
     }
   }
 
@@ -70,6 +84,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       final provider = context.read<ExpenseProvider>();
       if (_selectedAccountId == null && provider.defaultAccount != null) {
         _selectedAccountId = provider.defaultAccount!.id;
+      }
+      
+      if (widget.autoSave) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _saveExpense();
+        });
       }
     }
   }

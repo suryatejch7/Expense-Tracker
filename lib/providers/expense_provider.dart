@@ -130,7 +130,6 @@ class ExpenseProvider extends ChangeNotifier {
       await CacheService.cacheSettings(userSettings);
 
       notifyListeners();
-    } catch (e) {
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -383,7 +382,6 @@ class ExpenseProvider extends ChangeNotifier {
       await loadIncomes();
 
       notifyListeners();
-    } catch (e) {
     } finally {
       _isLoading = false;
       notifyListeners();

@@ -6,6 +6,7 @@ import 'add_expense_screen.dart';
 import 'add_income_screen.dart';
 import 'transaction_scanner_screen.dart';
 import '../services/sharing_intent_service.dart';
+import '../services/intent_service.dart';
 import '../widgets/liquid_glass_nav_bar.dart';
 import '../widgets/expandable_fab.dart';
 import '../providers/expense_provider.dart';
@@ -45,6 +46,7 @@ class _MainScreenState extends State<MainScreen> {
     ]);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SharingIntentService.setContext(context);
+      IntentService.setContext(context);
       _checkDataConsistency();
     });
   }
